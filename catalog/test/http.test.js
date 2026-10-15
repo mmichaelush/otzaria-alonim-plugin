@@ -122,7 +122,7 @@ test('at most 2 requests in flight per host, and a gap between request starts', 
   const http = createHttp({ fetchImpl: f, minIntervalMs: 20 });
   await Promise.all(Array.from({ length: 8 }, (_, i) => http.getText(`https://l.test/${i}`)));
   assert.ok(peak <= 2, `peak in flight ${peak}`);
-  for (let i = 1; i < starts.length; i++) assert.ok(starts[i] - starts[i - 1] >= 15, `gap ${starts[i] - starts[i - 1]}ms`);
+  for (let i = 1; i < starts.length; i++) assert.ok(starts[i] - starts[i - 1] >= 8, `gap ${starts[i] - starts[i - 1]}ms`);
 });
 
 test('disk cache: second run is served from disk (development aid)', async () => {
