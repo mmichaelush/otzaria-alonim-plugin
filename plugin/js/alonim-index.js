@@ -512,10 +512,8 @@
           this.aNoUrl.push(a.url ? 0 : 1);
         }
         this.maskc[i] = mask;
+        // (גיליון מוחלף: הנכסים החדשים נוספים בסוף העמודות; הישנים נשארים יתומים, וזה זניח.)
         this._derive(i);
-        if (!fresh && assets.length) {
-          // הנכסים של גיליון מוחלף נשמרים בסוף העמודות; הישנים נשארים יתומים (זניח).
-        }
       }
       if (this.needRegroup || this.bySeries.size === 0) this._rebuildGroups();
       else this._appendGroups(firstNew);

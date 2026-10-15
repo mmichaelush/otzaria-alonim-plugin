@@ -7,9 +7,6 @@
 
   const SOURCE_LANGUAGE = 'he';
 
-  /** מפתח הגדרת השפה של אוצריא, שמגיע ב-`settings.changed`. */
-  const LANGUAGE_SETTING_KEY = 'key-settings-language';
-
   const RTL_LANGUAGES = ['he', 'ar', 'fa', 'ur', 'yi'];
 
   let language = SOURCE_LANGUAGE;
@@ -77,7 +74,6 @@
 
   const api = {
     SOURCE_LANGUAGE,
-    LANGUAGE_SETTING_KEY,
     resolveLanguage,
     configure,
     onChange,
