@@ -1,14 +1,37 @@
 // מדידות ביצועים בדפדפן אמיתי: ציור ראשון (ביקור ראשון וביקור שני מהמטמון), בניית
 // האינדקס, חיפוש בהקלדה, צמתי DOM בגלילה וזיכרון. על הקטלוג הסינתטי (30K+) או על
 // האמיתי (`--real`, אחרי build-preview.mjs --catalog <dir>).
-//   node tools/preview/perf.mjs [--real]
+//   node tools/preview/perf.mjs [--real] [--catalog <dir>]
+// בונה את דף הבדיקה בעצמו (build-preview): `--real` על קטלוג אמיתי מ-`--catalog`, או `ALONIM_CATALOG`,
+// או `catalog/out`; בלי קטלוג כזה נכשל מיד עם הודעה ברורה (ולא בהמתנה לשדה חיפוש שאינו קיים).
 // מסיים בקוד 1 כשתקציב מופר (BUDGETS), כדי שנסיגה בביצועים תיכשל בבדיקה ולא תתגלה במשתמש.
-import { dirname, join } from 'node:path';
+import { execFileSync } from 'node:child_process';
+import { existsSync } from 'node:fs';
+import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { Browser } from './cdp.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 const real = process.argv.includes('--real');
+const argAt = process.argv.indexOf('--catalog');
+const catalogDir = resolve(
+  (argAt > 0 && process.argv[argAt + 1]) ||
+    process.env.ALONIM_CATALOG ||
+    join(here, '..', '..', 'catalog', 'out'),
+);
+if (real && !existsSync(join(catalogDir, 'manifest.json'))) {
+  console.error(
+    'perf --real: אין קטלוג ב-' +
+      catalogDir +
+      ' (חסר manifest.json). בנו אחד: node catalog/build.mjs --out catalog/out --cache, או ציינו --catalog <תיקייה>.',
+  );
+  process.exit(2);
+}
+execFileSync(
+  process.execPath,
+  [join(here, 'build-preview.mjs'), ...(real ? ['--catalog', catalogDir] : ['--large'])],
+  { stdio: 'ignore' },
+);
 const file = real ? 'preview-real.html' : 'preview-large.html';
 const base = pathToFileURL(join(here, 'out', file)).href;
 /** תקציבי ביצועים (ms אלא אם נאמר אחרת). מדידה על המחשב של המפתח; התקציב נדיב פי 2-3 מהמדידה. */
@@ -35,7 +58,7 @@ try {
     const t0 = Date.now();
     await page.goto(`${base}?today=2026-10-15&page=all${extra}`);
     await page.waitFor(
-      "window.__alonimApp && document.querySelectorAll('.card').length > 0",
+      "window.__alonimApp && document.querySelectorAll('.card').length > 0 && Boolean(document.querySelector('.search-input'))",
       60000,
     );
     const firstCard = Date.now() - t0;
