@@ -15,6 +15,8 @@ const origin = `http://127.0.0.1:${port}`;
 const qaLog = resolve(arg('--qa-log', 'tools/qa/out/qa-console.log'));
 
 // ערוץ שליטה ל-qa-probe.js: הפרוב עושה long-poll ל-/qa/poll, ו-POST ל-/qa/exec מוסר לו קוד.
+// מצב תקלה לבדיקת ירידה בשלבים: down=503 | reset | hang (חל על /data ו-/files בלבד; /qa תמיד חי).
+let outage = null;
 const queue = [];
 const waiters = [];
 const results = new Map();
@@ -65,6 +67,10 @@ function rewriteManifest(text) {
 async function qaRoute(path, url, req, res) {
   const body = req.method === 'POST' ? await readBody(req) : '';
   if (path === '/qa/hello') return res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' }).end('<!doctype html><meta charset=utf-8><body style="font:24px sans-serif;background:#cfe">hello from QA server (html in iframe)</body>');
+  if (path === '/qa/mode') {
+    outage = url.searchParams.get('down') || null;
+    return res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify({ outage }));
+  }
   if (path === '/qa/log') {
     const lines = JSON.parse(body || '[]').map((e) => JSON.stringify(e)).join(String.fromCharCode(10)) + String.fromCharCode(10);
     await appendFile(qaLog, lines);
@@ -99,6 +105,9 @@ createServer(async (req, res) => {
     const path = decodeURIComponent(url.pathname);
     res.setHeader('Access-Control-Allow-Origin', '*');
     if (path.startsWith('/qa/')) return await qaRoute(path, url, req, res);
+    if (outage === '503') return res.writeHead(503, { 'Retry-After': '1' }).end('QA outage');
+    if (outage === 'reset') return req.socket.destroy();
+    if (outage === 'hang') return await new Promise(() => {});
     if (path.startsWith('/data/')) {
       const rel = path.slice(6);
       if (rel.includes('..')) throw Object.assign(new Error('bad'), { status: 400 });
