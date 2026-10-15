@@ -1939,6 +1939,50 @@ kbd {
   border-color: var(--color-outline-variant);
 }
 
+.diag-facts dt {
+  min-width: 11em;
+}
+
+.table-scroll {
+  overflow-x: auto;
+}
+
+.diag-table {
+  width: 100%;
+  font-size: 0.88em;
+  border-collapse: collapse;
+}
+
+.diag-table th,
+.diag-table td {
+  padding: var(--space-1) var(--space-2);
+  text-align: start;
+  border-bottom: 1px solid var(--color-outline-variant);
+}
+
+.diag-table .is-yes {
+  font-weight: 600;
+  color: var(--color-primary);
+}
+
+.diag-table .is-no {
+  color: var(--color-on-surface-variant);
+}
+
+.log-area {
+  max-height: 16em;
+  padding: var(--space-2);
+  margin: 0;
+  overflow: auto;
+  font-family: var(--font-mono, monospace);
+  font-size: 0.78em;
+  line-height: 1.5;
+  white-space: pre-wrap;
+  overflow-wrap: anywhere;
+  background: var(--color-surface-container-high);
+  border-radius: var(--radius-sm);
+}
+
 .syntax dt code {
   padding: 0.1em 0.4em;
   font-family: var(--font-mono, monospace);

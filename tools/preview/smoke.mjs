@@ -39,6 +39,8 @@ const scenarios = [
   ['settings-general', 'page=settings&section=general', "document.querySelector('[data-section=general] .switch')"],
   ['settings-storage', 'page=settings&section=disk', "document.querySelector('[data-section=disk] .history-row') && document.querySelector('[data-section=disk] .setting-actions')"],
   ['settings-help', 'page=settings&section=help', "document.querySelector('[data-section=help] .syntax') && document.querySelector('[data-section=help] .shortcuts')"],
+  ['settings-diagnostics', 'page=settings&section=diagnostics', "document.querySelector('[data-section=diagnostics] .diag-table') && document.querySelector('[data-section=diagnostics] .log-area')"],
+  ['settings-diagnostics-legacy', 'page=settings&section=diagnostics&host=legacy', "document.querySelector('[data-section=diagnostics] .diag-table .is-no')"],
   ['welcome', 'welcome=1', "document.querySelector('.welcome')"],
   ['settings-backup', 'page=settings&section=backup', "document.querySelector('.code-area')"],
   ['details', 'details=0', "document.querySelector('.dialog .asset-list')"],

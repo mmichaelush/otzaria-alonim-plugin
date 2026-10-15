@@ -25,7 +25,7 @@
 
   const copyText = Ui.copyText;
 
-  const SECTION_IDS = ['folder', 'sync', 'queue', 'auto', 'general', 'disk', 'rules', 'sources', 'look', 'backup', 'help', 'about'];
+  const SECTION_IDS = ['folder', 'sync', 'queue', 'auto', 'general', 'disk', 'rules', 'sources', 'look', 'backup', 'help', 'diagnostics', 'about'];
 
   class SettingsScreen {
     constructor(app) {
@@ -118,6 +118,7 @@
         this.section('look', t('מראה ושפה'), 'eye_24_regular', ...this.lookBody()),
         this.section('backup', t('ייצוא וייבוא הגדרות'), 'arrow_export_24_regular', ...this.backupBody()),
         this.section('help', t('עזרה וקיצורים'), 'keyboard_24_regular', ...A.HelpUi.body(app)),
+        this.section('diagnostics', t('אבחון'), 'bug_24_regular', ...A.DiagnosticsUi.body(app, () => this.render())),
         this.section('about', t('אודות ודיווח'), 'info_24_regular', ...this.aboutBody()),
       );
       this.host.replaceChildren(page);
@@ -422,18 +423,7 @@
     // --------------------------------------------------------- אודות
 
     reportText() {
-      const { app } = this;
-      const s = app.catalog.status;
-      return [
-        'Alonim plugin ' + Core.PLUGIN_VERSION,
-        'Otzaria ' + (app.hostVersion || '?') + ' / ' + (app.platform || '?') + ' / ' + I18n.language,
-        'catalog v' + (app.catalog.meta.catalogVersion || 0) + ', issues ' + app.index.size + ', phase ' + s.phase + (s.error ? ' (' + s.error + ')' : ''),
-        'folder: ' + (app.files.hasFolder ? app.files.diskState.status : 'none') + ', files ' + app.files.diskState.count,
-        'state read-only: ' + app.state.readOnly,
-        '',
-        A.Log.shared.tail(40),
-        app.log.tail(40),
-      ].join('\n');
+      return A.Diagnostics.report(this.app, { tail: 40 });
     }
 
     aboutBody() {

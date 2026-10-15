@@ -17,12 +17,14 @@
 
   /** הגרסה שבה נוספו השיטות החדשות (docs/HOST_API_PROPOSAL.md). */
   const MIN_VERSION = '0.9.99';
+  /** מסמן מחרוזת לתרגום בלי לתרגם אותה עכשיו (התרגום בזמן הציור). */
+  const N = (text) => text;
 
   /** שם יכולת ← השיטה שמאחוריה (null = נגזרת מיכולת אחרת) ותווית לאבחון. */
   const FEATURES = Object.freeze({
-    fetchFile: { method: 'network.fetchFile', label: 'קריאה בלי הורדה' },
-    printFile: { method: 'ui.printFile', label: 'הדפסת קובץ' },
-    frameFile: { method: null, label: 'תצוגה ישירה בצפיין' },
+    fetchFile: { method: 'network.fetchFile', label: N('קריאה בלי הורדה') },
+    printFile: { method: 'ui.printFile', label: N('הדפסת קובץ') },
+    frameFile: { method: null, label: N('תצוגה ישירה בצפיין') },
   });
 
   /** `1.2.3` ← מספרים; חלק חסר = 0, טקסט אחרי המספר נזרק (`0.9.99-dev`). */

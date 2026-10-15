@@ -53,7 +53,7 @@
       this.doc = doc;
       this.bridge = bridge;
       this.log = new A.Log.Log();
-      this.runtime = A.Runtime.createRuntime(bridge, { logger: this.log });
+      this.runtime = A.Runtime.createRuntime(bridge, { logger: this.log.scoped('host') });
       this.online = null;
       this.platform = '';
       this.hostVersion = '';
@@ -67,12 +67,12 @@
       this.newCutoff = Date.now() - NEW_DAYS * DAY_MS;
 
       /** יכולות המארח (fetchFile, printFile): המקור היחיד לשאלה "האם יש". */
-      this.caps = new A.Capabilities.Capabilities({ log: this.log });
-      this.state = new A.State.State(this.runtime, { log: this.log });
+      this.caps = new A.Capabilities.Capabilities({ log: this.log.scoped('host') });
+      this.state = new A.State.State(this.runtime, { log: this.log.scoped('state') });
       this.index = new A.Index.CatalogIndex({ source: (id) => this.sourceInfo(id).name });
-      this.catalog = new A.Catalog.Catalog(this.runtime, { log: this.log, online: () => this.online });
+      this.catalog = new A.Catalog.Catalog(this.runtime, { log: this.log.scoped('catalog'), online: () => this.online });
       this.files = new A.Files.Files(this.runtime, {
-        log: this.log,
+        log: this.log.scoped('files'),
         getFolder: () => this.state.prefs.folder,
         setFolder: (folder) => this.state.setPref('folder', folder),
         hiddenSources: (item) => (this.index.decision(this.index.get(item.id) || item).hiddenSources || []),
