@@ -129,6 +129,8 @@
 
       await this.state.load();
       this.applyPrefs();
+      this.state.beginVisit();
+      this.restoreViews();
       this.state.onChange((domains) => this.onStateChange(domains));
       this.index.setRules(this.state.rules);
 
@@ -162,6 +164,15 @@
       this.online = value;
       this.emit('sync');
       if (value && was === false) this.catalog.sync();
+    }
+
+    /** מצב המסכים מההפעלה הקודמת: שאילתה, מסננים ומיון ב"כל העלונים", ורשימת הסדרות. */
+    restoreViews() {
+      const all = this.state.viewState('all');
+      this.view.all.sort = this.state.prefs.sort;
+      if (all) Object.assign(this.view.all, { query: all.query, filters: all.filters, sort: all.sort, includeHidden: all.includeHidden });
+      const series = this.state.viewState('seriesList');
+      if (series) Object.assign(this.view.seriesList, series);
     }
 
     /** "שנים ישנות": טוען את השרדים הקרים (לא נטענים אוטומטית, בגלל הנפח). */
@@ -331,11 +342,16 @@
 
     /** המסנן והפרדיקטים של האינדקס: מצב המשתמש. */
     searchContext() {
+      const inLists = new Set();
+      for (const list of this.state.lists) for (const entry of list.entries) inLists.add(entry.id);
       return {
         isFavorite: (it) => this.state.isFavorite(it.id),
+        isFollowed: (it) => this.state.isFollowed(it.series),
         isRead: (it) => this.state.isRead(it.id),
         isDownloaded: (it) => this.files.isDownloaded(it),
+        inList: (it) => inLists.has(it.id),
         isNew: (it) => this.isNew(it),
+        lastVisit: this.state.visitBase,
       };
     }
 
@@ -352,6 +368,7 @@
       if (o.mineTab) this.view.mine.tab = o.mineTab;
       if (o.section) this.view.settings.section = o.section;
       if (o.query !== undefined) this.view.all.query = o.query;
+      if (o.filters) this.view.all.filters = A.Filters.clean(o.filters);
       this.emit('route', o);
       this.state.flush();
     }

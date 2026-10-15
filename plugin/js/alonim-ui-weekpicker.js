@@ -7,7 +7,6 @@
   const Ui = A.Ui;
   const Core = A.Core;
   const Weeks = A.Weeks;
-  const Heb = A.HebCal;
   const I18n = A.I18n;
   const { el } = Ui;
   const t = (text, vars) => I18n.t(text, vars);
@@ -20,7 +19,7 @@
     { id: 'holiday', label: N('חגים') },
   ]);
 
-  const yearLabel = (hy) => Heb.yearLetters(hy) + ' (' + hy + ')';
+  const yearLabel = (hy) => A.UiDates.yearLabel(hy);
 
   /**
    * [options]: `views` (מ-`Weeks.build`), `currentIndex`, `selectedIndex`,
@@ -160,35 +159,9 @@
       el('div', { class: 'picker-inline' }, dateInput, Ui.button('tonal', t('מעבר'), () => goToDate(Core.parseYmd(dateInput.value)), { className: 'button-small', key: 'go-gregorian' })),
     );
 
-    const h0 = Heb.fromDate(base);
-    const hebrewState = { y: h0.year, m: h0.month, d: h0.day };
-    const yearValues = [];
     const minYear = Math.min(5770, years.length ? years[years.length - 1].hy : 5770);
     const maxYear = Math.max(5800, years.length ? years[0].hy + 2 : 5800);
-    for (let y = maxYear; y >= minYear; y--) yearValues.push({ value: y, label: yearLabel(y) });
-    const daySelect = el('select', { class: 'select', 'aria-label': t('יום בחודש') });
-    const monthSelect = el('select', { class: 'select', 'aria-label': t('חודש עברי') });
-    const hYearSelect = Ui.selectField(t('שנה עברית'), yearValues, hebrewState.y, (v) => {
-      hebrewState.y = Number(v);
-      drawHebrewParts();
-    });
-
-    function drawHebrewParts() {
-      const months = Heb.monthsOf(hebrewState.y);
-      if (!months.includes(hebrewState.m)) hebrewState.m = hebrewState.m === 'adar' ? 'adar2' : months.includes('adar') ? 'adar' : months[0];
-      Ui.fill(monthSelect, months.map((m) => el('option', { value: m, selected: m === hebrewState.m }, Heb.monthName(m, I18n.language))));
-      const days = Heb.daysInMonth(hebrewState.y, hebrewState.m);
-      hebrewState.d = Math.min(hebrewState.d, days);
-      Ui.fill(daySelect, Array.from({ length: days }, (_, k) => el('option', { value: k + 1, selected: k + 1 === hebrewState.d }, I18n.language === 'he' ? Heb.numeral(k + 1) : String(k + 1))));
-    }
-    monthSelect.addEventListener('change', () => {
-      hebrewState.m = monthSelect.value;
-      drawHebrewParts();
-    });
-    daySelect.addEventListener('change', () => {
-      hebrewState.d = Number(daySelect.value);
-    });
-    drawHebrewParts();
+    const hebrewDate = A.UiDates.hebrewSelects(base, null, { years: { from: minYear, to: maxYear } });
     const hebrew = el(
       'div',
       { class: 'picker-field' },
@@ -196,10 +169,8 @@
       el(
         'div',
         { class: 'picker-inline' },
-        daySelect,
-        monthSelect,
-        hYearSelect,
-        Ui.button('tonal', t('מעבר'), () => goToDate(Heb.toDate(hebrewState.y, hebrewState.m, hebrewState.d)), { className: 'button-small', key: 'go-hebrew' }),
+        hebrewDate.el,
+        Ui.button('tonal', t('מעבר'), () => goToDate(hebrewDate.date()), { className: 'button-small', key: 'go-hebrew' }),
       ),
     );
 

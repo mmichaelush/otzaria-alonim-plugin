@@ -192,6 +192,130 @@ async function weekFlows(browser, open, check) {
   await browser.closePage(page);
 }
 
+/**
+ * חלון המסננים ב"כל העלונים": בחירה מרובה, תגיות, איפוס, טווחים והגדרות שמורות.
+ * התוצאה מושווית לספירה נאיבית על הגיליונות שבאינדקס (לא על `search`).
+ */
+async function filterFlows(browser, open, check) {
+  const page = await open('page=all');
+  const brute = (predicate) => page.eval(`(() => {
+    const idx = window.__alonimApp.index;
+    let n = 0;
+    for (let i = 0; i < idx.size; i++) { const it = idx.item(i); if (idx.vis[i] === 1 && (${predicate})(it)) n++; }
+    return n;
+  })()`);
+  const shown = async () => Number((await page.eval("document.querySelector('.results-count').textContent")).replace(/[^\d]/g, ''));
+  const click = (selector) => page.eval(`document.querySelector(${JSON.stringify(selector)}).click()`);
+  const tick = async (group, value) => {
+    await page.eval(`document.querySelector('[data-group="${group}"] input[value="${value}"]').click()`);
+    await page.sleep(220);
+  };
+
+  await click('[data-key=filters]');
+  await page.sleep(300);
+  check('חלון מסננים נפתח עם קבוצות', await page.eval("document.querySelectorAll('.filter-group').length >= 10"));
+  const total = await shown();
+
+  // "או" בתוך מסנן, "וגם" בין מסננים
+  const noach = 'noach';
+  await tick('parasha', noach);
+  await tick('parasha', 'bereshit');
+  let expected = await brute(`(it) => it.parasha.includes('noach') || it.parasha.includes('bereshit')`);
+  check('פרשה מרובה (או): הספירה בכותרת שווה לספירה נאיבית', (await shown()) === expected && expected > 0, `shown ${await shown()} expected ${expected}`);
+  check('הכפתור בחלון מראה את אותו מספר', await page.eval(`document.querySelector('[data-key=done]').textContent.includes('${expected}')`));
+  await tick('source', 'ladaat');
+  await tick('source', 'tashma');
+  expected = await brute(`(it) => (it.parasha.includes('noach') || it.parasha.includes('bereshit')) && it.assets.some((a) => a.src === 'ladaat' || a.src === 'tashma')`);
+  check('פרשה (או) וגם מקור (או)', (await shown()) === expected, `shown ${await shown()} expected ${expected}`);
+  await tick('lang', 'he');
+  expected = await brute(`(it) => (it.parasha.includes('noach') || it.parasha.includes('bereshit')) && it.assets.some((a) => a.src === 'ladaat' || a.src === 'tashma') && it.lang === 'he'`);
+  check('שלושה מסננים יחד', (await shown()) === expected, `shown ${await shown()} expected ${expected}`);
+
+  // הספירה ליד ערך = מה שיתקבל אם בוחרים רק בו (בנוסף לשאר המסננים)
+  const optCount = Number((await page.eval(`document.querySelector('[data-group="lang"] input[value="yi"]').closest('label').querySelector('.opt-count').textContent`)).replace(/[^\d]/g, ''));
+  const yiExpected = await brute(`(it) => (it.parasha.includes('noach') || it.parasha.includes('bereshit')) && it.assets.some((a) => a.src === 'ladaat' || a.src === 'tashma') && it.lang === 'yi'`);
+  check('הספירה ליד ערך שלא נבחר מדויקת', optCount === yiExpected, `shown ${optCount} expected ${yiExpected}`);
+
+  // סגירה: תגיות פעילות
+  await click('[data-key=done]');
+  await page.sleep(300);
+  check('תגית לכל ערך שנבחר', (await page.eval("document.querySelectorAll('.filter-tag').length")) === 5, String(await page.eval("document.querySelectorAll('.filter-tag').length")));
+  await click('.filter-tag');
+  await page.sleep(300);
+  check('הסרת תגית מעדכנת את הרשימה', (await page.eval("document.querySelectorAll('.filter-tag').length")) === 4);
+
+  // טווח תאריכים (לועזי)
+  await click('[data-key=filters]');
+  await page.sleep(300);
+  await click('[data-key=reset]');
+  await page.sleep(300);
+  check('איפוס המסננים מחזיר לסך הכל', (await shown()) === total && (await page.eval("document.querySelectorAll('.filter-tag').length")) === 0, `shown ${await shown()} total ${total}`);
+  await page.eval(`(() => {
+    const group = document.querySelector('[data-group="date"]');
+    group.open = true;
+    const [from, to] = group.querySelectorAll('input[type=date]');
+    from.value = '2026-03-01';
+    from.dispatchEvent(new Event('change', { bubbles: true }));
+    to.value = '2026-06-30';
+    to.dispatchEvent(new Event('change', { bubbles: true }));
+  })()`);
+  await page.sleep(300);
+  expected = await brute("(it) => Boolean(it.date) && it.date >= '2026-03-01' && it.date <= '2026-06-30'");
+  check('טווח תאריכים לועזי', (await shown()) === expected && expected > 0, `shown ${await shown()} expected ${expected}`);
+  const caption = await page.eval("document.querySelector('[data-group=date] .range-caption').textContent");
+  check('מתחת לתאריך מופיע התאריך העברי', /בניסן|באדר|בשבט|באייר|בסיוון/.test(caption), caption);
+  // טווח עמודים
+  await page.eval(`(() => {
+    const group = document.querySelector('[data-group="pages"]');
+    const [min] = group.querySelectorAll('input[type=number]');
+    min.value = '20';
+    min.dispatchEvent(new Event('change', { bubbles: true }));
+  })()`);
+  await page.sleep(300);
+  expected = await brute("(it) => Boolean(it.date) && it.date >= '2026-03-01' && it.date <= '2026-06-30' && Math.max(0, ...it.assets.map((a) => a.pages || 0)) >= 20");
+  check('תאריך וגם עמודים', (await shown()) === expected, `shown ${await shown()} expected ${expected}`);
+
+  // הגדרה שמורה
+  await page.eval(`(() => {
+    const form = document.querySelector('.preset-form');
+    form.hidden = false;
+    form.querySelector('input').value = 'ניסיון';
+    form.requestSubmit();
+  })()`);
+  await page.sleep(300);
+  check('הגדרה נשמרה ומופיעה ברשימה', await page.eval("[...document.querySelectorAll('.preset-select option')].some((o) => o.textContent === 'ניסיון')"));
+  await click('[data-key=reset]');
+  await page.sleep(250);
+  await page.eval(`(() => {
+    const select = document.querySelector('.preset-select');
+    select.value = [...select.options].find((o) => o.textContent === 'ניסיון').value;
+    select.dispatchEvent(new Event('change', { bubbles: true }));
+  })()`);
+  await page.sleep(350);
+  check('החלת הגדרה שמורה משחזרת את המסננים', (await shown()) === expected, `shown ${await shown()} expected ${expected}`);
+  await page.key('Escape');
+  await page.sleep(250);
+
+  // מצב הלשונית נשמר במעבר בין לשוניות
+  await page.eval("window.__alonimApp.go('series')");
+  await page.sleep(300);
+  await page.eval("window.__alonimApp.go('all')");
+  await page.sleep(400);
+  check('המסננים נשמרים בחזרה ללשונית', (await page.eval("document.querySelectorAll('.filter-tag').length")) === 2 && (await shown()) === expected, `tags ${await page.eval("document.querySelectorAll('.filter-tag').length")}`);
+  check('המסננים נשמרו גם באחסון', await page.eval("Boolean(window.__alonimApp.state.viewState('all') && window.__alonimApp.state.viewState('all').filters.pagesMin === 20)"));
+  check('מסננים: בלי שגיאות קונסול', page.errors.length === 0, page.errors.join('\n'));
+  await browser.closePage(page);
+
+  // 400px: החלון לא גולש
+  const narrow = await open('page=all', undefined, 400);
+  await narrow.eval("document.querySelector('[data-key=filters]').click()");
+  await narrow.sleep(350);
+  await narrow.eval("document.querySelectorAll('.filter-group').forEach((g) => (g.open = true))");
+  await narrow.sleep(200);
+  check('חלון מסננים ב-400px בלי גלישה אופקית', await narrow.eval("document.documentElement.scrollWidth <= window.innerWidth + 1 && [...document.querySelectorAll('.dialog, .dialog-body')].every((n) => n.scrollWidth <= n.clientWidth + 1)"), await narrow.eval("document.documentElement.scrollWidth + ' > ' + window.innerWidth"));
+  await browser.closePage(narrow);
+}
+
 /** תרחישי זרימה: נבדקים בפועל, לא רק נטענים. */
 async function flows(browser) {
   const open = async (query, base, width) => {
@@ -248,6 +372,7 @@ async function flows(browser) {
   await browser.closePage(page);
 
   await weekFlows(browser, open, check);
+  await filterFlows(browser, open, check);
 
   // לחיצה על כרטיס = קריאה; הורדה = שמירה קבועה ומצב "הורד" מהדיסק
   page = await open('page=all');

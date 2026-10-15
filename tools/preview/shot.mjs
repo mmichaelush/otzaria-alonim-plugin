@@ -17,6 +17,11 @@ try {
   const html = real ? 'preview-real.html' : large ? 'preview-large.html' : 'preview.html';
   await page.goto(pathToFileURL(join(here, 'out', html)).href + '?today=2026-10-15&' + (query || ''));
   await page.sleep(Number(process.env.SETTLE || 1800));
+  // SHOT_EVAL: קוד שרץ בדף לפני הצילום (למשל פתיחת חלון).
+  if (process.env.SHOT_EVAL) {
+    await page.eval(process.env.SHOT_EVAL);
+    await page.sleep(600);
+  }
   await page.screenshot(resolve(file || join(here, 'out', 'shot.png')));
   if (page.errors.length) console.error('ERRORS:\n' + page.errors.join('\n'));
 } finally {
