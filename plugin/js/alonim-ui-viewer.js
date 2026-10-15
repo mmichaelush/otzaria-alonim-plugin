@@ -1,5 +1,7 @@
 // צפיין ה-PDF הפנימי. הקובץ נפתח מהתיקייה של המשתמש (`fs.openFolderFile`) ומוצג
-// ב-`<iframe>` על כתובת הקובץ המקומית (מובנה ב-Windows/macOS). לא הורד עדיין?
+// ב-`<iframe>` על כתובת `blob:` (מובנה ב-Windows/macOS). כתובת הקובץ של אוצריא עצמה
+// אינה ניתנת להצגה בו: השרת שלה שולח `X-Frame-Options: SAMEORIGIN` ודף התוסף הוא
+// `file://`, ולכן הקובץ נקרא ב-`fetch` ונעטף ב-Blob. לא הורד עדיין?
 // מורידים לתיקייה זמנית (`_קריאה`) ואז מציגים, עם חיווי. מהצפיין אפשר להדפיס,
 // לשמור, לעבור לקודם/הבא ולפתוח באתר המקור.
 //
@@ -16,6 +18,7 @@
   const Ui = A.Ui;
   const Cards = A.Cards;
   const Core = A.Core;
+  const FilesApi = A.Files;
   const I18n = A.I18n;
   const { el, icon } = Ui;
   const t = (text, vars) => I18n.t(text, vars);
@@ -45,6 +48,7 @@
     open(viewer) {
       // המיקוד חוזר למי שפתח את הצפיין (לא לפתיחה קודמת, וגם לא בין קודם/הבא).
       if (!this.state) this.returnFocus = document.activeElement;
+      this.releaseBlob();
       this.state = { ...viewer, phase: 'loading', error: '', file: null, job: null };
       this.token = viewer.token;
       this.app.shell.dataset.mode = 'viewer';
@@ -53,7 +57,14 @@
       this.load();
     }
 
+    /** משחרר את ה-Blob של הקובץ הפתוח (הזיכרון חוזר רק אחרי revoke). */
+    releaseBlob() {
+      const file = this.state && this.state.file;
+      if (file && file.blobUrl) this.app.files.releaseBlobUrl(file.blobUrl);
+    }
+
     close() {
+      this.releaseBlob();
       this.state = null;
       this.token++;
       this.host.hidden = true;
@@ -96,10 +107,29 @@
         });
         if (token !== this.token) return;
         s.file = file;
-        s.phase = platformOk ? 'ready' : 'unsupported';
+        s.reason = '';
+        if (platformOk && file.size > FilesApi.MAX_INLINE_BYTES) {
+          s.phase = 'unsupported';
+          s.reason = 'size';
+        } else if (platformOk) {
+          // אחרי ההורדה: מציגים "פותח…" (לא מצב התור הישן) בזמן שהקובץ נטען ל-Blob.
+          s.job = null;
+          s.phase = 'loading';
+          this.drawBody();
+          this.refreshBar();
+          const blobUrl = await app.files.readBlobUrl(file);
+          if (token !== this.token) {
+            app.files.releaseBlobUrl(blobUrl);
+            return;
+          }
+          file.blobUrl = blobUrl;
+          s.phase = 'ready';
+        } else {
+          s.phase = 'unsupported';
+        }
         this.drawBody();
         this.refreshBar();
-        if (s.options.print && platformOk) setTimeout(() => token === this.token && this.print(), 700);
+        if (s.options.print && s.phase === 'ready') setTimeout(() => token === this.token && this.print(), 700);
         else if (s.options.print) this.print();
       } catch (error) {
         if (token !== this.token) return;
@@ -187,7 +217,7 @@
       const item = s.item;
       let content;
       if (s.phase === 'ready' && s.file) {
-        this.frame = el('iframe', { class: 'viewer-frame', src: s.file.url, title: Cards.titleOf(item), referrerpolicy: 'no-referrer' });
+        this.frame = el('iframe', { class: 'viewer-frame', src: s.file.blobUrl, title: Cards.titleOf(item), referrerpolicy: 'no-referrer' });
         content = this.frame;
       } else if (s.phase === 'nofolder') {
         content = Ui.stateCard({
@@ -199,7 +229,7 @@
       } else if (s.phase === 'unsupported') {
         content = Ui.stateCard({
           icon: 'document_pdf_24_regular',
-          title: t('הצפיין הפנימי אינו נתמך במערכת הזו'),
+          title: s.reason === 'size' ? t('הקובץ גדול מדי לצפיין הפנימי') : t('הצפיין הפנימי אינו נתמך במערכת הזו'),
           text: t('הקובץ הורד לתיקייה. אפשר לפתוח אותו בקורא של אוצריא.'),
           actions: [Ui.button('filled', t('פתח בקורא של אוצריא'), () => this.openInReader(), { icon: 'book_open_24_regular' }), Ui.button('text', t('פתח באתר המקור'), () => app.openSiteFor(item), { icon: 'open_24_regular' })],
         });

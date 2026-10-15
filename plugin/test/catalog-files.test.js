@@ -331,3 +331,29 @@ test('_loadJob מדלג על קובץ שכבר נטען מהמטמון בגיב�
   await catalog._loadJob({ ...job, force: true });
   assert.equal(first.sdk.streams - before, 1, 'force מוריד שוב');
 });
+
+test('צפיין: readBlobUrl קורא את הקובץ ב-fetch ומחזיר blob: (X-Frame-Options של אוצריא חוסם iframe ישיר)', async () => {
+  const sdk = createFakeSdk();
+  const files = filesFor(sdk, { fetch: globalThis.fetch.bind(globalThis) });
+  await files.pickFolder();
+  const opened = await files.openForReading(ISSUE);
+  const blobUrl = await files.readBlobUrl(opened);
+  assert.match(blobUrl, /^blob:/);
+  const res = await fetch(blobUrl);
+  assert.equal(res.headers.get('content-type'), 'application/pdf');
+  assert.equal(new TextDecoder().decode((await res.arrayBuffer()).slice(0, 5)), '%PDF-');
+  files.releaseBlobUrl(blobUrl);
+});
+
+test('צפיין: קובץ שאינו PDF או fetch שנכשל זורקים open_failed', async () => {
+  const sdk = createFakeSdk();
+  const notPdf = filesFor(sdk, { fetch: async () => ({ ok: true, blob: async () => new Blob(['<html>'], { type: 'text/html' }) }) });
+  await assert.rejects(() => notPdf.readBlobUrl({ url: 'http://127.0.0.1:1/x' }), (e) => e instanceof FileError && e.code === 'open_failed');
+  const http = filesFor(sdk, { fetch: async () => ({ ok: false, status: 404 }) });
+  await assert.rejects(() => http.readBlobUrl({ url: 'http://127.0.0.1:1/x' }), (e) => e.code === 'open_failed');
+  const down = filesFor(sdk, { fetch: async () => { throw new TypeError('Failed to fetch'); } });
+  await assert.rejects(() => down.readBlobUrl({ url: 'http://127.0.0.1:1/x' }), (e) => e.code === 'open_failed');
+  const none = filesFor(sdk, { fetch: null });
+  none.fetchImpl = null;
+  await assert.rejects(() => none.readBlobUrl({ url: 'x' }), (e) => e.code === 'open_failed');
+});

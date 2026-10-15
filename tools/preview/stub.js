@@ -49,8 +49,20 @@
     netDelay: Number(params.get('netdelay') || 40),
     downloadDelay: Number(params.get('dldelay') || 350),
     slowMs: 2500,
-    fileUrl: (abs, file) => (params.get('xorigin') ? 'data:application/pdf;base64,' + btoa(unescape(encodeURIComponent(file.content))) : URL.createObjectURL(new Blob([file.content], { type: 'application/pdf' }))),
+    fileUrl: (abs, file) => URL.createObjectURL(new Blob([file.content], { type: 'application/pdf' })),
   });
+
+  // xorigin=1: מדמה את WebView האמיתי, שבו ה-iframe של ה-Blob הוא ממקור אחר (דף file://),
+  // ולכן הגישה ל-contentWindow.print נחסמת.
+  if (params.get('xorigin')) {
+    const desc = Object.getOwnPropertyDescriptor(HTMLIFrameElement.prototype, 'contentWindow');
+    Object.defineProperty(HTMLIFrameElement.prototype, 'contentWindow', {
+      get() {
+        const w = desc.get.call(this);
+        return w && new Proxy(w, { get(target, key) { if (key === 'print') throw new DOMException('Blocked a frame with origin "null" from accessing a cross-origin frame.', 'SecurityError'); const v = target[key]; return typeof v === 'function' ? v.bind(target) : v; } });
+      },
+    });
+  }
 
   // ---- מצב משתמש לדוגמה (seed=1 כברירת מחדל): מעקב, מועדפים, קריאה, תיקייה והורדות
   const files = fixture.files;

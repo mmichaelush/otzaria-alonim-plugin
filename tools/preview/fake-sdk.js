@@ -20,6 +20,13 @@
     return body + '%' + 'x'.repeat(Math.max(0, 2200 - body.length)) + '\ntrailer<</Root 1 0 R/Size 6>>\n%%EOF\n';
   }
 
+  /** כתובת שאפשר לעשות לה fetch (כמו שרת הקבצים של אוצריא), בלי שרת. */
+  function dataUrl(content) {
+    const text = typeof content === 'string' ? content : '';
+    const b64 = typeof Buffer === 'function' ? Buffer.from(text, 'latin1').toString('base64') : btoa(text);
+    return 'data:application/pdf;base64,' + b64;
+  }
+
   function createFakeSdk(options) {
     const o = options || {};
     const now = o.now || (() => Date.now());
@@ -148,7 +155,7 @@
         const file = sdk.userFs.get(abs);
         if (!file) return err('error.not_found');
         const token = 'file-' + p.path.length + '-' + file.size;
-        return { cancelled: false, token, url: o.fileUrl ? o.fileUrl(abs, file) : 'http://127.0.0.1:50123/files/' + encodeURIComponent(token), name: p.path.split('/').pop(), size: file.size, access: 'read' };
+        return { cancelled: false, token, url: o.fileUrl ? o.fileUrl(abs, file) : dataUrl(file.content), name: p.path.split('/').pop(), size: file.size, access: 'read' };
       },
       'fs.deleteFile': (p) => {
         if (!inApproved(p.path)) return err('error.forbidden');

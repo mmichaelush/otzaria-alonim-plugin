@@ -151,7 +151,7 @@ async function flows(browser) {
 
   // הדפסה: iframe חסום ב-WebView האמיתי → דיאלוג עם מסלול קורא אוצריא
   page = await open('open=0&print=1&xorigin=1');
-  await page.sleep(900);
+  await page.sleep(2200);
   check('הדפסה: דיאלוג עם מסלול הקורא וההנחיה', await page.eval("document.querySelector('.print-dialog') && document.querySelector('.print-guide')"));
   await page.click('.print-dialog [data-key=reader]');
   await page.sleep(1500);

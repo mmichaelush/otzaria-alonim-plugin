@@ -486,6 +486,7 @@
     "בחרו תיקייה כדי לקרוא": "Choose a folder to read",
     "הגיליון נפתח מקובץ בתיקייה שלכם, כך שהוא נשאר זמין גם בלי רשת. בוחרים תיקייה פעם אחת.": "The issue opens from a file in your folder, so it stays available even without a network. You choose a folder once.",
     "הצפיין הפנימי אינו נתמך במערכת הזו": "The built-in viewer is not supported on this system",
+    "הקובץ גדול מדי לצפיין הפנימי": "The file is too large for the built-in viewer",
     "הקובץ הורד לתיקייה. אפשר לפתוח אותו בקורא של אוצריא.": "The file was downloaded to the folder. You can open it in Otzaria's reader.",
     "פתח בקורא של אוצריא": "Open in Otzaria's reader",
     "אי אפשר לפתוח את הגיליון": "This issue cannot be opened",

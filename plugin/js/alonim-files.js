@@ -16,6 +16,8 @@
   const READ_DIR = '_קריאה';
   const READ_KEEP = 20;
   const MIN_PDF_BYTES = 1024;
+  /** מעל זה לא טוענים לזיכרון של הצפיין (Blob): ממליצים על הקורא של אוצריא. */
+  const MAX_INLINE_BYTES = 150 * 1024 * 1024;
   const CONCURRENCY = 2;
   const START_GAP_MS = 400;
   const SCAN_PARALLEL = 3;
@@ -540,6 +542,31 @@
       }
     }
 
+    /**
+     * כתובת Blob לצפיין. שרת הקבצים של אוצריא שולח `X-Frame-Options: SAMEORIGIN`,
+     * ודף התוסף הוא `file://` (ממקור אחר), ולכן `<iframe src=url>` נחסם. `fetch`
+     * מותר (CORS), וכתובת `blob:` אינה נושאת את הכותרת. זורק [FileError].
+     */
+    async readBlobUrl(file) {
+      const urlApi = root.URL;
+      if (!this.fetchImpl || !urlApi || typeof urlApi.createObjectURL !== 'function') throw new FileError('open_failed', 'no fetch/blob');
+      let blob;
+      try {
+        const res = await this.fetchImpl(file.url);
+        if (!res.ok) throw new Error('http ' + res.status);
+        blob = await res.blob();
+        const head = new Uint8Array(await blob.slice(0, 5).arrayBuffer());
+        if (String.fromCharCode(...head) !== '%PDF-') throw new Error('not a pdf');
+      } catch (error) {
+        throw new FileError('open_failed', error && error.message);
+      }
+      return urlApi.createObjectURL(blob.type === 'application/pdf' ? blob : new root.Blob([blob], { type: 'application/pdf' }));
+    }
+
+    releaseBlobUrl(url) {
+      if (url && root.URL && typeof root.URL.revokeObjectURL === 'function') root.URL.revokeObjectURL(url);
+    }
+
     // ---------------------------------------------------------- הדפסה
 
     /**
@@ -602,7 +629,7 @@
     }
   }
 
-  const api = { Files, FileError, pickAsset, READ_DIR, MIN_PDF_BYTES };
+  const api = { Files, FileError, pickAsset, READ_DIR, MIN_PDF_BYTES, MAX_INLINE_BYTES };
   A.Files = api;
   if (typeof module === 'object' && module.exports) module.exports = api;
 })(typeof self !== 'undefined' ? self : globalThis);
