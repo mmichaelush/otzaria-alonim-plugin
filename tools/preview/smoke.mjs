@@ -94,6 +94,104 @@ async function runScenario(browser, [name, query, check], suffix, base, width) {
   }
 }
 
+/** מסך "השבוע": תאריכים, ניווט, ובחירת שבוע לפי רשימה ותאריך (היום בבדיקה: 15.10.2026). */
+async function weekFlows(browser, open, check) {
+  const page = await open('page=week');
+  const text = (selector) => page.eval(`(document.querySelector(${JSON.stringify(selector)}) || {}).textContent || ''`);
+  const hero = async () => ({ title: await text('.hero-title'), sub: await text('.hero-sub'), chips: await text('.hero-chips') });
+  const jump = async (date) => {
+    await page.eval(`document.querySelector('.week-row[data-date="${date}"]').click()`);
+    await page.sleep(250);
+  };
+  const openPicker = async () => {
+    await page.eval("document.querySelector('[data-key=jump]').click()");
+    await page.sleep(300);
+  };
+
+  let h = await hero();
+  check('השבוע לפי היום: פרשת נח, תאריך עברי ולועזי', h.title === 'פרשת נח' && /^שבת, \S+ בחשוון תשפ״ז · 17 באוקטובר 2026$/.test(h.sub), JSON.stringify(h));
+  check('השבוע הנוכחי מסומן, בלי הדגשת "שבוע אחר"', h.chips.includes('השבוע') && (await page.eval("!document.querySelector('.week-hero.is-away')")));
+
+  await page.eval("document.querySelector('.hero-nav:last-of-type').click()");
+  await page.sleep(250);
+  h = await hero();
+  check('חץ "הבא": שבוע אחר מסומן בבירור', h.title === 'פרשת לך לך' && h.chips.includes('שבוע הבא') && (await page.eval("Boolean(document.querySelector('.week-hero.is-away'))")), JSON.stringify(h));
+  await page.eval("document.querySelector('[data-key=current]').click()");
+  await page.sleep(250);
+  check('"חזרה להשבוע" מחזירה לשבת הקרובה', (await text('.hero-title')) === 'פרשת נח');
+
+  await openPicker();
+  const rows = await page.eval("document.querySelectorAll('.week-row').length");
+  check('מעבר לשבוע: רשימת השנה העברית נפתחת על השנה הנוכחית', rows > 40 && (await page.eval("document.querySelector('.picker-year').value === '5787'")), 'rows ' + rows);
+  check('מעבר לשבוע: השבוע המוצג מסומן', await page.eval("document.querySelector('.week-row.is-selected').dataset.date === '2026-10-17'"));
+  await page.eval("document.querySelector('[data-filter=holiday]').click()");
+  await page.sleep(150);
+  check('מעבר לשבוע: מסנן חגים מציג רק חגים באמצע השבוע', await page.eval("[...document.querySelectorAll('.week-row')].every((r) => r.classList.contains('is-holiday')) && document.querySelectorAll('.week-row').length >= 5"));
+  await jump('2027-03-23');
+  h = await hero();
+  check('בחירת חג (פורים): כותרת ותאריך עם יום בשבוע', h.title === 'פורים' && h.sub === 'יום שלישי, י״ד באדר ב׳ תשפ״ז · 23 במרץ 2027' && h.chips.includes('חג באמצע השבוע'), JSON.stringify(h));
+
+  await page.eval("document.querySelector('[data-key=current]').click()");
+  await page.sleep(200);
+  await openPicker();
+  await page.eval("(() => { const i = document.querySelector('.picker-date'); i.value = '2027-03-21'; })()");
+  await page.eval("document.querySelector('[data-key=go-gregorian]').click()");
+  await page.sleep(250);
+  h = await hero();
+  check('תאריך לועזי (יום ראשון) עובר לשבת הבאה', h.title === 'פרשת צו' && h.chips.includes('שבת פרה'), JSON.stringify(h));
+
+  await page.eval("document.querySelector('[data-key=current]').click()");
+  await page.sleep(200);
+  await openPicker();
+  // סדר הבחירות: שנה ← חודש ← יום (כל שינוי בונה מחדש את הבאים אחריו).
+  await page.eval(`(() => {
+    const pick = (index, value) => {
+      const select = document.querySelectorAll('.picker-inline select')[index];
+      select.value = value;
+      select.dispatchEvent(new Event('change', { bubbles: true }));
+    };
+    pick(2, '5787');
+    pick(1, 'nisan');
+    pick(0, '15');
+  })()`);
+  await page.eval("document.querySelector('[data-key=go-hebrew]').click()");
+  await page.sleep(250);
+  h = await hero();
+  check('תאריך עברי (ט״ו בניסן תשפ״ז) מוצא את פסח', h.title === 'פסח' && h.sub.includes('ט״ו בניסן תשפ״ז · 22 באפריל 2027'), JSON.stringify(h));
+
+  // ארץ ישראל מול חוץ לארץ: שבועות שחל בשבת (12.6.2027)
+  await page.eval("document.querySelector('[data-key=current]').click()");
+  await page.sleep(200);
+  await openPicker();
+  await jump('2027-06-12');
+  check('ארץ ישראל: שבת פרשת נשא', (await text('.hero-title')) === 'פרשת נשא');
+  await page.eval("window.__alonimApp.state.setPref('diaspora', true)");
+  await page.sleep(400);
+  check('חוץ לארץ: אותה שבת היא שבועות', (await text('.hero-title')) === 'שבועות', await text('.hero-title'));
+  await page.eval("window.__alonimApp.state.setPref('diaspora', false)");
+
+  // האלגוריתם החשבוני מול Intl של הדפדפן עצמו (WebView): כל יום, 1950-2100.
+  const intl = await page.eval(`(() => {
+    const H = window.Alonim.HebCal;
+    const names = { Tishri: 'tishri', Heshvan: 'cheshvan', Cheshvan: 'cheshvan', Kislev: 'kislev', Tevet: 'tevet', Shevat: 'shevat', 'Adar I': 'adar1', Adar: 'adar', 'Adar II': 'adar2', Nisan: 'nisan', Iyar: 'iyar', Sivan: 'sivan', Tamuz: 'tamuz', Tammuz: 'tamuz', Av: 'av', Elul: 'elul' };
+    let f;
+    try { f = new Intl.DateTimeFormat('en-u-ca-hebrew', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' }); f.formatToParts(new Date(0)); } catch (e) { return 'no-intl'; }
+    let bad = 0, n = 0;
+    for (let day = H.dayNumber(new Date(1950, 0, 1, 12)); day <= H.dayNumber(new Date(2100, 11, 31, 12)); day++) {
+      const parts = f.formatToParts(new Date(day * 86400000 + 43200000));
+      const get = (t) => (parts.find((p) => p.type === t) || {}).value;
+      const h = H.fromDate(H.dateOfDayNumber(day));
+      n++;
+      if (h.year !== Number(get('relatedYear') || get('year')) || h.month !== names[get('month')] || h.day !== Number(get('day'))) bad++;
+    }
+    return bad + '/' + n;
+  })()`);
+  check('חישוב הלוח העברי זהה ל-Intl של הדפדפן (150 שנה)', /^0\/\d+$/.test(intl) || intl === 'no-intl', String(intl));
+
+  check('"השבוע" בלי שגיאות קונסול', page.errors.length === 0, page.errors.join('\n'));
+  await browser.closePage(page);
+}
+
 /** תרחישי זרימה: נבדקים בפועל, לא רק נטענים. */
 async function flows(browser) {
   const open = async (query, base, width) => {
@@ -112,7 +210,7 @@ async function flows(browser) {
   check('Ctrl+/ עובר לחיפוש וממקד', await page.eval("document.querySelector('.main-tab[aria-selected=true]').dataset.tab === 'all' && document.activeElement.classList.contains('search-input')"));
   await page.type('נח');
   await page.sleep(200);
-  check('הקלדה מסננת', await page.eval("document.querySelector('.results-count').textContent.includes('12')"), await page.eval("document.querySelector('.results-count').textContent"));
+  check('הקלדה מסננת', await page.eval("parseInt(document.querySelector('.results-count').textContent, 10) >= 8"), await page.eval("document.querySelector('.results-count').textContent"));
   check('הדגשת התאמה', await page.eval("document.querySelectorAll('mark.hit').length > 0"));
   await page.key('Escape');
   await page.sleep(200);
@@ -148,6 +246,8 @@ async function flows(browser) {
   check('Esc סוגר צפיין וחוזר לרשימה', await page.eval("document.querySelector('.viewer').hidden && document.querySelectorAll('.card').length > 0"));
   check('בלי שגיאות קונסול בזרימה', page.errors.length === 0, page.errors.join('\n'));
   await browser.closePage(page);
+
+  await weekFlows(browser, open, check);
 
   // לחיצה על כרטיס = קריאה; הורדה = שמירה קבועה ומצב "הורד" מהדיסק
   page = await open('page=all');

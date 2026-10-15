@@ -7,7 +7,7 @@ import { join } from 'node:path';
 
 const require = createRequire(import.meta.url);
 globalThis.Alonim = {};
-for (const f of ['i18n', 'core', 'normalize', 'log', 'rules', 'index']) require('../../plugin/js/alonim-' + f + '.js');
+for (const f of ['i18n', 'hebcal', 'core', 'normalize', 'log', 'weeks', 'rules', 'index']) require('../../plugin/js/alonim-' + f + '.js');
 const { CatalogIndex } = globalThis.Alonim.Index;
 
 const arg = process.argv[2];

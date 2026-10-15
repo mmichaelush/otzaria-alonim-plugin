@@ -20,15 +20,7 @@
     size: N('גודל'),
   });
 
-  /** `<select>` קטן עם תווית נגישה; הערך הראשון ("הכול") הוא ריק. */
-  function selectField(label, options, value, onChange, className) {
-    const select = el(
-      'select',
-      { class: 'select ' + (className || ''), 'aria-label': label, onchange: (e) => onChange(e.target.value) },
-      options.map((o) => el('option', { value: o.value, selected: String(o.value) === String(value) }, o.label)),
-    );
-    return select;
-  }
+  const selectField = Ui.selectField;
 
   /** משמר את המיקוד ברשימה וירטואלית שמצוירת מחדש. */
   function keepFocus(list, fn) {

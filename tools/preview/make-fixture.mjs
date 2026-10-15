@@ -18,6 +18,7 @@ const { buildFiles, DEFAULT_SOURCES } = require('../../plugin/test/helpers/catal
 const { makeCatalog } = require('../../plugin/test/helpers/fixture.js');
 globalThis.Alonim = globalThis.Alonim || {};
 require('../../plugin/js/alonim-i18n.js');
+require('../../plugin/js/alonim-hebcal.js');
 const Core = require('../../plugin/js/alonim-core.js');
 
 const args = process.argv.slice(2);
@@ -41,19 +42,9 @@ function readDir(dir) {
 const PARASHA_ORDER = Object.keys(Core.PARASHOT);
 const ANCHOR = { date: '2026-10-17', hy: 5787, slug: 'noach' };
 
-/** שבתות שנה אחורה ושנה קדימה, מעוגנות בנח תשפ"ז (מחזור פשוט: לתצוגה בלבד). */
+/** לוח השבועות האמיתי של הקטלוג (5786-5788), כולל שורות חג באמצע השבוע. */
 function weeksFixture() {
-  const weeks = [];
-  const base = new Date(2026, 9, 17, 12);
-  const start = PARASHA_ORDER.indexOf(ANCHOR.slug);
-  for (let k = -52; k <= 52; k++) {
-    const d = new Date(base.getFullYear(), base.getMonth(), base.getDate() + k * 7, 12);
-    const slug = PARASHA_ORDER[(((start + k) % 54) + 54) % 54];
-    const hy = d.getFullYear() + 3760 + (d.getMonth() >= 8 ? 1 : 0);
-    weeks.push({ date: Core.ymd(d), hy, parasha: [slug], parashaIL: [slug], label: Core.PARASHOT[slug], event: k === 1 ? null : null });
-  }
-  weeks[52 + 7].event = 'sukkot';
-  return weeks;
+  return JSON.parse(readFileSync(join(here, '..', '..', 'plugin', 'test', 'fixtures', 'weeks-real.json'), 'utf8'));
 }
 
 const SERIES = [
@@ -73,7 +64,8 @@ const SERIES = [
 
 function smallCatalog() {
   const weeks = weeksFixture();
-  const noachIndex = weeks.findIndex((w) => w.date === ANCHOR.date);
+  const shabbatRows = weeks.filter((w) => w.shabbat !== false);
+  const noachIndex = shabbatRows.findIndex((w) => w.date === ANCHOR.date);
   const series = SERIES.map(([title, lang, circle, src], i) => ({
     id: 's_' + (0x3fa91c02b1 + i * 7919).toString(16).slice(0, 10),
     title,
@@ -94,9 +86,9 @@ function smallCatalog() {
     const total = SERIES[si][4];
     for (let k = 0; k < total; k++) {
       // השבוע הנוכחי תחילה, ואז אחורה: כל סדרה מקבלת את השבוע הנוכחי.
-      const week = weeks[noachIndex - k];
+      const week = shabbatRows[noachIndex - k];
       if (!week) break;
-      const slug = week.parasha[0];
+      const slug = week.parasha[0] || week.event || 'shabbat';
       const primary = sources[(si + k) % 4];
       const copies = [primary];
       if ((si + k) % 5 === 0) copies.push(sources[(si + k + 1) % 4]);
@@ -122,7 +114,8 @@ function smallCatalog() {
         no: 50 - k,
         date,
         hy: week.hy,
-        parasha: [slug],
+        parasha: week.parasha,
+        event: week.event || undefined,
         lang: s.lang,
         pages: assets[0].pages,
         added,

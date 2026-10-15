@@ -286,6 +286,24 @@
       return full;
     }
 
+    /** היום, לפי שעון המכשיר. נקודה אחת, כדי שבדיקות יוכלו להחליף תאריך. */
+    today() {
+      return new Date();
+    }
+
+    /**
+     * לוח השבועות להצגה (תצוגות `Weeks.view`): `weeks.json` ושורות נגזרות לשנים
+     * שאינן בלוח, לפי ארץ ישראל / חוץ לארץ. נשמר עד שהאינדקס או ההעדפה משתנים.
+     */
+    weekViews() {
+      const diaspora = Boolean(this.state.prefs.diaspora);
+      const key = this.index.version + '|' + diaspora;
+      if (!this._weekViews || this._weekViews.key !== key) {
+        this._weekViews = { key, views: A.Weeks.build(this.index.allWeeks(), { diaspora }) };
+      }
+      return this._weekViews.views;
+    }
+
     cardState(item) {
       const decision = this.index.decision(item);
       const hidden = decision.action === 'hide';

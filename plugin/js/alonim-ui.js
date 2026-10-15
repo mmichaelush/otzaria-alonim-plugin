@@ -97,6 +97,15 @@
     );
   }
 
+  /** `<select>` קטן עם תווית נגישה. [options]: `{ value, label }`. */
+  function selectField(label, options, value, onChange, className) {
+    return el(
+      'select',
+      { class: 'select ' + (className || ''), 'aria-label': label, onchange: (e) => onChange(e.target.value) },
+      options.map((o) => el('option', { value: o.value, selected: String(o.value) === String(value) }, o.label)),
+    );
+  }
+
   /** טקסט עם הדגשת התאמות (`mark`), לפי מיקומים מ-`highlightSpans`. */
   function marked(text, spans) {
     const frag = document.createDocumentFragment();
@@ -595,6 +604,7 @@
     button,
     iconButton,
     chip,
+    selectField,
     marked,
     stateCard,
     progress,

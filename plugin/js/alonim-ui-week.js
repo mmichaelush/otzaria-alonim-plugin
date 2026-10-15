@@ -1,5 +1,6 @@
-// "השבוע": מסך הבית. הפרשה והתאריך העברי, חיצים לשבוע קודם והבא, ושלושה
-// אזורים: מהסדרות שלי, חדש השבוע (עם סיבת הצגה), והמשך קריאה.
+// "השבוע": מסך הבית. כותרת (פרשה או אירוע, תאריך עברי ולועזי), ניווט בין שבועות
+// (חצים ו"מעבר ל…"), ושלושה אזורים: מהסדרות שלי, חדש השבוע (עם סיבת הצגה), והמשך קריאה.
+// "השבוע" הוא לפי היום ולא לפי העלונים שכבר הועלו: השבת הקרובה, או החג שקודם לה.
 (function (root) {
   'use strict';
 
@@ -7,6 +8,7 @@
   const Ui = A.Ui;
   const Cards = A.Cards;
   const Core = A.Core;
+  const Weeks = A.Weeks;
   const I18n = A.I18n;
   const { el, icon } = Ui;
   const t = (text, vars) => I18n.t(text, vars);
@@ -21,7 +23,6 @@
   class WeekScreen {
     constructor(app) {
       this.app = app;
-      this.fill = false;
     }
 
     mount(host) {
@@ -50,44 +51,65 @@
 
     // ------------------------------------------------------- בחירת שבוע
 
-    /** השבוע המוצג: הנבחר, או השבת הקרובה (ואם אין לה עדיין עלונים — הקודמת). */
-    currentWeek() {
-      const { index } = this.app;
-      const weeks = index.weeks;
-      const today = new Date();
-      if (!weeks.length) {
-        const date = Core.ymd(Core.upcomingShabbat(today));
-        return { synthetic: true, date, hy: 0, parasha: [], parashaIL: [], event: null, i: -1 };
+    /**
+     * השבוע המוצג: הנבחר במפורש (`view.weekDate`), ואחרת "השבוע" לפי היום.
+     * מחזיר גם את השבוע הנוכחי ואת היחס ביניהם, כדי שהכותרת תאמר בבירור מתי
+     * מוצג שבוע שאינו הנוכחי.
+     */
+    selection() {
+      const { app } = this;
+      const views = app.weekViews();
+      const today = app.today();
+      const cur = Weeks.current(views, Core.ymd(today));
+      if (!views.length) {
+        // אין לוח: שבת קרובה מחושבת, כדי שהמסך לא יהיה ריק.
+        const date = Core.upcomingShabbat(today);
+        const row = { date: Core.ymd(date), hy: A.HebCal.fromDate(date).year, parasha: [], parashaIL: [], shabbat: true, derived: true };
+        const only = Weeks.build([row], { diaspora: app.state.prefs.diaspora });
+        return { views: only, i: 0, view: only[0], cur: { index: 0, status: 'empty' }, rel: { kind: 'current', weeks: 0 } };
       }
-      let i = weeks.findIndex((w) => w.date === this.app.view.weekDate);
-      if (i < 0) {
-        // ברירת המחדל: השבת הקרובה (שורות חג שאינן שבת אינן ברירת מחדל).
-        const isShabbat = (k) => weeks[k] && weeks[k].shabbat !== false;
-        i = index.weekFor(Core.ymd(today));
-        while (i < weeks.length - 1 && !isShabbat(i)) i++;
-        if (i > 0 && !index.forWeek(weeks[i]).length) {
-          let k = i - 1;
-          while (k > 0 && !isShabbat(k)) k--;
-          if (index.forWeek(weeks[k]).length) i = k;
-        }
-      }
-      return { ...weeks[i], i };
+      let i = Weeks.indexOfDate(views, app.view.weekDate);
+      if (i < 0) i = cur.index;
+      return { views, i, view: views[i], cur, rel: Weeks.relation(views, i, cur.index) };
     }
 
-    weekLabel(week) {
-      const diaspora = this.app.state.prefs.diaspora;
-      const slugs = diaspora ? week.parasha : week.parashaIL && week.parashaIL.length ? week.parashaIL : week.parasha;
-      return Core.parashaLabel(slugs || []);
-    }
-
-    shiftWeek(delta) {
-      const { index } = this.app;
-      const week = this.currentWeek();
-      const next = index.weeks[week.i + delta];
-      if (!next) return;
-      this.app.view.weekDate = next.date;
+    goto(index) {
+      const views = this.app.weekViews();
+      if (!views[index]) return;
+      this.app.view.weekDate = views[index].date;
       this.app.view.weekMore = STEP;
       this.render();
+    }
+
+    /** "השבוע" הנוכחי: מבטל בחירה מפורשת. */
+    goCurrent() {
+      this.app.view.weekDate = '';
+      this.app.view.weekMore = STEP;
+      this.render();
+    }
+
+    shift(delta) {
+      const sel = this.selection();
+      this.goto(sel.i + delta);
+    }
+
+    /** השבוע האחרון (עד הנוכחי) שיש בו עלונים גלויים; -1 אם אין. */
+    latestWithIssues(sel) {
+      const { index } = this.app;
+      for (let k = Math.min(sel.cur.index, sel.views.length - 1); k >= 0; k--) {
+        if (index.forWeek(sel.views[k].row).length) return k;
+      }
+      return -1;
+    }
+
+    openPicker(sel) {
+      A.WeekPicker.open(this.app, {
+        views: sel.views,
+        currentIndex: sel.cur.index,
+        selectedIndex: sel.i,
+        onPick: (index) => this.goto(index),
+        onCurrent: () => this.goCurrent(),
+      });
     }
 
     // ------------------------------------------------------------ ציור
@@ -95,10 +117,10 @@
     render() {
       const app = this.app;
       const { index, state } = app;
-      const week = this.currentWeek();
+      const sel = this.selection();
       const scroller = this.host.closest('.app-content');
       const keep = scroller ? scroller.scrollTop : 0;
-      const items = index.forWeek(week).map((i) => index.item(i));
+      const items = index.forWeek(sel.view.row).map((i) => index.item(i));
       const followed = new Set(state.followedIds());
       const muted = (it) => state.isMuted(it.series);
       const mine = items.filter((it) => followed.has(it.series) && !muted(it)).sort((a, b) => b._added - a._added);
@@ -109,7 +131,7 @@
       const ctx = (list) => (i) => ({ count: list.length, at: (k) => list[k], index: i });
 
       const page = el('div', { class: 'page week-page' });
-      page.appendChild(this.hero(week, items.length));
+      page.appendChild(this.hero(sel, items.length));
       const status = app.catalog.status;
       const loading = !index.size && (status.phase === 'checking' || status.phase === 'downloading' || (status.phase === 'idle' && !status.lastOkAt && !status.error));
 
@@ -125,7 +147,7 @@
         if (rest.length) {
           page.appendChild(this.section(t('חדש השבוע'), rest, limit, ctx(shown), null, shown, mine.length));
         }
-        if (!shown.length) page.appendChild(this.emptyWeek(week));
+        if (!shown.length) page.appendChild(this.emptyWeek(sel));
       }
       const reading = state.continueReading(6);
       if (reading.length) page.appendChild(this.continueReading(reading));
@@ -133,36 +155,49 @@
       if (scroller) scroller.scrollTop = keep;
     }
 
-    hero(week, count) {
-      const app = this.app;
-      const label = this.weekLabel(week);
-      const event = week.event ? Core.eventName(week.event) : '';
-      const title = label ? t('פרשת {name}', { name: label }) : event || t('שבת');
-      const date = Core.parseYmd(week.date);
-      const hebrew = date ? Core.hebrewDate(date, I18n.language) : '';
-      const sub = [hebrew, date ? Core.formatDate(date, { day: 'numeric', month: 'long', year: 'numeric' }) : ''].filter(Boolean).join(' · ');
-      const hasPrev = week.i > 0;
-      const hasNext = week.i >= 0 && week.i < app.index.weeks.length - 1;
-      const today = app.index.weeks.length ? app.index.weeks[app.index.weekFor(Core.ymd(new Date()))] : null;
-      const away = today && today.date !== week.date;
+    /** "בעוד 3 שבועות" / "לפני שבוע": המרחק של השבוע המוצג מהשבוע הנוכחי. */
+    relationText(rel) {
+      if (rel.kind === 'future') return rel.weeks === 1 ? t('שבוע הבא') : t('בעוד {n} שבועות', { n: rel.weeks });
+      return rel.weeks === 1 ? t('שבוע שעבר') : t('לפני {n} שבועות', { n: rel.weeks });
+    }
+
+    hero(sel, count) {
+      const { view, views, i, rel } = sel;
+      const away = rel.kind !== 'current';
+      const day = Weeks.displayDay(view);
+      const sub = day ? Core.dateLine(day, { weekday: true }) : view.date;
+      const prev = views[i - 1];
+      const next = views[i + 1];
+      const status = sel.cur.status;
       return el(
         'section',
-        { class: 'week-hero' },
-        Ui.iconButton(prevIcon(), t('השבוע הקודם'), () => this.shiftWeek(-1), { disabled: !hasPrev, className: 'hero-nav' }),
+        { class: 'week-hero' + (away ? ' is-away' : ''), 'aria-labelledby': 'week-title' },
+        Ui.iconButton(prevIcon(), prev ? t('הקודם: {name}', { name: prev.title }) : t('השבוע הקודם'), () => this.shift(-1), { disabled: !prev, className: 'hero-nav' }),
         el(
           'div',
           { class: 'hero-text', 'aria-live': 'polite' },
-          el('h1', { class: 'hero-title', dir: 'auto' }, title),
+          el('h1', { class: 'hero-title', id: 'week-title', dir: 'auto' }, view.title),
           el('p', { class: 'hero-sub', dir: 'auto' }, sub),
           el(
             'div',
             { class: 'hero-chips' },
-            event && label ? Ui.chip(event, { kind: 'reason', icon: 'calendar_star_24_regular' }) : null,
+            view.kind === 'special' && view.parashaLabel && view.eventLabel ? Ui.chip(view.eventLabel, { kind: 'reason', icon: 'calendar_star_24_regular' }) : null,
+            view.kind === 'holiday' ? Ui.chip(t('חג באמצע השבוע'), { kind: 'reason', icon: 'calendar_star_24_regular' }) : null,
+            away ? Ui.chip(this.relationText(rel), { kind: 'away', icon: 'clock_24_regular' }) : Ui.chip(t('השבוע'), { kind: 'now' }),
+            view.derived ? Ui.chip(t('לפי העלונים'), { kind: 'source', title: t('השנה הזו אינה בלוח הקטלוג; התאריך נלקח מהעלונים עצמם.') }) : null,
             count ? Ui.chip(t('{n} גיליונות', { n: Core.formatCount(count) }), { kind: 'source' }) : null,
-            away ? Ui.button('text', t('חזרה להשבוע'), () => { app.view.weekDate = ''; this.render(); }, { className: 'button-small' }) : null,
           ),
+          el(
+            'div',
+            { class: 'hero-actions' },
+            Ui.button('tonal', t('מעבר לשבוע…'), () => this.openPicker(sel), { icon: 'calendar_ltr_24_regular', className: 'button-small', key: 'jump' }),
+            away ? Ui.button('text', t('חזרה להשבוע'), () => this.goCurrent(), { className: 'button-small', key: 'current' }) : null,
+          ),
+          status === 'after' || status === 'before'
+            ? el('p', { class: 'hero-note', role: 'status' }, t('לוח השבועות בקטלוג אינו כולל את התאריך של היום, ולכן מוצג השבוע הקרוב ביותר שבו.'))
+            : null,
         ),
-        Ui.iconButton(nextIcon(), t('השבוע הבא'), () => this.shiftWeek(1), { disabled: !hasNext, className: 'hero-nav' }),
+        Ui.iconButton(nextIcon(), next ? t('הבא: {name}', { name: next.title }) : t('השבוע הבא'), () => this.shift(1), { disabled: !next, className: 'hero-nav' }),
       );
     }
 
@@ -228,15 +263,25 @@
       );
     }
 
-    emptyWeek(week) {
+    emptyWeek(sel) {
       const { app } = this;
       const status = app.catalog.status;
-      const loadingMore = app.catalog.shards.length > app.catalog.status.shardsLoaded;
+      const loadingMore = app.catalog.shards.length > status.shardsLoaded;
+      const future = sel.rel.kind === 'future';
+      const actions = [];
+      const latest = this.latestWithIssues(sel);
+      if (latest >= 0 && latest !== sel.i) {
+        actions.push(Ui.button('filled', t('לשבוע האחרון שיש בו עלונים'), () => this.goto(latest), { icon: 'history_24_regular' }));
+      }
+      actions.push(Ui.button('tonal', t('כל העלונים'), () => app.go('all')));
+      let text = t('עלונים לשבת מתפרסמים בדרך כלל במהלך השבוע. אפשר לעבור לשבוע קודם או לעיין בכל העלונים.');
+      if (loadingMore || status.phase === 'downloading') text = t('הנתונים עדיין נטענים ברקע.');
+      else if (future) text = t('זה שבוע עתידי, ועדיין לא פורסמו בו עלונים.');
       return Ui.stateCard({
         icon: 'news_24_regular',
-        title: t('עדיין אין עלונים לשבת הזו'),
-        text: loadingMore || status.phase === 'downloading' ? t('הנתונים עדיין נטענים ברקע.') : t('עלונים לשבת מתפרסמים בדרך כלל במהלך השבוע. אפשר לעבור לשבוע קודם או לעיין בכל העלונים.'),
-        actions: [Ui.button('tonal', t('כל העלונים'), () => app.go('all'))],
+        title: future ? t('עוד אין עלונים לשבוע הזה') : t('עדיין אין עלונים לשבת הזו'),
+        text,
+        actions,
         compact: true,
       });
     }
