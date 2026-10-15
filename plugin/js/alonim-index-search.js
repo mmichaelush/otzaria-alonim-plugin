@@ -11,6 +11,7 @@
   const Filters = A.Filters;
   const CatalogIndex = Index.CatalogIndex;
   const { dayOf, SORTS } = Index;
+  const Core = A.Core;
 
   const proto = CatalogIndex.prototype;
 
@@ -138,6 +139,60 @@
       return true;
     };
   };
+
+  /** סוגי הקיבוץ של רשימת תוצאות. */
+  const GROUPS = Object.freeze(['week', 'series', 'year', 'circle', 'lang']);
+
+  /** מפתח הקיבוץ של גיליון [i] לפי [kind] (ראו GROUPS); 0 או '' = "ללא". */
+  proto.groupKey = function (i, kind) {
+    switch (kind) {
+      case 'week':
+        return this.dayc[i];
+      case 'series':
+        return this.sidx[i];
+      case 'year':
+        return this.hyc[i];
+      case 'circle':
+        return this.seriesArr[this.sidx[i]].circle || '';
+      case 'lang':
+        return this._lang(i);
+      default:
+        return 0;
+    }
+  };
+
+  /**
+   * מקבץ אינדקסים (בסדר שנתקבלו) לקבוצות לפי [kind]. מחזיר
+   * `[{ key, idx: [i…] }]` ממוין: שבוע ושנה מהחדש לישן, סדרה וחוג לפי א-ב, שפה לפי
+   * סדר השפות; "ללא" (תאריך, שנה, חוג) בסוף.
+   */
+  proto.groupResults = function (idx, kind) {
+    const map = new Map();
+    for (const i of idx) {
+      const key = this.groupKey(i, kind);
+      let list = map.get(key);
+      if (!list) map.set(key, (list = []));
+      list.push(i);
+    }
+    const groups = [...map].map(([key, list]) => ({ key, idx: list }));
+    // "ללא" = אין תאריך / שנה / חוג. מפתח סדרה 0 הוא סדרה אמיתית (המקום הראשון).
+    const empty = (g) => ((kind === 'week' || kind === 'year') && g.key === 0) || (kind === 'circle' && g.key === '');
+    const rank = (g) => (kind === 'lang' ? Core.LANG_CODES.indexOf(this.langs.get(g.key)) : 0);
+    groups.sort((a, b) => {
+      if (empty(a) !== empty(b)) return empty(a) ? 1 : -1;
+      if (kind === 'week' || kind === 'year') return b.key - a.key;
+      if (kind === 'series') {
+        const x = this.seriesArr[a.key]._ntitle;
+        const y = this.seriesArr[b.key]._ntitle;
+        return x < y ? -1 : x > y ? 1 : 0;
+      }
+      if (kind === 'circle') return a.key < b.key ? -1 : a.key > b.key ? 1 : 0;
+      return rank(a) - rank(b);
+    });
+    return groups;
+  };
+
+  Index.GROUPS = GROUPS;
 
   const visibleFor = (index, i, f, o) => (f.hiddenOnly ? index.vis[i] !== 1 : o.includeHidden || index.vis[i] === 1);
 

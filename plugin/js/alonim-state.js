@@ -171,6 +171,7 @@
           query: str(tabs.all.query, 300),
           filters: A.Filters.clean(tabs.all.filters),
           sort: sorts.includes(tabs.all.sort) ? tabs.all.sort : 'relevance',
+          group: ['week', 'series', 'year', 'circle', 'lang'].includes(tabs.all.group) ? tabs.all.group : '',
           includeHidden: tabs.all.includeHidden === true,
         };
       }

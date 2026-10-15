@@ -226,6 +226,28 @@ test('סינון לפי מצב: מועדפים, סדרות במעקב, ברשי�
   assert.equal(index.search('', {}, ctx, {}).hidden, 2);
 });
 
+test('groupResults: קבוצות לפי שבוע, סדרה, שנה, חוג ושפה, כל אחת בסדר שלה ו"ללא" בסוף', () => {
+  const index = mini();
+  const all = index.search('', {}, {}, { sort: 'date' }).idx;
+  const keysOf = (kind) => index.groupResults(all, kind).map((g) => g.key);
+  const titleOf = (key) => index.seriesArr[key].title;
+  for (const kind of A.Index.GROUPS) {
+    const groups = index.groupResults(all, kind);
+    assert.equal(groups.reduce((n, g) => n + g.idx.length, 0), all.length, kind + ': כל הגיליונות בקבוצה');
+    assert.equal(new Set(groups.flatMap((g) => g.idx)).size, all.length, kind + ': בלי כפילויות');
+  }
+  assert.deepEqual(keysOf('year'), [5787, 5786, 5785, 5784, 5780], 'שנים מהחדשה לישנה');
+  const weeks = keysOf('week');
+  assert.equal(weeks[weeks.length - 1], 0, 'גיליון בלי תאריך בסוף');
+  assert.ok(weeks.slice(0, -1).every((k, n, arr) => n === 0 || arr[n - 1] > k), 'שבועות מהחדש לישן');
+  assert.deepEqual(keysOf('series').map(titleOf), ['Torah Weekly', 'אסיפת גליונות', 'דער בלאט'], 'לפי א-ב, לטינית לפני עברית');
+  assert.deepEqual(keysOf('circle'), ['בעלזא', 'חסידי', ''], 'חוג ריק בסוף');
+  const langs = keysOf('lang').map((id) => index.langs.get(id));
+  assert.deepEqual(langs, ['he', 'yi', 'en'].sort((a, b) => A.Core.LANG_CODES.indexOf(a) - A.Core.LANG_CODES.indexOf(b)));
+  const inGroup = index.groupResults(all, 'year').find((g) => g.key === 5785).idx.map((i) => index.ids[i]);
+  assert.deepEqual(inGroup.slice().sort(), ['i_03', 'i_04'], 'חברי הקבוצה');
+});
+
 test('Core.hyLetters ו-year: סימני גרש וגרשיים שונים שקולים', () => {
   assert.equal(Core.parseYear('תשפ״ז'), 5787);
   assert.equal(Core.parseYear('תשפ"ז'), 5787);

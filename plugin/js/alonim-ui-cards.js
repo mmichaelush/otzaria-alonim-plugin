@@ -250,7 +250,8 @@
   }
 
   function focusItem(list, index, perRow) {
-    list.scrollToRow(Math.floor(index / perRow));
+    // רשימה עם כותרות קבוצה מספקת מיפוי משלה מפריט לשורה.
+    list.scrollToRow(list.rowForItem ? list.rowForItem(index) : Math.floor(index / perRow));
     const node = list.inner.querySelector('[data-item="' + index + '"]');
     if (node) {
       list.inner.querySelectorAll('[data-item][tabindex="0"]').forEach((n) => n.setAttribute('tabindex', '-1'));

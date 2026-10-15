@@ -928,6 +928,10 @@ kbd {
   padding-block: var(--space-2);
 }
 
+.select-group {
+  max-width: 10em;
+}
+
 .select:hover,
 .input:hover {
   border-color: var(--color-outline);

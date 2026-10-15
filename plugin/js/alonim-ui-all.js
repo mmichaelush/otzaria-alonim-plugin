@@ -29,6 +29,8 @@
       this.app = app;
       this.fill = true;
       this.result = { idx: [], total: 0, hidden: 0, ms: 0, query: { tokens: [] } };
+      /** סדר ההצגה בפועל (אחרי קיבוץ): אינדקסים, כמו `result.idx`. */
+      this.shown = [];
       this.pending = false;
       this.unsub = [];
     }
@@ -105,7 +107,7 @@
       this.list = new Ui.VList({ className: 'results-list', label: t('תוצאות החיפוש') });
       this.list.onResize = () => this.layout();
       this.listHost.appendChild(this.list.root);
-      Cards.attachListKeys(this.list, () => ({ count: this.result.idx.length, perRow: this.perRow }));
+      Cards.attachListKeys(this.list, () => ({ count: this.shown.length, perRow: this.perRow }));
       this.perRow = 1;
 
       this.selectionBar = new A.Selection.SelectionBar(app, { count: () => this.result.idx.length, all: () => this.result.idx.map((i) => app.index.item(i)) });
@@ -246,7 +248,7 @@
     /** שומר את המצב לפתיחה הבאה (השמירה עצמה מאוחדת ב-State). */
     persist() {
       const v = this.v;
-      this.app.state.setViewState('all', { query: v.query, filters: v.filters, sort: v.sort, includeHidden: v.includeHidden });
+      this.app.state.setViewState('all', { query: v.query, filters: v.filters, sort: v.sort, group: v.group, includeHidden: v.includeHidden });
     }
 
     /**
@@ -326,29 +328,87 @@
       this.updateCount();
     }
 
+    /**
+     * שורות הרשימה: בלי קיבוץ, שורות גריד אחידות; עם קיבוץ — כותרת לכל קבוצה ואחריה
+     * שורות גריד של הקבוצה. `this.shown` הוא סדר הפריטים בפועל (מפתח המיקוד והבחירה).
+     */
+    buildRows(perRow) {
+      const { index } = this.app;
+      const kind = this.v.group;
+      const idx = this.result.idx;
+      if (!kind) {
+        this.shown = idx;
+        const rows = [];
+        for (let start = 0; start < idx.length; start += perRow) rows.push({ start, n: Math.min(perRow, idx.length - start) });
+        return rows;
+      }
+      const flat = [];
+      const rows = [];
+      for (const group of index.groupResults(idx, kind)) {
+        rows.push({ header: this.groupLabel(kind, group), count: group.idx.length });
+        for (let k = 0; k < group.idx.length; k += perRow) {
+          rows.push({ start: flat.length + k, n: Math.min(perRow, group.idx.length - k) });
+        }
+        for (const i of group.idx) flat.push(i);
+      }
+      this.shown = flat;
+      return rows;
+    }
+
+    groupLabel(kind, group) {
+      const { index } = this.app;
+      const first = index.item(group.idx[0]);
+      switch (kind) {
+        case 'week':
+          return group.key ? [Core.weekLabel(first), Core.dateText(first.date, { short: true })].filter(Boolean).join(' · ') : t('ללא תאריך');
+        case 'series':
+          return first.seriesTitle || first.title;
+        case 'year':
+          return group.key ? t('שנת {y}', { y: Core.hyLetters(group.key) }) : t('ללא שנה');
+        case 'circle':
+          return group.key || t('ללא חוג');
+        default:
+          return Core.langName(first.lang);
+      }
+    }
+
     /** מספר עמודות וגובה שורה, ואז ציור מחדש של השורות הנראות. */
     layout() {
       const { app } = this;
       const mode = app.state.prefs.view === 'list' ? 'row' : 'card';
       const emPx = this.list.emPx;
       this.perRow = Cards.columnsFor(this.list.root.clientWidth, emPx, mode);
-      const count = this.result.idx.length;
-      const rows = Math.ceil(count / this.perRow);
+      const rowsDesc = this.buildRows(this.perRow);
+      const items = this.shown;
+      const count = items.length;
       const tokens = (this.result.query && this.result.query.tokens) || [];
       const rowEm = (mode === 'row' ? Cards.ROW_EM.row : Cards.ROW_EM.card) + Cards.ROW_EM.gap;
-      const items = this.result.idx;
       const index = app.index;
       const showLang = (this.v.filters.lang || []).length > 0;
+      // מיפוי פריט ← שורה לגלילת המיקוד (כותרות קבוצה תופסות שורות).
+      const rowOfStart = new Map();
+      rowsDesc.forEach((d, r) => d.header === undefined && rowOfStart.set(d.start, r));
+      this.list.rowForItem = this.v.group
+        ? (k) => {
+            let start = k - (k % this.perRow);
+            while (start >= 0 && !rowOfStart.has(start)) start--;
+            return rowOfStart.get(Math.max(0, start)) || 0;
+          }
+        : null;
       this.list.configure({
-        count: rows,
-        heightEm: rowEm,
+        count: rowsDesc.length,
+        heightEm: (r) => (rowsDesc[r].header !== undefined ? 2.8 : rowEm),
         itemsPerRow: this.perRow,
         render: (r, node) => {
+          const d = rowsDesc[r];
+          if (d.header !== undefined) {
+            node.appendChild(el('h3', { class: 'year-header', dir: 'auto' }, d.header, el('span', { class: 'section-count' }, Core.formatCount(d.count))));
+            return;
+          }
           node.classList.add('is-grid');
           node.style.setProperty('--cols', String(this.perRow));
-          for (let c = 0; c < this.perRow; c++) {
-            const i = r * this.perRow + c;
-            if (i >= count) break;
+          for (let c = 0; c < d.n; c++) {
+            const i = d.start + c;
             const item = index.item(items[i]);
             node.appendChild(
               Cards.render(app, item, {
@@ -474,6 +534,16 @@
           className: 'filter-chip',
         });
       };
+      const groupSelect = selectField(
+        t('קיבוץ'),
+        [['', N('ללא קיבוץ')], ['week', N('לפי שבוע')], ['series', N('לפי סדרה')], ['year', N('לפי שנה')], ['circle', N('לפי חוג')], ['lang', N('לפי שפה')]].map(([value, label]) => ({ value, label: t(label) })),
+        v.group,
+        (value) => {
+          v.group = value;
+          this.schedule();
+        },
+        'select-group',
+      );
       const sortSelect = selectField(
         t('מיון'),
         Object.keys(SORT_LABELS).map((k) => ({ value: k, label: t(SORT_LABELS[k]) })),
@@ -497,6 +567,7 @@
         A.Selection.modeButton(app),
         el('span', { class: 'filter-spacer' }),
         sortSelect,
+        groupSelect,
         viewToggle,
       );
     }

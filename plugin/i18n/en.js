@@ -662,5 +662,14 @@
     "הרשימה הועתקה, בלי כתובות (יותר מדי גיליונות)": "List copied without links (too many bulletins)",
     "ההעתקה נכשלה": "Copy failed",
     "יציאה ממצב בחירה": "Exit selection mode",
+    "ללא תאריך": "No date",
+    "ללא חוג": "No circle",
+    "קיבוץ": "Grouping",
+    "ללא קיבוץ": "No grouping",
+    "לפי שבוע": "By week",
+    "לפי סדרה": "By series",
+    "לפי שנה": "By year",
+    "לפי חוג": "By circle",
+    "לפי שפה": "By language",
   };
 })(typeof self !== 'undefined' ? self : globalThis);

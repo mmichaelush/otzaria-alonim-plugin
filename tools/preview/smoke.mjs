@@ -324,6 +324,25 @@ async function filterFlows(browser, open, check) {
 async function selectionFlows(browser, open, check) {
   const page = await open('page=all');
   const num = (expr) => page.eval(`Number(${expr})`);
+  // קיבוץ: כותרת לכל קבוצה, וסכום הספירות שבכותרות שווה לסך התוצאות
+  const groupTotal = await num("document.querySelector('.results-count').textContent.replace(/[^0-9]/g, '')");
+  for (const kind of ['series', 'year', 'week', 'circle', 'lang']) {
+    await page.eval(`(() => { const s = document.querySelector('.select-group'); s.value = '${kind}'; s.dispatchEvent(new Event('change', { bubbles: true })); })()`);
+    await page.sleep(350);
+    const sum = await num("[...document.querySelectorAll('.year-header .section-count')].reduce((n, c) => n + Number(c.textContent.replace(/[^0-9]/g, '')), 0)");
+    const headers = await num("document.querySelectorAll('.year-header').length");
+    check(`קיבוץ לפי ${kind}: כותרות לכל קבוצה`, headers >= 1, String(headers));
+    if (kind === 'series') {
+      // כל הקבוצות בגלילה: בודקים דרך האינדקס, כי רק חלק מהכותרות ב-DOM
+      const inIndex = await num("window.__alonimApp.index.groupResults(window.__alonimApp.index.search('', {}, {}, {}).idx, 'series').reduce((n, g) => n + g.idx.length, 0)");
+      check('קיבוץ: כל התוצאות בקבוצות', inIndex === groupTotal, `${inIndex}/${groupTotal}`);
+    }
+    check(`קיבוץ לפי ${kind}: DOM מוגבל`, (await num("document.querySelectorAll('.card').length")) <= 60 && sum <= groupTotal);
+  }
+  await page.eval("(() => { const s = document.querySelector('.select-group'); s.value = ''; s.dispatchEvent(new Event('change', { bubbles: true })); })()");
+  await page.sleep(300);
+  check('ללא קיבוץ: אין כותרות', (await num("document.querySelectorAll('.year-header').length")) === 0);
+
   await page.eval("document.querySelector('[data-key=select-mode]').click()");
   await page.sleep(300);
   check('מצב בחירה: תיבות סימון בכרטיסים ושורת פעולות', (await num("document.querySelectorAll('.select-check').length")) > 3 && (await page.eval("!document.querySelector('.selection-bar').hidden")));

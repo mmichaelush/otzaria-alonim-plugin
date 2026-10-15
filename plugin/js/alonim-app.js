@@ -82,7 +82,7 @@
         route: { tab: 'week', series: null },
         weekDate: '',
         weekMore: 12,
-        all: { query: '', filters: {}, sort: 'relevance', includeHidden: false, builder: false, scroll: 0 },
+        all: { query: '', filters: {}, sort: 'relevance', group: '', includeHidden: false, builder: false, scroll: 0 },
         seriesList: { query: '', circle: '', lang: '', mode: 'all', scroll: 0 },
         seriesPage: { query: '', scroll: 0 },
         mine: { tab: 'favorites', list: '' },
@@ -172,7 +172,7 @@
     restoreViews() {
       const all = this.state.viewState('all');
       this.view.all.sort = this.state.prefs.sort;
-      if (all) Object.assign(this.view.all, { query: all.query, filters: all.filters, sort: all.sort, includeHidden: all.includeHidden });
+      if (all) Object.assign(this.view.all, { query: all.query, filters: all.filters, sort: all.sort, group: all.group, includeHidden: all.includeHidden });
       const series = this.state.viewState('seriesList');
       if (series) Object.assign(this.view.seriesList, series);
     }

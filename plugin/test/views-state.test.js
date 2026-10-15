@@ -18,11 +18,11 @@ test('מצב לשונית: נשמר ונטען, מסננים מנוקים', asyn
   const sdk = createFakeSdk();
   const s = make(sdk);
   await s.load();
-  s.setViewState('all', { query: 'נח', filters: { lang: 'he', hy: [5787, 'x'], junk: 1 }, sort: 'date', includeHidden: true });
+  s.setViewState('all', { query: 'נח', filters: { lang: 'he', hy: [5787, 'x'], junk: 1 }, sort: 'date', group: 'year', includeHidden: true });
   await s.flush();
   const again = make(sdk);
   await again.load();
-  assert.deepEqual(again.viewState('all'), { query: 'נח', filters: { lang: ['he'], hy: [5787] }, sort: 'date', includeHidden: true });
+  assert.deepEqual(again.viewState('all'), { query: 'נח', filters: { lang: ['he'], hy: [5787] }, sort: 'date', group: 'year', includeHidden: true });
   assert.equal(again.viewState('nope'), null);
 });
 
