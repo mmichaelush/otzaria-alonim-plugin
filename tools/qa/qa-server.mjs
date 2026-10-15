@@ -10,7 +10,7 @@ const arg = (name, fallback) => {
   const i = process.argv.indexOf(name);
   return i > 0 ? process.argv[i + 1] : fallback;
 };
-const root = resolve(arg('--catalog', 'catalog/out'));
+let root = resolve(arg('--catalog', 'catalog/out'));
 const port = Number(arg('--port', '39811'));
 const origin = `http://127.0.0.1:${port}`;
 const proxy = process.argv.includes('--proxy');
@@ -73,6 +73,11 @@ function rewriteManifest(text) {
 async function qaRoute(path, url, req, res) {
   const body = req.method === 'POST' ? await readBody(req) : '';
   if (path === '/qa/hello') return res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' }).end('<!doctype html><meta charset=utf-8><body style="font:24px sans-serif;background:#cfe">hello from QA server (html in iframe)</body>');
+  // החלפת קטלוג בזמן ריצה (בדיקת הגירת מזהים וסנכרון מחדש): /qa/root?dir=<נתיב>
+  if (path === '/qa/root') {
+    if (url.searchParams.get('dir')) root = resolve(url.searchParams.get('dir'));
+    return res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify({ root }));
+  }
   if (path === '/qa/mode') {
     outage = url.searchParams.get('down') || null;
     return res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify({ outage }));
@@ -121,6 +126,25 @@ createServer(async (req, res) => {
       if (rel === 'manifest.json') body = rewriteManifest(body);
       res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8', 'Cache-Control': 'no-store' });
       return res.end(body);
+    }
+    // קבצי QA סינתטיים (qa-*.pdf, ראו make-catalog.mjs): תמיד מקומיים, גם ב---proxy.
+    const qaFile = /^\/files\/[^/]+\/(qa-[a-z0-9-]+\.pdf)$/.exec(path);
+    if (qaFile) {
+      const name = qaFile[1];
+      if (name === 'qa-slow.pdf') await new Promise((r) => setTimeout(r, 25000));
+      if (name === 'qa-html.pdf') return res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' }).end('<!doctype html><title>login</title><p>not a pdf</p>');
+      if (name === 'qa-big.pdf') {
+        // 60MB: מעל תקרת ברירת המחדל של network.fetchFile (50MB). ה-PDF תקין רק בכותרת.
+        const size = 60 * 1024 * 1024;
+        res.writeHead(200, { 'Content-Type': 'application/pdf', 'Content-Length': size });
+        const chunk = Buffer.alloc(1 << 20, 32);
+        chunk.write('%PDF-1.4\n');
+        for (let sent = 0; sent < size; sent += chunk.length) if (!res.write(chunk)) await new Promise((r) => res.once('drain', r));
+        return res.end();
+      }
+      const pdf = makePdf(name, 4);
+      res.writeHead(200, { 'Content-Type': 'application/pdf', 'Accept-Ranges': 'bytes', 'Content-Length': pdf.length });
+      return res.end(pdf);
     }
     if (path.startsWith('/files/')) {
       if (proxy) {
