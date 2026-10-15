@@ -99,7 +99,11 @@ const scenarios = [
     'open=0&nofolder=1&host=legacy',
     "document.querySelector('.viewer .state-card')",
   ],
-  ['viewer-print', 'open=0&print=1&xorigin=1', "document.querySelector('.viewer-banner')"],
+  [
+    'viewer-print',
+    'open=0&print=1&xorigin=1&scenario=print-gesture-first',
+    "document.querySelector('.viewer-banner')",
+  ],
   [
     'viewer-print-legacy',
     'open=0&print=1&xorigin=1&host=legacy',
@@ -796,17 +800,15 @@ async function hostFlows(browser, open, check) {
   page = await open('open=40&print=1&xorigin=1');
   await page.sleep(1500);
   check(
-    'מארח חדש: הדפסה מציגה כפתור "הדפסה" (לחיצה טרייה) במקום לקרוא בלי מחווה',
+    'מארח חדש: הדפסה פותחת מיד את מסך ההדפסה של אוצריא (ui.printFile), בלי כפתור ביניים',
     await page.eval(
-      "Boolean(document.querySelector('.viewer-banner [data-key=print-now]')) && window.__sdk.printed.length === 0",
+      "window.__sdk.printed.length === 1 && !document.querySelector('.viewer-banner')",
     ),
   );
-  await page.eval("document.querySelector('[data-key=print-now]').click()");
-  await page.sleep(500);
   check(
     'מארח חדש: ui.printFile נקרא עם ה-token של הקובץ',
     await page.eval(
-      'window.__sdk.printed.length === 1 && window.__sdk.fileTokens.has(window.__sdk.printed[0].token) && Boolean(window.__sdk.printed[0].jobName)',
+      'window.__sdk.fileTokens.has(window.__sdk.printed[0].token) && Boolean(window.__sdk.printed[0].jobName)',
     ),
   );
   check(
@@ -819,10 +821,27 @@ async function hostFlows(browser, open, check) {
   );
   await browser.closePage(page);
 
-  page = await open('open=40&print=1&xorigin=1&scenario=print-cancel');
+  // מארח שעדיין דורש מחווה: הבקשה האוטומטית נדחית, מופיע כפתור, והלחיצה מדפיסה
+  page = await open('open=40&print=1&xorigin=1&scenario=print-gesture-first');
   await page.sleep(1500);
+  check(
+    'מארח שדורש מחווה (error.forbidden): מופיע כפתור "הדפסה" ולא נרשמת הדפסה',
+    await page.eval(
+      "Boolean(document.querySelector('.viewer-banner [data-key=print-now]')) && window.__sdk.printed.length === 1 && window.__alonimApp.state.historyEvents('printed').length === 0",
+    ),
+  );
   await page.eval("document.querySelector('[data-key=print-now]').click()");
   await page.sleep(500);
+  check(
+    'מארח שדורש מחווה: הלחיצה מדפיסה ונרשמת בהיסטוריה',
+    await page.eval(
+      "window.__sdk.printed.length === 2 && !document.querySelector('.viewer-banner') && window.__alonimApp.state.historyEvents('printed').length === 1",
+    ),
+  );
+  await browser.closePage(page);
+
+  page = await open('open=40&print=1&xorigin=1&scenario=print-cancel');
+  await page.sleep(1500);
   check(
     'הדפסה שבוטלה בדיאלוג המערכת: הודעה, בלי דיאלוג הדרכה',
     await page.eval(

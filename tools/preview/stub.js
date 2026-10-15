@@ -2,7 +2,7 @@
 // מ-`window.__FIXTURE__`, וערכות הצבעים של אוצריא. פרמטרים בכתובת:
 //   scenario=ready|offline|blocked|slow|bad-schema|rate-limit|download-blocked|
 //            download-html|no-folder-permission|reader-permission|folder-gone|
-//            legacy-host|fetchfile-blocked|fetchfile-html|print-cancel
+//            legacy-host|fetchfile-blocked|fetchfile-html|print-cancel|print-gesture|print-gesture-first|print-slow
 //   host=legacy  (אוצריא 0.9.98: בלי fetchFile ו-printFile)   welcome=1   minetab=<לשונית>
 //   mode=dark   lang=en   scale=1.3   today=2026-10-15   seed=0|1
 //   page=week|all|series|mine|settings   query=…   series=<מספר>   open=<מספר>

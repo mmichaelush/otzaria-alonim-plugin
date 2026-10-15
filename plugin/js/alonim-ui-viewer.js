@@ -8,7 +8,9 @@
 // לשמור, לעבור לקודם/הבא ולפתוח באתר המקור.
 //
 // הדפסה — מסלולים בסדר קבוע, שאפשר להחליף (`PRINT_ROUTES`):
-//   0. printFile: `ui.printFile({ token })` של מארח חדש (דיאלוג ההדפסה של המערכת על הקובץ).
+//   0. printFile: `ui.printFile({ token })` של מארח חדש: פותח את מסך ההדפסה של אוצריא (טווח עמודים,
+//      תצוגה מקדימה, פריסה, ואז דיאלוג המערכת) וממתין עד שהמשתמש סיים. המארח הוא שמחליט אם הוא דורש
+//      מחוות משתמש (`error.forbidden`); רק אז מציגים כפתור "הדפסה" ללחיצה טרייה.
 //   1. frame: `iframe.contentWindow.print()`. ב-WebView האמיתי ה-iframe ממקור אחר,
 //      ולכן ייחסם; ננסה ונתעלם.
 //   2. dialog: מציע "פתח בקורא של אוצריא" (`library.refreshUserBooks` ←
@@ -139,12 +141,11 @@
         }
         this.drawBody();
         this.refreshBar();
-        // מארח חדש: הדפסה דורשת לחיצת משתמש טרייה, ולכן מציגים כפתור "הדפס" במקום לקרוא בעצמנו.
-        if (s.options.print && app.caps.has('printFile') && file.token) s.pendingPrint = true;
+        // מארח חדש: מבקשים הדפסה מיד (מסך ההדפסה של אוצריא). מארח שדורש מחווה טרייה — כפתור "הדפסה".
+        if (s.options.print && app.caps.has('printFile') && file.token) this.print({ auto: true });
         else if (s.options.print && s.phase === 'ready')
           setTimeout(() => token === this.token && this.print(), 700);
         else if (s.options.print) this.print();
-        if (s.pendingPrint) this.drawBody();
       } catch (error) {
         if (token !== this.token) return;
         s.phase = 'error';
@@ -309,7 +310,7 @@
               el(
                 'div',
                 { class: 'viewer-banner', role: 'status' },
-                el('span', {}, t('הגיליון מוכן להדפסה')),
+                el('span', {}, t('הגיליון מוכן. לחצו כדי לפתוח את מסך ההדפסה של אוצריא.')),
                 Ui.button(
                   'filled',
                   t('הדפסה'),
@@ -441,19 +442,28 @@
     // --------------------------------------------------------- הדפסה
 
     /**
-     * מסלול א (frame) ואז הדיאלוג עם המסלולים האחרים. מסלול שהצליח אינו
-     * מציג דבר נוסף.
+     * המסלולים לפי `PRINT_ROUTES`; מסלול שהצליח אינו מציג דבר נוסף. [options].auto: הבקשה לא
+     * באה מלחיצה (פתיחה עם `print`): אם המארח דורש מחווה — מציגים כפתור במקום ליפול למסלול הבא.
      */
-    async print() {
-      const { app } = this;
+    async print(options) {
       const s = this.state;
-      if (!s) return;
+      if (!s || this.printing) return;
+      this.printing = true;
+      try {
+        await this.printRoutes(s, Boolean(options && options.auto));
+      } finally {
+        this.printing = false;
+      }
+    }
+
+    async printRoutes(s, auto) {
+      const { app } = this;
       // "הודפס" נרשם בהיסטוריה רק כשהמארח אישר הדפסה (printFile) או כשהמסלול אינו יודע אם בוצעה.
       // ביטול בדיאלוג המערכת אינו הדפסה (נמצא בבדיקה חיה באוצריא 0.9.99).
       // כל מסלול מחזיר true כשסיים את העבודה (המסלולים מוחלפים ב-PRINT_ROUTES).
       const routes = {
         // המסלול הראשון קורא ל-SDK מיד, בתוך לחיצת המשתמש (בלי await לפניו).
-        printFile: () => this.printViaHost(),
+        printFile: () => this.printViaHost(auto),
         frame: () => {
           if (s.phase !== 'ready' || !this.frame || !app.files.printViaFrame(this.frame))
             return false;
@@ -471,19 +481,26 @@
     }
 
     /**
-     * `ui.printFile` של מארח חדש. `true` כשטופל (הודפס או בוטל); `false` — המסלול אינו
-     * זמין או נכשל, והקורא עובר למסלול הבא.
+     * `ui.printFile` של מארח חדש. `true` כשטופל (הודפס, בוטל, או ממתין ללחיצה); `false` — המסלול
+     * אינו זמין או נכשל, והקורא עובר למסלול הבא. [auto] + `error.forbidden`: הכפתור "הדפסה".
      */
-    async printViaHost() {
+    async printViaHost(auto) {
       const { app } = this;
       const s = this.state;
       if (!app.caps.has('printFile') || !s.file || !s.file.token) return false;
       try {
         const result = await app.files.printToken(s.file.token, Cards.titleOf(s.item));
         if (result.printed) app.state.logEvent('printed', s.item);
-        app.toast(result.printed ? t('נשלח להדפסה') : t('ההדפסה בוטלה'));
+        if (this.state === s) app.toast(result.printed ? t('נשלח להדפסה') : t('ההדפסה בוטלה'));
         return true;
       } catch (error) {
+        if (FilesApi.isGestureError(error) && auto) {
+          if (this.state === s) {
+            s.pendingPrint = true;
+            this.drawBody();
+          }
+          return true;
+        }
         if (!(error && error.name === 'UnsupportedError')) app.log.warn('printFile failed', error);
         return false;
       }

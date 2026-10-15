@@ -83,6 +83,11 @@
     // ---- ממשק
     screen_failed: { area: 'ui', retry: true, text: N('משהו השתבש בהצגת המסך הזה.') },
     dialog_failed: { area: 'ui', retry: true, text: N('משהו השתבש בפתיחת החלון.') },
+    print_failed: {
+      area: 'ui',
+      retry: true,
+      text: N('מסך ההדפסה של אוצריא נכשל. אפשר לנסות שוב, או להדפיס מהצפיין.'),
+    },
     unsupported: {
       area: 'ui',
       retry: false,

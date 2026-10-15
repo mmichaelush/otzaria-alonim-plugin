@@ -179,6 +179,7 @@ test('Bulk.printSequence: מדפיס ברצף, עוצר בביטול, וממשי
     '2:printed',
   ]);
   assert.equal(sdk.printed.length, 3);
+  assert.equal(sdk.printMaxOpen, 1, 'מסך הדפסה אחד בכל פעם');
 
   const cancelling = await setup({ folder: false, sdk: { scenario: 'print-cancel' } });
   const app2 = {
@@ -193,6 +194,44 @@ test('Bulk.printSequence: מדפיס ברצף, עוצר בביטול, וממשי
   assert.deepEqual(single, { done: 1, stoppedAt: -1, reason: '' });
   assert.equal(A.Bulk.canPrint(app), true);
   assert.equal(A.Bulk.canPrint({ caps: new Capabilities({ log: quiet }) }), false);
+});
+
+test('Bulk.printSequence: כל גיליון ממתין לתשובת מסך ההדפסה לפני שהבא נפתח (בלי חפיפה)', async () => {
+  const slow = await setup({ folder: false, sdk: { printDelayMs: 15 } });
+  const app = {
+    files: slow.files,
+    caps: slow.caps,
+    state: { logEvent: () => {} },
+    full: async (it) => it,
+  };
+  const log = [];
+  const result = await A.Bulk.printSequence(app, [item(1), item(2), item(3)], (k, s) =>
+    log.push(k + ':' + s + ':' + slow.sdk.printOpen),
+  );
+  assert.equal(result.reason, '');
+  assert.equal(slow.sdk.printMaxOpen, 1);
+  assert.equal(slow.sdk.printed.length, 3);
+  assert.deepEqual(log.slice(0, 2), ['0:printing:0', '0:printed:0']);
+});
+
+test('Bulk.printSequence: כשל אחר של המארח עוצר עם קוד יציב ורושם ביומן', async () => {
+  const { files, caps } = await setup({ folder: false });
+  const warned = [];
+  const app = {
+    files: Object.assign(Object.create(files), {
+      printToken: async () => {
+        throw Object.assign(new Error('boom'), { code: 'error.invalid_params' });
+      },
+    }),
+    caps,
+    log: { warn: (m) => warned.push(m), debug() {} },
+    state: { logEvent: () => {} },
+    full: async (it) => it,
+  };
+  const result = await A.Bulk.printSequence(app, [item(1), item(2)], () => {});
+  assert.deepEqual(result, { done: 0, stoppedAt: 0, reason: 'print_failed' });
+  assert.equal(warned.length, 1);
+  assert.ok(A.Errors.known(result.reason));
 });
 
 test('Bulk.printSequence: מחווה שפגה (error.forbidden) עוצרת בנימוס, והגיליון נשאר ממתין', async () => {

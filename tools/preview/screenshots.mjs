@@ -114,7 +114,7 @@ const shots = [
   ['settings-diagnostics-legacy', 'page=settings&section=diagnostics&host=legacy', 1000, 1100],
   ['settings-help', 'page=settings&section=help', 1000, 1000],
   ['welcome', 'welcome=1', 1000, 620],
-  ['viewer-print-ready', 'open=40&print=1&xorigin=1', 1000, 620],
+  ['viewer-print-ready', 'open=40&print=1&xorigin=1&scenario=print-gesture-first', 1000, 620],
   ['narrow-picker', 'page=week', 400, 800, null, open('[data-key=jump]')],
   ['narrow-filters', 'page=all', 400, 860, null, open('[data-key=filters]')],
   ['scaled', 'page=all&scale=1.5', 1000, 820],

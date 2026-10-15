@@ -733,8 +733,10 @@
     }
 
     /**
-     * הדפסת קובץ דרך המארח (`ui.printFile`): `{ printed }`. זורק `UnsupportedError`
-     * כשהיכולת חסרה. דורש פעולת משתמש (המארח קובע).
+     * הדפסת קובץ דרך המארח (`ui.printFile`): פותח את מסך ההדפסה של אוצריא (טווח עמודים, תצוגה
+     * מקדימה, פריסה, ואז דיאלוג המערכת) וממתין עד שהמשתמש סיים: `{ printed }`, `false` כשבוטל.
+     * הקריאה נמשכת כמה שהמשתמש לוקח, ולכן אין לה פסק זמן. זורק `UnsupportedError` כשהיכולת חסרה,
+     * ושגיאת SDK אחרת כמות שהיא; `isGestureError` מזהה מארח שדורש מחווה טרייה.
      */
     async printToken(token, jobName) {
       if (!this.caps) throw new A.Capabilities.UnsupportedError('printFile', 'no-caps');
@@ -898,8 +900,12 @@
     }
   }
 
+  /** המארח דחה את ההדפסה כי אין מחוות משתמש טרייה (`error.forbidden`). */
+  const isGestureError = (error) => Boolean(error && error.code === A.Runtime.CODES.forbidden);
+
   const api = {
     Files,
+    isGestureError,
     FileError,
     pickAsset,
     READ_DIR,

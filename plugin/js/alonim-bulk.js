@@ -124,12 +124,13 @@
     return rules.length;
   }
 
-  /** האם אפשר להדפיס גיליונות ישירות (מארח חדש: ui.printFile). */
+  /** האם אפשר להדפיס גיליונות דרך מסך ההדפסה של אוצריא (מארח חדש: ui.printFile). */
   const canPrint = (app) => Boolean(app.caps && app.caps.has('printFile'));
 
   /**
-   * מדפיס גיליון אחד דרך המארח: מכין קובץ (מרוחק, או מהתיקייה) ומבקש הדפסה.
-   * מחזיר `{ printed }`; זורק `UnsupportedError` כשאין יכולת, ו-[FileError] בכשל קובץ.
+   * מדפיס גיליון אחד דרך המארח: מכין קובץ (מרוחק, או מהתיקייה) ופותח את מסך ההדפסה של אוצריא;
+   * ההבטחה מסתיימת כשהמשתמש סיים בו. מחזיר `{ printed }`; זורק `UnsupportedError` כשאין יכולת,
+   * ו-[FileError] בכשל קובץ.
    */
   async function printOne(app, item) {
     const full = app.files.hasFolder && app.files.isDownloaded(item) ? item : await app.full(item);
@@ -145,9 +146,8 @@
   }
 
   /**
-   * מכין מראש את הקובץ של [item] להדפסה (קובץ מרוחק, במארח חדש), כדי שהבקשה ל-`ui.printFile` תצא
-   * מיד בלחיצה: המארח דורש מחוות משתמש טרייה (כ-5 שניות), ואי אפשר להמתין להורדה לפניה.
-   * נכשל בשקט; ההדפסה עצמה תנסה שוב ותדווח.
+   * מכין מראש את הקובץ של [item] (קובץ מרוחק, במארח חדש), כדי שהגיליון הבא ייפתח במסך ההדפסה מיד
+   * כשהמשתמש מסיים את הקודם, בלי המתנה להורדה. נכשל בשקט; ההדפסה עצמה תנסה שוב ותדווח.
    */
   async function prefetch(app, item) {
     try {
@@ -156,18 +156,17 @@
       const full = await app.full(item);
       if (full) await app.files.openForReading(full);
     } catch (error) {
-      // ההדפסה תדווח.
+      if (app.log) app.log.debug('print prefetch failed', error);
     }
   }
 
-  /** המארח דחה את ההדפסה כי אין מחוות משתמש טרייה (`error.forbidden`). */
-  const isGestureError = (error) => Boolean(error && error.code === 'error.forbidden');
-
   /**
-   * מדפיס ברצף את [items]. [onStatus](index, status) עם `printing | printed |
+   * מדפיס ברצף את [items], גיליון אחרי גיליון: כל אחד פותח מסך הדפסה של אוצריא שהמשתמש משלים,
+   * והרצף ממשיך רק כשהמארח החזיר תשובה. [onStatus](index, status) עם `printing | printed |
    * cancelled | failed | pending`. עוצר בביטול או בכשל ומחזיר `{ done, stoppedAt, reason }`.
-   * `reason: 'gesture'`: המארח דורש לחיצה נפרדת לכל דיאלוג הדפסה (דיאלוג שנפתח לפני יותר מכמה
-   * שניות מבטל את המחווה), והגיליון נשאר ממתין להדפסה בלחיצה הבאה.
+   * `reason: 'gesture'`: מארח שעדיין דורש לחיצה טרייה לכל מסך הדפסה (`error.forbidden`) — הגיליון
+   * נשאר ממתין להדפסה בלחיצה הבאה (נפילה לאחור, לא המסלול הרגיל).
+   * `reason: 'print_failed'`: כשל אחר של המארח (הקוד הגולמי ביומן).
    */
   async function printSequence(app, items, onStatus, options) {
     const from = (options && options.from) || 0;
@@ -180,12 +179,14 @@
         onStatus(k, result.printed ? 'printed' : 'cancelled');
         if (!result.printed) return { done: k - from, stoppedAt: k, reason: 'cancelled' };
       } catch (error) {
-        if (isGestureError(error)) {
+        if (A.Files.isGestureError(error)) {
           onStatus(k, 'pending');
           return { done: k - from, stoppedAt: k, reason: 'gesture' };
         }
+        if (app.log) app.log.warn('print sequence stopped at ' + k, error);
         onStatus(k, 'failed');
-        return { done: k - from, stoppedAt: k, reason: error.code || 'failed' };
+        const known = error && error.code && A.Errors && A.Errors.known(error.code);
+        return { done: k - from, stoppedAt: k, reason: known ? error.code : 'print_failed' };
       }
     }
     return { done: limit - from, stoppedAt: -1, reason: '' };

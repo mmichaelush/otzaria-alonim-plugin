@@ -1,5 +1,5 @@
 // יכולות של המארח (אוצריא) שהתוסף משתמש בהן רק אחרי בדיקה: `network.fetchFile`
-// (קובץ מרוחק בלי הורדה), `ui.printFile` (הדפסת PDF), ו-iframe ישיר על קובץ
+// (קובץ מרוחק בלי הורדה), `ui.printFile` (מסך ההדפסה של אוצריא על קובץ PDF), ו-iframe ישיר על קובץ
 // מוענק. המקור היחיד לשאלה "האם יש" הוא המודול הזה; אין קריאה לשיטה חדשה שלא
 // עברה בו.
 //
@@ -25,7 +25,7 @@
   /** שם יכולת ← השיטה שמאחוריה (null = נגזרת מיכולת אחרת) ותווית לאבחון. */
   const FEATURES = Object.freeze({
     fetchFile: { method: 'network.fetchFile', label: N('קריאה בלי הורדה') },
-    printFile: { method: 'ui.printFile', label: N('הדפסת קובץ') },
+    printFile: { method: 'ui.printFile', label: N('מסך ההדפסה של אוצריא') },
     frameFile: { method: null, label: N('תצוגה ישירה בצפיין') },
   });
 

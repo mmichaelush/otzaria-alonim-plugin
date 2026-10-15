@@ -6,7 +6,10 @@
 // PDF מינימלי תקין. תרחישים (`scenario`): offline, blocked, slow, bad-schema,
 // rate-limit, download-blocked, download-html, no-folder-permission,
 // reader-permission, folder-gone, legacy-host (אוצריא 0.9.98: בלי `network.fetchFile`
-// ו-`ui.printFile`), fetchfile-blocked, fetchfile-html, fetchfile-html-pdfmime, print-cancel, print-gesture.
+// ו-`ui.printFile`), fetchfile-blocked, fetchfile-html, fetchfile-html-pdfmime, print-cancel, print-gesture (מארח שדורש מחווה לכל הדפסה אחרי
+// הראשונה), print-gesture-first (הבקשה הראשונה נדחית ב-forbidden, כמו הדפסה אוטומטית בלי לחיצה),
+// print-slow (מסך ההדפסה "פתוח" 300ms).
+// `ui.printFile` מדמה את מסך ההדפסה של אוצריא: ההבטחה נפתרת כשהמשתמש סיים (printed: true/false).
 (function (root) {
   'use strict';
 
@@ -67,6 +70,9 @@
       fetchedFiles: [],
       /** קריאות `ui.printFile` שהתקבלו. */
       printed: [],
+      /** כמה מסכי הדפסה פתוחים כרגע, והשיא (הרצף אמור להשאיר אחד בלבד). */
+      printOpen: 0,
+      printMaxOpen: 0,
       /** token ← תוכן, לכל קובץ שהמארח הוענק לתוסף (תיקייה או fetchFile). */
       fileTokens: new Map(),
       revoked: [],
@@ -321,17 +327,24 @@
           },
       'ui.printFile': legacyHost
         ? undefined
-        : (p) => {
+        : async (p) => {
             sdk.printed.push(p);
             if (!sdk.fileTokens.has(p.token)) return err('error.not_found', 'unknown file token');
-            if (scenario === 'print-cancel') return { printed: false };
-            // המארח האמיתי: מחוות המשתמש (כ-5 שניות) נגמרת בזמן שהדיאלוג הקודם פתוח.
-            if (scenario === 'print-gesture' && sdk.printed.length > 1)
-              return err(
+            const gesture = () =>
+              err(
                 'error.forbidden',
                 'Requires a user gesture — call it directly from a click handler',
               );
-            return { printed: true };
+            if (scenario === 'print-gesture' && sdk.printed.length > 1) return gesture();
+            if (scenario === 'print-gesture-first' && sdk.printed.length === 1) return gesture();
+            sdk.printMaxOpen = Math.max(sdk.printMaxOpen, ++sdk.printOpen);
+            try {
+              const wait = scenario === 'print-slow' ? 300 : o.printDelayMs || 0;
+              if (wait) await new Promise((resolve) => setTimeout(resolve, wait));
+              return { printed: scenario !== 'print-cancel' };
+            } finally {
+              sdk.printOpen--;
+            }
           },
       'fs.revokeFile': (p) => {
         sdk.revoked.push(p.token);
