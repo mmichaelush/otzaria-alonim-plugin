@@ -61,7 +61,13 @@ jobs:
           SOURCES: ${{ inputs.sources }}
         run: |
           args=(--out "$RUNNER_TEMP/out" --stats "$RUNNER_TEMP/stats.json")
-          [ -n "$PREV" ] && args+=(--prev "$PREV")
+          if [ -n "$PREV" ]; then
+            args+=(--prev "$PREV")
+          else
+            # Nothing published yet: an incremental build would publish only what the sources show today.
+            echo "no data branch yet: crawling every source in full"
+            FULL=true
+          fi
           [ "$FULL" = "true" ] && args+=(--full)
           [ -n "$SOURCES" ] && args+=(--sources "$SOURCES")
           node catalog/build.mjs "${args[@]}"
