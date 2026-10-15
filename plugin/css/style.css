@@ -2120,6 +2120,13 @@ kbd {
   min-width: 0;
 }
 
+.series-name-line {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  min-width: 0;
+}
+
 .row-chevron {
   flex-shrink: 0;
   color: var(--color-on-surface-variant);

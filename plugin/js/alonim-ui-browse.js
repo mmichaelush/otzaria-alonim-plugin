@@ -125,9 +125,10 @@
       this.run();
 
       this.unsub.push(
+        // שרד שהגיע ברקע מרענן את התוצאות, אבל לא מקפיץ את הגלילה של המשתמש.
         app.on('data', () => {
           this.renderFilters();
-          this.schedule();
+          this.schedule(true);
         }),
         app.on('state', (domains) => this.onState(domains)),
         app.on('files', () => this.refresh()),
@@ -184,17 +185,20 @@
       else this.refresh();
     }
 
-    /** חיפוש בכל הקשה, מאוחד ל-frame אחד. */
-    schedule() {
+    /** חיפוש בכל הקשה, מאוחד ל-frame אחד. [keepScroll]: רענון נתונים, לא חיפוש חדש. */
+    schedule(keepScroll) {
+      this.wantReset = this.wantReset || !keepScroll;
       if (this.pending) return;
       this.pending = true;
       requestAnimationFrame(() => {
         this.pending = false;
-        this.run();
+        const reset = this.wantReset;
+        this.wantReset = false;
+        this.run(!reset);
       });
     }
 
-    run() {
+    run(keepScroll) {
       const { app } = this;
       const v = app.view.all;
       if (!app.index.size) {
@@ -205,7 +209,7 @@
       }
       this.result = app.index.search(v.query, v.filters, app.searchContext(), { sort: v.sort, includeHidden: v.includeHidden });
       app.lastQueryMs = this.result.ms;
-      this.list.resetScroll();
+      if (!keepScroll) this.list.resetScroll();
       this.layout();
       this.updateCount();
     }
@@ -541,7 +545,7 @@
       const st = app.state.seriesState(s.id);
       const years = [s.first, s.last].filter(Boolean).map((d) => String(d).slice(0, 4));
       const range = years.length === 2 && years[0] !== years[1] ? years[0] + '–' + years[1] : years[0] || '';
-      const meta = [t('{n} גיליונות', { n: Core.formatCount(s.issueCount || (app.index.bySeries.get(s.id) || []).length) }), s.lang && s.lang !== 'he' ? Core.langName(s.lang) : '', s.circle, range].filter(Boolean).join(' · ');
+      const meta = [t('{n} גיליונות', { n: Core.formatCount(s.issueCount || (app.index.bySeries.get(s.id) || []).length) }), s.circle, range].filter(Boolean).join(' · ');
       return el(
         'article',
         {
@@ -554,7 +558,7 @@
           onkeydown: (e) => { if (e.target === e.currentTarget && e.key === 'Enter') app.openSeries(s.id); },
         },
         Ui.iconButton(st.fav ? 'star_24_filled' : 'star_24_regular', st.fav ? t('הסר מהמועדפות') : t('סמן סדרה כמועדפת'), () => app.state.setSeries(s.id, { fav: !st.fav }), { pressed: st.fav, className: 'star-button' }),
-        el('div', { class: 'row-main' }, el('h3', { class: 'card-title', dir: 'auto' }, s.title), el('p', { class: 'card-meta', dir: 'auto' }, meta)),
+        el('div', { class: 'row-main' }, el('div', { class: 'series-name-line' }, el('h3', { class: 'card-title', dir: 'auto' }, s.title), s.lang && s.lang !== 'he' ? Ui.chip(Core.langName(s.lang), { kind: 'lang' }) : null), el('p', { class: 'card-meta', dir: 'auto' }, meta)),
         st.follow ? Ui.chip(t('עוקב'), { kind: 'new', icon: 'alert_24_filled' }) : st.mute ? Ui.chip(t('מושתקת'), { kind: 'hidden', icon: 'alert_off_24_regular' }) : null,
         Ui.iconButton(st.follow ? 'alert_24_filled' : 'alert_24_regular', st.follow ? t('הפסק לעקוב') : t('עקוב אחרי הסדרה'), () => app.toggleFollow(s.id), { pressed: st.follow }),
         icon(document.documentElement.dir === 'ltr' ? 'chevron_right_24_regular' : 'chevron_left_24_regular', 'row-chevron'),

@@ -43,6 +43,8 @@
     }
 
     open(viewer) {
+      // המיקוד חוזר למי שפתח את הצפיין (לא לפתיחה קודמת, וגם לא בין קודם/הבא).
+      if (!this.state) this.returnFocus = document.activeElement;
       this.state = { ...viewer, phase: 'loading', error: '', file: null, job: null };
       this.token = viewer.token;
       this.app.shell.dataset.mode = 'viewer';
@@ -60,6 +62,7 @@
       const focus = this.app.shell.querySelector('.main-tab[aria-selected="true"]');
       if (this.returnFocus && document.contains(this.returnFocus)) this.returnFocus.focus();
       else if (focus) focus.focus();
+      this.returnFocus = null;
     }
 
     // --------------------------------------------------------- טעינה
@@ -111,7 +114,6 @@
     draw() {
       this.bar = el('header', { class: 'viewer-bar' });
       this.body = el('div', { class: 'viewer-body' });
-      this.returnFocus = this.returnFocus || document.activeElement;
       this.host.replaceChildren(this.bar, this.body);
       this.refreshBar();
       this.drawBody();

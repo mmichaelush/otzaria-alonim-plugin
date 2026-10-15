@@ -7,6 +7,7 @@ import { readFileSync } from 'node:fs';
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { Browser } from './cdp.mjs';
+import { a11yReport } from './a11y.mjs';
 
 const here = dirname(fileURLToPath(import.meta.url));
 execFileSync(process.execPath, [join(here, 'build-preview.mjs'), '--large'], { stdio: 'ignore' });
@@ -79,6 +80,9 @@ async function runScenario(browser, [name, query, check], suffix, base, width) {
     for (const cls of await page.eval("[...new Set([...document.querySelectorAll('[class]')].flatMap((n) => (typeof n.className === 'string' ? n.className.split(/\\s+/) : (n.className.baseVal || '').split(/\\s+/))))]")) {
       if (cls) seenClasses.set(cls, name);
     }
+    // נגישות: שמות נגישים, תוויות, ARIA וניגודיות AA.
+    const a11y = await a11yReport(page);
+    if (a11y.length) fail(name + suffix, 'נגישות: ' + a11y.join('; '));
     // "null"/"undefined" שדלפו כטקסט לממשק (למשל replaceChildren(null)).
     const leaked = await page.eval("(document.body.innerText.match(/\\b(null|undefined|NaN)\\b|\\[object/g) || []).join(',')");
     if (leaked) fail(name + suffix, 'טקסט דלף לממשק: ' + leaked);

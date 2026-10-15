@@ -103,3 +103,29 @@ test('אין שום כתובת קשיחה לשרת שאינו בהצהרת הר�
     for (const m of code.matchAll(/https?:\/\/([a-z0-9.-]+)/gi)) assert.ok(allowed.has(m[1].toLowerCase()), name + ': ' + m[0]);
   }
 });
+
+// הוולידטור הרשמי סורק רק `Otzaria.call('…')` מילולי, ואנחנו קוראים דרך ה-runtime
+// (`runtime.call('…')`): לכן ההתאמה בין המתודות, ההרשאות וגרסת המינימום נבדקת כאן.
+test('כל מתודת SDK שהקוד קורא לה: מוכרת, עם הרשאה במניפסט (או בסיס), ומגרסה שעד minAppVersion', () => {
+  const sdk = JSON.parse(read('test', 'fixtures', 'sdk-methods.json'));
+  const cmp = (a, b) => a.split('.').map(Number).reduce((d, n, i) => d || n - Number(b.split('.')[i] || 0), 0);
+  const used = new Set();
+  for (const name of fs.readdirSync(path.join(root, 'js'))) {
+    const code = read('js', name).replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+    for (const m of code.matchAll(/(?:call|callSoft)\('([a-z]+\.[a-zA-Z]+)'/g)) used.add(m[1]);
+    for (const m of code.matchAll(/'(network\.(?:fetchStream|download))'/g)) used.add(m[1]);
+  }
+  assert.ok(used.size >= 15, [...used].join(','));
+  for (const method of used) {
+    const info = sdk.methods[method];
+    assert.ok(info, 'מתודה לא מוכרת (חסרה ב-sdk-methods.json): ' + method);
+    if (info.permission && !sdk.baseline.includes(info.permission)) {
+      assert.ok(manifest.permissions.includes(info.permission), method + ' דורשת ' + info.permission);
+    }
+    assert.ok(cmp(info.since, manifest.minAppVersion) <= 0, method + ' מגרסה ' + info.since);
+  }
+  // וההפך: אין הרשאה מוצהרת שאין שימוש שמצדיק אותה.
+  for (const permission of manifest.permissions) {
+    assert.ok(Object.values(sdk.methods).some((x) => x.permission === permission), 'הרשאה בלי שימוש: ' + permission);
+  }
+});

@@ -61,7 +61,8 @@
         app.on('disk', () => this.render()),
         app.on('sync', () => this.refreshLive()),
         app.on('state', (d) => { if (!d.includes('read')) this.render(); }),
-        app.on('data', () => this.render()),
+        // נתונים שמגיעים ברקע מרעננים רק את מה שתלוי בהם, לא את הטפסים.
+        app.on('data', () => { this.refreshLive(); this.refreshSimulation(); }),
       );
       this.render();
       if (app.view.settings.section) {
@@ -76,6 +77,11 @@
 
     destroy() {
       for (const off of this.unsub) off();
+    }
+
+    refreshSimulation() {
+      const box = this.host.querySelector('.simulation');
+      if (box) this.simulate(box);
     }
 
     /** תור וסנכרון מתעדכנים בלי לבנות את הטפסים מחדש (לא לאבד מיקוד). */
