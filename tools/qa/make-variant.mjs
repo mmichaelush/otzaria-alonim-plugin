@@ -10,7 +10,7 @@ const port = pi > 0 ? process.argv[pi + 1] : '39811';
 const origin = `http://127.0.0.1:${port}`;
 
 await rm(out, { recursive: true, force: true });
-await cp('plugin', out, { recursive: true, filter: (src) => !/[\/]test([\/]|$)/.test(src) });
+await cp('plugin', out, { recursive: true, filter: (src) => !/[\\/]test([\\/]|$)/.test(src) });
 
 const manifestPath = join(out, 'manifest.json');
 const manifest = JSON.parse(await readFile(manifestPath, 'utf8'));
