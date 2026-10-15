@@ -76,7 +76,7 @@ test('a build writes a contract-shaped catalog: manifest, series, weeks, recent,
       assert.ok(i.assets.length >= 1);
       for (const a of i.assets) {
         assert.ok(a.src && a.ext);
-        assert.ok(a.url || a.page, 'every copy has a direct pdf url or a page');
+        assert.ok(a.url && a.page, 'every copy has both a direct pdf url and the site page');
         if (a.url) assert.equal(new URL(a.url).protocol, 'https:');
       }
       for (const p of i.parasha || []) assert.ok(valid.has(p), p);

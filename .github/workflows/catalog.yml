@@ -1,0 +1,101 @@
+name: catalog
+
+# Builds the catalog every 3 hours and publishes it to the orphan branch `data`
+# as a single force-pushed commit, only when the content changed.
+on:
+  schedule:
+    - cron: '17 */3 * * *'
+  workflow_dispatch:
+    inputs:
+      full:
+        description: 'Crawl the whole archive of every source (slow; tashma alone is ~800 requests)'
+        type: boolean
+        default: false
+      sources:
+        description: 'Comma separated source ids (empty = all)'
+        type: string
+        default: ''
+
+# One build at a time; a queued run waits instead of racing the force-push.
+concurrency:
+  group: catalog
+  cancel-in-progress: false
+
+permissions:
+  contents: write
+
+jobs:
+  build:
+    runs-on: ubuntu-latest
+    timeout-minutes: 150
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: catalog/package-lock.json
+
+      - name: Install
+        run: npm ci --prefix catalog
+
+      - name: Test
+        run: node --test "catalog/test/*.test.js"
+
+      - name: Fetch the published catalog (if any)
+        id: prev
+        run: |
+          if git ls-remote --exit-code --heads origin data >/dev/null 2>&1; then
+            git fetch --depth=1 origin data
+            git worktree add "$RUNNER_TEMP/prev" FETCH_HEAD
+            echo "dir=$RUNNER_TEMP/prev" >> "$GITHUB_OUTPUT"
+          else
+            echo "dir=" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Build
+        env:
+          PREV: ${{ steps.prev.outputs.dir }}
+          FULL: ${{ inputs.full }}
+          SOURCES: ${{ inputs.sources }}
+        run: |
+          args=(--out "$RUNNER_TEMP/out" --stats "$RUNNER_TEMP/stats.json")
+          [ -n "$PREV" ] && args+=(--prev "$PREV")
+          [ "$FULL" = "true" ] && args+=(--full)
+          [ -n "$SOURCES" ] && args+=(--sources "$SOURCES")
+          node catalog/build.mjs "${args[@]}"
+
+      - name: Sanity check
+        env:
+          PREV: ${{ steps.prev.outputs.dir }}
+        run: |
+          args=(--out "$RUNNER_TEMP/out")
+          [ -n "$PREV" ] && args+=(--prev "$PREV")
+          node catalog/tools/sanity.mjs "${args[@]}"
+
+      - name: Changed?
+        id: changed
+        env:
+          PREV: ${{ steps.prev.outputs.dir }}
+        run: |
+          if [ -n "$PREV" ] && diff -r -q --exclude=.git "$PREV" "$RUNNER_TEMP/out" >/dev/null; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+            echo "Catalog unchanged; nothing to publish."
+          else
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          fi
+
+      - name: Publish to branch data (single commit, force-pushed)
+        if: steps.changed.outputs.changed == 'true'
+        env:
+          GH_TOKEN: ${{ github.token }}
+        run: |
+          version=$(node -p "require('$RUNNER_TEMP/out/manifest.json').catalogVersion")
+          cd "$RUNNER_TEMP/out"
+          git init -q -b data
+          git config user.name "github-actions[bot]"
+          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
+          git add -A
+          git commit -q -m "catalog $version"
+          git push --force "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git" data

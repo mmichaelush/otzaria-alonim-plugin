@@ -1,0 +1,35 @@
+name: catalog-ci
+
+# Checks for the catalog builder only (the plugin has its own ci.yml).
+# No network: every test runs against recorded fixtures.
+on:
+  push:
+    paths:
+      - 'catalog/**'
+      - 'docs/CATALOG_FORMAT.md'
+      - '.github/workflows/catalog-ci.yml'
+  pull_request:
+    paths:
+      - 'catalog/**'
+      - 'docs/CATALOG_FORMAT.md'
+      - '.github/workflows/catalog-ci.yml'
+
+permissions:
+  contents: read
+
+jobs:
+  test:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: catalog/package-lock.json
+      - run: npm ci --prefix catalog
+      - name: Syntax check
+        run: |
+          for f in catalog/build.mjs catalog/lib/*.mjs catalog/connectors/*.mjs catalog/tools/*.mjs; do node --check "$f"; done
+      - name: Tests
+        run: node --test "catalog/test/*.test.js"

@@ -134,6 +134,7 @@ test('alonolam: list -> raw issues; docx dropped; series/parasha derived from th
   assert.equal(tanya.seriesHint.title, 'תניא');
   assert.equal(tanya.refMonth, '2026-10');
   assert.equal(tanya.url.startsWith('https://alonolam.com/wp-content/uploads/2026/10/'), true);
+  assert.ok(/^[ -~]+$/.test(tanya.url), 'url is percent-encoded ASCII');
   assert.ok(items.every((i) => !i.thumb || i.thumb.startsWith('https://')));
   assert.equal(tanya.page, 'https://alonolam.com/%d7%92%d7%9c%d7%a8%d7%99%d7%94/');
   assert.ok(['low', 'medium', 'none'].includes(tanya.rawMeta.confidence));

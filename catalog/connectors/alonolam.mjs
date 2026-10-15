@@ -12,7 +12,10 @@ export const mode = 'catalog';
 
 const LIST = 'https://alonolam.com/wp-json/gallery/v1/list';
 const GALLERY_PAGE = 'https://alonolam.com/%d7%92%d7%9c%d7%a8%d7%99%d7%94/';
-const https = (u) => (u ? String(u).replace(/^http:\/\//, 'https://') : null);
+// Absolute https URL with the path percent-encoded (the source mixes raw Hebrew and %-escapes).
+const https = (u) => {
+  try { return new URL(String(u).replace(/^http:\/\//, 'https://')).href; } catch { return null; }
+};
 
 /** Upload month from "/wp-content/uploads/2026/10/..." -> "2026-10" (the only date the source gives). */
 export function uploadMonth(u) {
