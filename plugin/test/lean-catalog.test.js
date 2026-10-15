@@ -10,7 +10,6 @@ const { buildFiles, DEFAULT_SOURCES } = require('./helpers/catalog-files');
 const { createFakeSdk } = require('../../tools/preview/fake-sdk.js');
 
 const A = loadPlugin();
-const Core = A.Core;
 const { CatalogIndex } = A.Index;
 const { Catalog, CACHE_CAP, WARM_BYTES } = A.Catalog;
 const { createRuntime } = A.Runtime;

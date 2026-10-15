@@ -19,7 +19,7 @@ const { makeCatalog } = require('../../plugin/test/helpers/fixture.js');
 globalThis.Alonim = globalThis.Alonim || {};
 require('../../plugin/js/alonim-i18n.js');
 require('../../plugin/js/alonim-hebcal.js');
-const Core = require('../../plugin/js/alonim-core.js');
+require('../../plugin/js/alonim-core.js');
 
 const args = process.argv.slice(2);
 const flag = (name) => args.includes(name);
@@ -39,7 +39,6 @@ function readDir(dir) {
   return files;
 }
 
-const PARASHA_ORDER = Object.keys(Core.PARASHOT);
 const ANCHOR = { date: '2026-10-17', hy: 5787, slug: 'noach' };
 
 /** לוח השבועות האמיתי של הקטלוג (5786-5788), כולל שורות חג באמצע השבוע. */

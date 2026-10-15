@@ -1,0 +1,9 @@
+# generated or fixture files: formatting them only adds noise
+node_modules/
+catalog/
+plugin/js/alonim-icons.js
+plugin/i18n/en.js
+plugin/test/fixtures/
+tools/preview/out/
+tools/qa/
+.claude/

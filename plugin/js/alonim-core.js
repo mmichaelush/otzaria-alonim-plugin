@@ -386,6 +386,7 @@
 
   // תווים שאסורים בשם קובץ ב-Windows, תווי בקרה, וסימני כיוון שמבלבלים את
   // סייר הקבצים.
+  // eslint-disable-next-line no-control-regex -- תווי הבקרה הם בדיוק מה שמסננים
   const BAD_FILE_CHARS = new RegExp('[<>:"/\\\\|?*\\u0000-\\u001F\\u200E\\u200F\\u202A-\\u202E\\u2066-\\u2069]', 'g');
   const RESERVED = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])$/i;
 

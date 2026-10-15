@@ -11,7 +11,7 @@
   const I18n = A.I18n;
   const t = (text, vars) => I18n.t(text, vars);
   const N = (text) => text;
-  const { normalizeKey, searchKey } = A.Normalize;
+  const { normalizeKey } = A.Normalize;
 
   const SCHEMA = 1;
   const ACTIONS = Object.freeze(['hide', 'show', 'nodownload', 'pin']);

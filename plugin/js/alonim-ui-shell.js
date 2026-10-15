@@ -24,7 +24,6 @@
   }
 
   App.prototype.mountShell = function mountShell() {
-    const app = this;
     const doc = this.doc;
     this.shell = doc.querySelector('.app-shell');
     this.titleNode = doc.querySelector('.topbar-title');

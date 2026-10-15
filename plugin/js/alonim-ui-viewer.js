@@ -23,7 +23,7 @@
   const Core = A.Core;
   const FilesApi = A.Files;
   const I18n = A.I18n;
-  const { el, icon } = Ui;
+  const { el } = Ui;
   const t = (text, vars) => I18n.t(text, vars);
 
   /** סדר המסלולים; מסלול שנכשל מוביל לבא אחריו. להחלפה בלי לגעת ב-UI. */
