@@ -35,8 +35,10 @@ export function buildAliasIndex(aliases) {
       }
     }
   }
+  // the canonical entry also decides which title is shown
+  const canonicalTitle = new Map((aliases?.merge || []).map((m) => [seriesCore(m.canonical) || normalizeKey(m.canonical), m.canonical]));
   const noMerge = new Set((aliases?.noMerge || []).map((t) => seriesCore(t) || normalizeKey(t)));
-  return { toCanonical, previous, noMerge };
+  return { toCanonical, previous, noMerge, canonicalTitle };
 }
 
 /**

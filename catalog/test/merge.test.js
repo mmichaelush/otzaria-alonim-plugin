@@ -221,3 +221,12 @@ test('weekly series: relaxed reading applies only where most titles name a paras
   const b2 = enrich(mkRaw('דברים טובים שלח', 'אחר', 9), { now: NOW, aliasIndex: noAliases, weeklySeries: set });
   assert.deepEqual(b2.slugs, []);
 });
+
+test('aliases: the canonical title is the one shown, the others are aliases', () => {
+  const aliases = buildAliasIndex({ merge: [{ canonical: 'אסיפת גליונות', aliases: ['אסיפת גליונות - ליקוט'] }] });
+  const variant = [1, 2, 3].map((i) => raw({ src: 'tashma', ext: `v${i}`, rawTitle: `ליקוט נח ${i}`, contextTitles: ['תשפ"ז'], seriesHint: { title: 'אסיפת גליונות - ליקוט' } }));
+  const { series } = build([...variant, ladaatAsifat], aliases);
+  assert.equal(series.length, 1);
+  assert.equal(series[0].title, 'אסיפת גליונות');
+  assert.deepEqual(series[0].aliases, ['אסיפת גליונות - ליקוט']);
+});

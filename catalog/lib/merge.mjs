@@ -154,6 +154,9 @@ export function mergeAll(items, { now, prevAdded = null, aliasIndex = null, bulk
     const years = [...new Set(iss.map((i) => i.hy).filter(Boolean))].sort((a, b) => a - b);
     const circle = [...s.circles.entries()].sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1))[0]?.[0];
     const named = s.items[0].series.named;
+    const canon = aliasIndex?.canonicalTitle.get(s.key.split('|')[0]);
+    if (canon && !titles.includes(canon)) titles.unshift(canon);
+    else if (canon) titles.splice(titles.indexOf(canon), 1), titles.unshift(canon);
     series.push({
       id: s.id,
       title: named ? titles[0] : `${titles[0]} (ללא שם סדרה)`,
