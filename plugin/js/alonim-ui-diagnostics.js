@@ -151,8 +151,12 @@
     const counts = el('p', { class: 'setting-help' });
     const draw = () => {
       const entries = log.filter({ level: state.level, cat: state.cat });
-      area.textContent =
-        entries.slice(-200).map(A.Log.Log.format).join('\n') || t('אין אירועים להצגה.');
+      const shown = entries.slice(-200);
+      area.classList.toggle('is-empty', !shown.length);
+      area.dir = shown.length ? 'ltr' : '';
+      area.textContent = shown.length
+        ? shown.map(A.Log.Log.format).join('\n')
+        : t('אין אירועים להצגה.');
       const c = log.counts();
       counts.textContent = t('{n} אירועים ביומן · שגיאות {e} · אזהרות {w}', {
         n: log.entries.length,

@@ -102,7 +102,7 @@ node --expose-gc tools/preview/measure-real.mjs <catalog/out>   # זמן בני�
 - **קריאה שנכשלה אינה מצב ריק:** תחום שהקריאה שלו נכשלה אינו נכתב עד שקריאה חוזרת מצליחה.
 - **עיצוב:** רק משתני ערכת הנושא ו-`em`; אין `style` inline לתוכן (רק CSSOM); `design.test.js` והוולידטור אוכפים.
 - **טיפוסים:** `npm run typecheck` (tsc, `checkJs`) על כל `plugin/js`; הטיפוסים הציבוריים (`Item`, `WeekRow`,
-  `FilterSpec`, `SearchContext`) ב-`plugin/types.d.ts`.
+  `FilterSpec`, `SearchContext`) ב-`tools/plugin-types.d.ts` (ההגדרה: `tools/tsconfig.plugin.json`, מחוץ לחבילת התוסף).
 - **קומיטים:** קטנים; עברית ב-docs, אנגלית בקוד ובהודעות commit.
 
 ## רשימת בדיקה לגרסה

@@ -1987,6 +1987,12 @@ kbd {
   border-radius: var(--radius-sm);
 }
 
+.log-area.is-empty {
+  font-family: var(--font-main);
+  font-size: 0.88em;
+  color: var(--color-on-surface-variant);
+}
+
 .syntax dt code {
   padding: 0.1em 0.4em;
   font-family: var(--font-mono, monospace);

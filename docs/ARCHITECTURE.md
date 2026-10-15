@@ -31,7 +31,7 @@ catalog/            מחברים, נרמול, איחוד, כתיבת הקטלו�
   test/             unit + fixtures (תשובות אמיתיות מוקטנות)
   build.mjs         נקודת כניסה: node catalog/build.mjs --out catalog/out
 plugin/             התוסף: HTML/CSS/JS רגיל, בלי build ובלי תלויות
-  manifest.json index.html css/ js/ i18n/ icon/ test/ types.d.ts tsconfig.json
+  manifest.json index.html css/ js/ i18n/ icon/ test/
 package.json        כלי פיתוח בלבד (בדיקות, prettier, eslint, tsc); לא חלק מהתוסף
 tools/preview/      תצוגה מקדימה בדפדפן עם SDK מדומה (מארח חדש וישן), smoke, perf, צילומי מסך
 docs/               CATALOG_FORMAT, ARCHITECTURE, DEVELOPMENT, USER_GUIDE, SOURCES, HOST_API_PROPOSAL, ALLOWLIST_REQUEST
