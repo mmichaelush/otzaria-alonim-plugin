@@ -1,7 +1,9 @@
 // גשר מדומה לתצוגה מקדימה בדפדפן: `window.Otzaria` מ-fake-sdk.js, קטלוג מקומי
 // מ-`window.__FIXTURE__`, וערכות הצבעים של אוצריא. פרמטרים בכתובת:
 //   scenario=ready|offline|blocked|slow|bad-schema|rate-limit|download-blocked|
-//            download-html|no-folder-permission|reader-permission|folder-gone
+//            download-html|no-folder-permission|reader-permission|folder-gone|
+//            legacy-host|fetchfile-blocked|fetchfile-html|print-cancel
+//   host=legacy  (אוצריא 0.9.98: בלי fetchFile ו-printFile)   welcome=1   minetab=<לשונית>
 //   mode=dark   lang=en   scale=1.3   today=2026-10-15   seed=0|1
 //   page=week|all|series|mine|settings   query=…   series=<מספר>   open=<מספר>
 //   details=<מספר>   section=<מזהה סעיף בהגדרות>   nofolder=1   print=1
@@ -265,7 +267,7 @@
   window.addEventListener('load', async () => {
     if (window.__seedDownloads) window.__seedDownloads();
     const payload = {
-      plugin: { id: 'com.otzaria-alonim', version: '0.1.0' },
+      plugin: { id: 'com.otzaria-alonim', version: '0.2.0' },
       app: {
         version:
           scenario === 'legacy-host' || params.get('host') === 'legacy' ? '0.9.98' : '0.9.99',

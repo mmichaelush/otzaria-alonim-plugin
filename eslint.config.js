@@ -12,6 +12,12 @@ const rules = {
   'no-shadow-restricted-names': 'error',
   'no-empty': ['error', { allowEmptyCatch: true }],
   // innerHTML and friends are forbidden by ui-contract.test.js too; lint catches it earlier.
+  'no-restricted-properties': [
+    'error',
+    { property: 'innerHTML', message: 'Text enters the DOM only through textContent.' },
+    { property: 'outerHTML', message: 'Text enters the DOM only through textContent.' },
+    { property: 'insertAdjacentHTML', message: 'Text enters the DOM only through textContent.' },
+  ],
   'no-eval': 'error',
   'no-implied-eval': 'error',
   'no-new-func': 'error',
