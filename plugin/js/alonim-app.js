@@ -374,7 +374,7 @@
     }
 
     /** "הורדה": שמירה קבועה בתיקייה. בלי תיקייה — קודם בוחרים אחת. */
-    async download(item) {
+    async download(item, src) {
       if (!this.files.hasFolder) {
         this.emit('need-folder', { then: () => this.download(item) });
         return;
@@ -383,7 +383,7 @@
       if (decision.noDownload) {
         this.toast(t('לפי כלל סינון, גיליון זה אינו מורד אוטומטית. אפשר לפתוח אותו לקריאה.'), { error: false });
       }
-      const job = this.files.enqueue(item, 'save');
+      const job = this.files.enqueue(item, 'save', src);
       this.toast(t('מוסיף להורדה: {title}', { title: Core.sanitizeFileName(item.seriesTitle || item.title, 40) }));
       const done = await job.done;
       if (done.status === 'done') {

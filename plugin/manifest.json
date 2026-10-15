@@ -1,0 +1,42 @@
+{
+  "schemaVersion": 1,
+  "id": "com.otzaria-alonim",
+  "name": "עלוני שבת",
+  "version": "0.1.0",
+  "description": "עלוני שבת מכמה אתרים במקום אחד: חיפוש מיידי, סדרות, עקיבה, קריאה בצפיין פנימי, הורדה והדפסה, גם בלי רשת.",
+  "author": "מיכאלוש",
+  "homepage": "https://github.com/mmichaelush/otzaria-alonim-plugin",
+  "stability": "beta",
+  "entrypoint": "index.html",
+  "icon": "icon/icon.png",
+  "minAppVersion": "0.9.98",
+  "sdkVersion": "1.x",
+  "permissions": [
+    "network.access",
+    "fs.user_files.read",
+    "app.open_url",
+    "library.refresh",
+    "library.books.read",
+    "reader.open"
+  ],
+  "network": {
+    "enabled": true,
+    "allowlist": [
+      "https://raw.githubusercontent.com/mmichaelush/otzaria-alonim-plugin/data",
+      "https://ladaat.co/gilyonot/uploads",
+      "https://tashma.co.il/gilyonot/file",
+      "https://tashma.co.il/gilyonot/thumb",
+      "https://gilyoines.com",
+      "https://alonolam.com/wp-content/uploads"
+    ]
+  },
+  "contributes": {
+    "toolTab": {
+      "title": "עלוני שבת",
+      "order": 100,
+      "allowOrderBeforeBuiltIns": false,
+      "defaultPinned": true,
+      "iconName": "news_24_regular"
+    }
+  }
+}

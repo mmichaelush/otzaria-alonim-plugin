@@ -255,12 +255,20 @@
 
   // --------------------------------------------------------- פורמטים
 
+  /**
+   * "24.1 MB", עטוף כמקטע שמאל-לימין מבודד (LRI…PDI): בלי זה בתוך משפט עברי
+   * מספר ויחידה לטינית מתהפכים ל-"MB 24.1".
+   */
   function formatBytes(bytes) {
     const n = Number(bytes);
     if (!Number.isFinite(n) || n <= 0) return '';
-    if (n < 1024 * 1024) return Math.max(1, Math.round(n / 1024)) + ' KB';
-    const mb = n / (1024 * 1024);
-    return (mb >= 100 ? Math.round(mb) : Math.round(mb * 10) / 10) + ' MB';
+    let text;
+    if (n < 1024 * 1024) text = Math.max(1, Math.round(n / 1024)) + ' KB';
+    else {
+      const mb = n / (1024 * 1024);
+      text = (mb >= 100 ? Math.round(mb) : Math.round(mb * 10) / 10) + ' MB';
+    }
+    return '⁦' + text + '⁩';
   }
 
   /** ספרות באותו פורמט בכל מקום (בלי מפרידי אלפים שמשתנים לפי שפה). */

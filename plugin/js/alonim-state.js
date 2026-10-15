@@ -442,6 +442,14 @@
       return true;
     }
 
+    /** מחליף את תוכן האוסף (ניקוי וביטול הניקוי). */
+    setListEntries(listId, entries) {
+      const list = this.data.lists.items.find((l) => l.id === listId);
+      if (!list) return;
+      list.entries = entries.slice(0, MAX_LIST_ENTRIES);
+      this._touch('lists');
+    }
+
     removeFromList(listId, id) {
       const list = this.data.lists.items.find((l) => l.id === listId);
       if (!list) return;

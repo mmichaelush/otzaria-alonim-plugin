@@ -113,6 +113,13 @@
     );
   }
 
+  /** סרגל התקדמות. הרוחב נקבע דרך CSSOM (תכונת style בתגית עלולה להיחסם ב-CSP). */
+  function progress(percent, label, max, now) {
+    const bar = el('div', { class: 'progress-bar' });
+    bar.style.width = Math.max(0, Math.min(100, percent)) + '%';
+    return el('div', { class: 'progress', role: 'progressbar', 'aria-valuemin': '0', 'aria-valuemax': String(max === undefined ? 100 : max), 'aria-valuenow': String(now === undefined ? Math.round(percent) : now), 'aria-label': label }, bar);
+  }
+
   /** שלד טעינה: כרטיסים אפורים מהבהבים בזמן סנכרון ראשון. */
   function skeleton(count, mode) {
     const wrap = el('div', { class: 'skeleton-list' + (mode === 'row' ? ' is-rows' : ''), 'aria-hidden': 'true' });
@@ -545,6 +552,7 @@
     chip,
     marked,
     stateCard,
+    progress,
     skeleton,
     Toasts,
     Announcer,

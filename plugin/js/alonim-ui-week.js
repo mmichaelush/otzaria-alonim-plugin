@@ -101,7 +101,7 @@
       } else {
         const limit = Math.min(CAP, app.view.weekMore);
         if (state.followedIds().length === 0) page.appendChild(this.followHint());
-        if (mine.length) page.appendChild(this.section(t('מהסדרות שלי'), mine, Math.max(STEP, limit), ctx(shown), t('בסדרה שאתה עוקב'), shown));
+        if (mine.length) page.appendChild(this.section(t('מהסדרות שלי'), mine, Math.max(STEP, limit), ctx(shown), t('אתה עוקב'), shown));
         if (rest.length) {
           page.appendChild(this.section(t('חדש השבוע'), rest, limit, ctx(shown), null, shown, mine.length));
         }

@@ -278,7 +278,7 @@
      * מוסיף לתור. `mode`: `save` (קבוע) או `read` (זמני לקריאה). העבודה
      * מחזירה הבטחה ב-`job.done` שנפתרת בסיום (גם בכשל; לא נדחית).
      */
-    enqueue(item, mode) {
+    enqueue(item, mode, srcOverride) {
       const existing = this.jobs.get(item.id);
       if (existing && (existing.status === 'queued' || existing.status === 'active')) {
         // קריאה שהתבקשה אחריה שמירה: משדרגים את העבודה הקיימת.
@@ -299,6 +299,7 @@
         startedAt: 0,
         endedAt: 0,
         cancelled: false,
+        src: srcOverride || '',
         done: null,
       };
       job.done = new Promise((resolve) => {
@@ -325,7 +326,7 @@
     retry(id) {
       const job = this.jobs.get(id);
       if (!job || (job.status !== 'failed' && job.status !== 'cancelled')) return null;
-      return this.enqueue({ ...job.item }, job.mode);
+      return this.enqueue({ ...job.item }, job.mode, job.src);
     }
 
     clearFinished() {
@@ -404,7 +405,7 @@
         return { rel: temp, size: 0, verified: 'cache', saved: false };
       }
 
-      const { asset, reason } = pickAsset(item, this.preferredSource(item), this.hiddenSources(item));
+      const { asset, reason } = pickAsset(item, job.src || this.preferredSource(item), this.hiddenSources(item));
       if (!asset) throw new FileError(reason === 'blocked' ? 'blocked' : 'no_direct_link');
       job.asset = asset;
       const rel = job.mode === 'save' ? permanent : temp;

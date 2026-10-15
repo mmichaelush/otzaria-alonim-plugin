@@ -103,13 +103,14 @@
     const dl = downloadButton(app, item, state);
     const print = Ui.iconButton('document_pdf_24_regular', t('הדפסה'), () => app.print(item, opts.ctx));
 
+    // לפי חשיבות: מה שנחתך בקצה השורה הוא המקורות, לא המצב.
     const chips = [];
+    if (opts.reason) chips.push(Ui.chip(opts.reason, { kind: 'reason' }));
     if (state.isNew) chips.push(Ui.chip(t('חדש'), { kind: 'new' }));
-    if (item.lang && (item.lang !== 'he' || opts.showLang)) chips.push(Ui.chip(Core.langName(item.lang), { kind: 'lang' }));
-    chips.push(...sourceChips(app, item, mode === 'row' ? 2 : 3));
     if (state.downloaded) chips.push(Ui.chip(t('הורד'), { kind: 'done', icon: 'checkmark_24_regular' }));
     if (state.hidden) chips.push(Ui.chip(t('מוסתר'), { kind: 'hidden', icon: 'eye_off_24_regular', title: state.hiddenReason }));
-    if (opts.reason) chips.unshift(Ui.chip(opts.reason, { kind: 'reason' }));
+    if (item.lang && (item.lang !== 'he' || opts.showLang)) chips.push(Ui.chip(Core.langName(item.lang), { kind: 'lang' }));
+    chips.push(...sourceChips(app, item, 2));
     const size = sizeText(item);
 
     const open = () => app.openIssue(item, opts.ctx);
@@ -146,7 +147,7 @@
         attrs,
         el('span', { class: 'unread-dot', 'aria-hidden': 'true' }),
         el('div', { class: 'row-main' }, titleNode, metaNode),
-        el('div', { class: 'card-chips' }, chips),
+        el('div', { class: 'card-chips' }, el('span', { class: 'chip-row' }, chips)),
         el('span', { class: 'card-size' }, size),
         el('div', { class: 'row-actions' }, star, dl, print, menuBtn, removeBtn),
       );
@@ -160,7 +161,7 @@
         { class: 'card-main' },
         el('div', { class: 'card-top' }, el('span', { class: 'unread-dot', 'aria-hidden': 'true' }), titleNode, el('div', { class: 'card-tools' }, star, menuBtn, removeBtn)),
         metaNode,
-        el('div', { class: 'card-chips' }, chips, size ? el('span', { class: 'card-size' }, size) : null),
+        el('div', { class: 'card-chips' }, el('span', { class: 'chip-row' }, chips), size ? el('span', { class: 'card-size' }, size) : null),
         el(
           'div',
           { class: 'card-actions' },
