@@ -17,7 +17,7 @@
   const norm = memoized(normalizeKey, 60000);
   const skey = memoized(searchKey, 60000);
 
-  const FIELDS = ['series', 'year', 'parasha', 'lang', 'source', 'circle'];
+  const FIELDS = ['series', 'year', 'parasha', 'event', 'lang', 'source', 'circle'];
   const SORTS = ['relevance', 'new', 'date', 'alpha', 'size'];
   const DAY_MS = 86400000;
   const MATERIALIZED_MAX = 800;
@@ -72,12 +72,13 @@
     if (!body) return null;
     const term = { field: part.field, neg: part.neg, norm: skey(body), needle: '', phrase: part.phrase, from: 0, to: 0 };
     if (part.field === 'year') {
-      const range = /^(\d{3,4})\s*(?:-|\.\.|–)\s*(\d{3,4})$/.exec(body);
-      const a = range ? Core.parseYear(range[1]) : Core.parseYear(body);
-      const b = range ? Core.parseYear(range[2]) : a;
-      if (a) {
-        term.from = Math.min(a, b || a);
-        term.to = Math.max(a, b || a);
+      // שנה, או טווח "5785-5787" / "תשפ״ה-תשפ״ז" (מספרים או אותיות, בכל שילוב).
+      const ends = body.split(/\s*(?:-|\.\.|–|־)\s*/);
+      const a = Core.parseYear(ends[0]);
+      const b = ends.length === 2 ? Core.parseYear(ends[1]) : a;
+      if (a && b) {
+        term.from = Math.min(a, b);
+        term.to = Math.max(a, b);
       }
     }
     if (!term.norm && !term.from) return null;
@@ -283,6 +284,27 @@
         const names = [p1, p2].filter(Boolean).map((p) => (Core.PARASHOT[this.parashot.get(p)] || '') + ' ' + this.parashot.get(p));
         const event = ev ? (Core.EVENTS[this.events.get(ev)] || '') + ' ' + this.events.get(ev) : '';
         return ' ' + skey(names.join(' ') + ' ' + event) + ' ';
+      });
+    }
+
+    /**
+     * מזהי הפרשות (`kind: 'parasha'`) או האירועים (`'event'`) שהטקסט [norm] מציין:
+     * שם מדויק (עברית או סלאג) קודם; ורק אם אין — תחילת מילה. כך `parasha:נח` הוא נח
+     * בלבד, ולא גם "נחמו" שמתחילה באותן אותיות.
+     */
+    _namedIds(kind, norm) {
+      const dict = kind === 'event' ? this.events : this.parashot;
+      const names = kind === 'event' ? Core.EVENTS : Core.PARASHOT;
+      return this._part('n' + kind + '/' + dict.list.length + '/' + norm, () => {
+        const exact = new Set();
+        const prefix = new Set();
+        for (let id = 1; id < dict.list.length; id++) {
+          const slug = dict.list[id];
+          const forms = [skey(names[slug] || ''), skey(slug)];
+          if (forms.some((form) => form === norm)) exact.add(id);
+          else if (forms.some((form) => (' ' + form).includes(' ' + norm))) prefix.add(id);
+        }
+        return exact.size ? exact : prefix;
       });
     }
 
@@ -618,8 +640,12 @@
           return String(this.hyc[i] || '').startsWith(term.norm);
         case 'series':
           return (' ' + this.seriesArr[this.sidx[i]]._skey + ' ').includes(term.needle);
-        case 'parasha':
-          return this._parashaHay(this.p1[i], this.p2[i], this.evc[i]).includes(term.needle);
+        case 'parasha': {
+          const set = this._namedIds('parasha', term.norm);
+          return set.has(this.p1[i]) || set.has(this.p2[i]);
+        }
+        case 'event':
+          return this._namedIds('event', term.norm).has(this.evc[i]);
         case 'lang':
           return this._langHay(this._lang(i)).includes(term.needle);
         case 'source':
@@ -629,89 +655,6 @@
         default:
           return this.hay[i].includes(term.needle);
       }
-    }
-
-    /**
-     * מריץ שאילתה. [filters]: `{ parasha, hy, lang, source, circle, series,
-     * favorite, downloaded, unread, isNew }`. [ctx]: פרדיקטים למצב המשתמש:
-     * `{ isFavorite(item), isDownloaded(item), isRead(item), isNew(item) }`.
-     * [options]: `{ sort, includeHidden }`. מחזיר `{ idx, total, hidden, ms }`.
-     */
-    search(query, filters, ctx, options) {
-      const started = typeof performance !== 'undefined' ? performance.now() : Date.now();
-      const q = typeof query === 'string' ? parseQuery(query) : query || { clauses: [], tokens: [] };
-      const f = filters || {};
-      const c = ctx || {};
-      const o = options || {};
-      const sort = SORTS.includes(o.sort) ? o.sort : 'relevance';
-      const hasText = q.clauses.length > 0;
-      const order = this._order(sort);
-      const out = [];
-      let hidden = 0;
-      const bit = f.source && this.sourceBits.has(f.source) ? 1 << this.sourceBits.get(f.source) : 0;
-      if (f.source && !bit) return { idx: out, total: 0, hidden: 0, ms: 0, query: q };
-      const langId = f.lang ? this.langs.map.get(f.lang) || -1 : 0;
-      const parId = f.parasha ? this.parashot.map.get(f.parasha) || 0 : 0;
-      const evId = f.parasha ? this.events.map.get(f.parasha) || 0 : 0;
-      if (f.parasha && !parId && !evId) return { idx: out, total: 0, hidden: 0, ms: 0, query: q };
-      const seriesK = f.series ? this.seriesIdx.get(this.resolveSeriesId(f.series)) : -1;
-      const scores = hasText && sort === 'relevance' ? new Map() : null;
-      const clauses = q.clauses;
-      const needItem = f.favorite || f.downloaded || f.unread || f.isNew;
-      for (let k = 0; k < order.length; k++) {
-        const i = order[k];
-        if (f.hy && this.hyc[i] !== f.hy) continue;
-        if (langId && this._lang(i) !== langId) continue;
-        if (bit && !(this.maskc[i] & bit)) continue;
-        if (parId || evId) {
-          if (!((parId && (this.p1[i] === parId || this.p2[i] === parId)) || (evId && this.evc[i] === evId))) continue;
-        }
-        if (f.circle && this.seriesArr[this.sidx[i]].circle !== f.circle) continue;
-        if (f.series && this.sidx[i] !== seriesK) continue;
-        if (hasText) {
-          let ok = true;
-          let score = 0;
-          for (let ci = 0; ci < clauses.length && ok; ci++) {
-            const alts = clauses[ci].alts;
-            let hit = false;
-            for (let ai = 0; ai < alts.length; ai++) {
-              const term = alts[ai];
-              const matched = term.field ? this._termHit(i, term) : this.hay[i].includes(term.needle);
-              if (term.neg) {
-                if (!matched) hit = true;
-              } else if (matched) {
-                hit = true;
-                if (scores && !term.field) {
-                  const ns = this.seriesArr[this.sidx[i]]._ntitle;
-                  score += ns.startsWith(term.norm) ? 4 : (' ' + ns + ' ').includes(' ' + term.norm + ' ') ? 3 : (' ' + ns).includes(' ' + term.norm) ? 2 : 1;
-                }
-              }
-            }
-            if (!hit) ok = false;
-          }
-          if (!ok) continue;
-          if (scores) scores.set(i, score);
-        }
-        if (this.vis[i] !== 1 && !o.includeHidden) {
-          hidden++;
-          continue;
-        }
-        if (needItem) {
-          const it = this.item(i);
-          if (f.favorite && !(c.isFavorite && c.isFavorite(it))) continue;
-          if (f.downloaded && !(c.isDownloaded && c.isDownloaded(it))) continue;
-          if (f.unread && c.isRead && c.isRead(it)) continue;
-          if (f.isNew && !(c.isNew && c.isNew(it))) continue;
-        }
-        out.push(i);
-      }
-      if (scores && out.length > 1) {
-        const rank = new Map();
-        for (let r = 0; r < out.length; r++) rank.set(out[r], r);
-        out.sort((a, b) => scores.get(b) - scores.get(a) || rank.get(a) - rank.get(b));
-      }
-      const ms = (typeof performance !== 'undefined' ? performance.now() : Date.now()) - started;
-      return { idx: out, total: out.length, hidden, ms, query: q };
     }
 
     // -------------------------------------------- גיליון, קיבוץ ושליפות
