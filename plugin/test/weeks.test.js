@@ -10,7 +10,9 @@ const A = loadPlugin();
 const { Weeks, HebCal, Core } = A;
 
 /** צילום של `weeks.json` האמיתי של הקטלוג (5786-5788). */
-const rows = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', 'weeks-real.json'), 'utf8'));
+const rows = JSON.parse(
+  fs.readFileSync(path.join(__dirname, 'fixtures', 'weeks-real.json'), 'utf8'),
+);
 const il = Weeks.build(rows, { diaspora: false });
 const diaspora = Weeks.build(rows, { diaspora: true });
 const at = (views, date) => views.find((v) => v.date === date);
@@ -116,7 +118,11 @@ test('weeks.current: מחוץ לטווח הלוח', () => {
 test('weeks.indexForDate: תאריך מדויק, או השבת הבאה (לא חג)', () => {
   assert.equal(il[Weeks.indexForDate(il, '2026-10-17')].date, '2026-10-17');
   assert.equal(il[Weeks.indexForDate(il, '2026-10-20')].date, '2026-10-24');
-  assert.equal(il[Weeks.indexForDate(il, '2027-03-21')].date, '2027-03-27', 'ביום ראשון שאחרי פורים — לא קופצים לחג שכבר עבר');
+  assert.equal(
+    il[Weeks.indexForDate(il, '2027-03-21')].date,
+    '2027-03-27',
+    'ביום ראשון שאחרי פורים — לא קופצים לחג שכבר עבר',
+  );
   assert.equal(il[Weeks.indexForDate(il, '2027-03-23')].date, '2027-03-23', 'פורים עצמו');
   assert.equal(il[Weeks.indexForDate(il, '2040-01-01')].date, il[il.length - 1].date);
   assert.equal(Weeks.indexForDate([], '2026-10-15'), -1);
@@ -133,7 +139,10 @@ test('weeks.relation: עתיד, עבר ומרחק בשבועות', () => {
 
 test('weeks.years ו-ofYear', () => {
   const years = Weeks.years(il);
-  assert.deepEqual(years.map((y) => y.hy), [5788, 5787, 5786]);
+  assert.deepEqual(
+    years.map((y) => y.hy),
+    [5788, 5787, 5786],
+  );
   assert.equal(Weeks.ofYear(il, 5787).length, years.find((y) => y.hy === 5787).count);
   assert.ok(Weeks.ofYear(il, 5787).every((v) => v.hy === 5787));
 });
@@ -143,7 +152,9 @@ test('weeks.displayDay: תאריך השורה כמות שהוא', () => {
 });
 
 test('weeks: הטקסט העברי שבקטלוג זהה לחישוב של התוסף (כל שורות הלוח והארכיון)', () => {
-  const archive = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', 'weeks-archive-real.json'), 'utf8'));
+  const archive = JSON.parse(
+    fs.readFileSync(path.join(__dirname, 'fixtures', 'weeks-archive-real.json'), 'utf8'),
+  );
   let checked = 0;
   for (const row of rows.concat(archive)) {
     assert.equal(HebCal.formatHebrew(Core.parseYmd(row.date)), row.hebrew, row.date);
@@ -161,10 +172,35 @@ test('weeks: מועדים חדשים — שורות ראש חודש וצום, ש
   assert.equal(mevarchim.kind, 'shabbat', 'אירוע משני אינו הופך שבת רגילה למיוחדת');
   assert.equal(mevarchim.event, null);
   for (const slug of Object.keys(A.Core.EVENTS)) assert.ok(A.Core.eventName(slug), slug);
-  const odd = Weeks.build([{ date: '2026-10-21', hy: 5787, parasha: [], parashaIL: [], label: 'מועד חדש', event: 'brand-new-event', shabbat: false }], {})[0];
+  const odd = Weeks.build(
+    [
+      {
+        date: '2026-10-21',
+        hy: 5787,
+        parasha: [],
+        parashaIL: [],
+        label: 'מועד חדש',
+        event: 'brand-new-event',
+        shabbat: false,
+      },
+    ],
+    {},
+  )[0];
   assert.equal(odd.kind, 'holiday');
   assert.equal(odd.title, 'מועד חדש', 'תווית הקטלוג');
-  const noLabel = Weeks.build([{ date: '2026-10-21', hy: 5787, parasha: [], parashaIL: [], event: 'brand-new-event', shabbat: false }], {})[0];
+  const noLabel = Weeks.build(
+    [
+      {
+        date: '2026-10-21',
+        hy: 5787,
+        parasha: [],
+        parashaIL: [],
+        event: 'brand-new-event',
+        shabbat: false,
+      },
+    ],
+    {},
+  )[0];
   assert.equal(noLabel.title, 'brand new event', 'בלי תווית: הסלאג קריא');
   A.I18n.configure('en');
   try {
@@ -196,8 +232,14 @@ test('weeks.build: מסיר כפילויות וממיין, ומתעלם משור
     ],
     {},
   );
-  assert.deepEqual(views.map((v) => v.date), ['2026-10-17', '2026-10-24']);
-  assert.deepEqual(views.map((v) => v.i), [0, 1]);
+  assert.deepEqual(
+    views.map((v) => v.date),
+    ['2026-10-17', '2026-10-24'],
+  );
+  assert.deepEqual(
+    views.map((v) => v.i),
+    [0, 1],
+  );
 });
 
 test('index.allWeeks: שורות נגזרות מגיליונות לשנים שמחוץ ללוח', () => {
@@ -214,7 +256,11 @@ test('index.allWeeks: שורות נגזרות מגיליונות לשנים שמ
     'recent',
   );
   const derived = index.derivedWeeks();
-  assert.deepEqual(derived.map((r) => r.date), ['2024-10-26'], 'רק שבת מחוץ ללוח; יום חול בלי אירוע ושורה בתוך הלוח לא נספרים');
+  assert.deepEqual(
+    derived.map((r) => r.date),
+    ['2024-10-26'],
+    'רק שבת מחוץ ללוח; יום חול בלי אירוע ושורה בתוך הלוח לא נספרים',
+  );
   assert.equal(derived[0].derived, true);
   const all = index.allWeeks();
   assert.equal(all.length, rows.length + 1);

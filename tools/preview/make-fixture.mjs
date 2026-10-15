@@ -32,7 +32,8 @@ function readDir(dir) {
     for (const name of readdirSync(d)) {
       const full = join(d, name);
       if (statSync(full).isDirectory()) walk(full);
-      else if (name.endsWith('.json')) files[relative(dir, full).replaceAll('\\', '/')] = readFileSync(full, 'utf8');
+      else if (name.endsWith('.json'))
+        files[relative(dir, full).replaceAll('\\', '/')] = readFileSync(full, 'utf8');
     }
   };
   walk(dir);
@@ -43,7 +44,9 @@ const ANCHOR = { date: '2026-10-17', hy: 5787, slug: 'noach' };
 
 /** לוח השבועות האמיתי של הקטלוג (5786-5788), כולל שורות חג באמצע השבוע. */
 function weeksFixture() {
-  return JSON.parse(readFileSync(join(here, '..', '..', 'plugin', 'test', 'fixtures', 'weeks-real.json'), 'utf8'));
+  return JSON.parse(
+    readFileSync(join(here, '..', '..', 'plugin', 'test', 'fixtures', 'weeks-real.json'), 'utf8'),
+  );
 }
 
 const SERIES = [
@@ -95,8 +98,29 @@ function smallCatalog() {
       const assets = copies.map((src, c) => ({
         src,
         ext: String(1000 + n * 3 + c),
-        url: src === 'ladaat' ? 'https://ladaat.co/gilyonot/uploads/' + date + '/files/' + (si + 1) + '-' + slug + '.pdf' : src === 'tashma' ? 'https://tashma.co.il/gilyonot/file/' + (5000 + n) : src === 'gilyoines' ? 'https://gilyoines.com/storage/' + n + '.pdf' : 'https://alonolam.com/wp-content/uploads/' + date.slice(0, 7) + '/' + n + '.pdf',
-        page: 'https://' + { ladaat: 'ladaat.co/gilyonot/view/', tashma: 'tashma.co.il/gilyonot/', gilyoines: 'gilyoines.com/g/', alonolam: 'alonolam.com/g/' }[src] + n,
+        url:
+          src === 'ladaat'
+            ? 'https://ladaat.co/gilyonot/uploads/' +
+              date +
+              '/files/' +
+              (si + 1) +
+              '-' +
+              slug +
+              '.pdf'
+            : src === 'tashma'
+              ? 'https://tashma.co.il/gilyonot/file/' + (5000 + n)
+              : src === 'gilyoines'
+                ? 'https://gilyoines.com/storage/' + n + '.pdf'
+                : 'https://alonolam.com/wp-content/uploads/' + date.slice(0, 7) + '/' + n + '.pdf',
+        page:
+          'https://' +
+          {
+            ladaat: 'ladaat.co/gilyonot/view/',
+            tashma: 'tashma.co.il/gilyonot/',
+            gilyoines: 'gilyoines.com/g/',
+            alonolam: 'alonolam.com/g/',
+          }[src] +
+          n,
         bytes: 200000 + ((n * 7919) % 1000000),
         pages: 4 + ((n * 13) % 40),
         downloads: (n * 37) % 700,
@@ -105,7 +129,9 @@ function smallCatalog() {
       if (n % 17 === 0) {
         delete assets[0].url;
       }
-      const added = new Date(Date.UTC(2026, 9, 14, 20, 0, 0) - k * 7 * 86400000 - (n % 9) * 3600000).toISOString();
+      const added = new Date(
+        Date.UTC(2026, 9, 14, 20, 0, 0) - k * 7 * 86400000 - (n % 9) * 3600000,
+      ).toISOString();
       issues.push({
         id: 'i_' + (0x8c11d0e47a93 + n * 104729).toString(16).padStart(12, '0').slice(-12),
         series: s.id,
@@ -124,8 +150,20 @@ function smallCatalog() {
       n++;
     }
   });
-  const weeksArchive = JSON.parse(readFileSync(join(here, '..', '..', 'plugin', 'test', 'fixtures', 'weeks-archive-real.json'), 'utf8'));
-  const { files } = buildFiles({ series, issues, weeks, weeksArchive, sources: DEFAULT_SOURCES, recentCount: 40 });
+  const weeksArchive = JSON.parse(
+    readFileSync(
+      join(here, '..', '..', 'plugin', 'test', 'fixtures', 'weeks-archive-real.json'),
+      'utf8',
+    ),
+  );
+  const { files } = buildFiles({
+    series,
+    issues,
+    weeks,
+    weeksArchive,
+    sources: DEFAULT_SOURCES,
+    recentCount: 40,
+  });
   return files;
 }
 
@@ -143,7 +181,13 @@ if (value('--catalog')) {
     const size = Number(value('--size') || 32000);
     const { series, issues } = makeCatalog(size, 1200, 5);
     const weeks = weeksFixture();
-    const { files } = buildFiles({ series, issues, weeks, sources: DEFAULT_SOURCES, recentCount: 60 });
+    const { files } = buildFiles({
+      series,
+      issues,
+      weeks,
+      sources: DEFAULT_SOURCES,
+      recentCount: 60,
+    });
     write('fixture-large.js', files);
   }
 }

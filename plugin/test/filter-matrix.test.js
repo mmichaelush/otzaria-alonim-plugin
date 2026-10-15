@@ -52,7 +52,12 @@ function variedCatalog(size, seed) {
     if (!byYear.has(key)) byYear.set(key, []);
     byYear.get(key).push(it);
   }
-  return { series, weeks: [], manifest: {}, shards: [...byYear].map(([id, list]) => ({ id, list })) };
+  return {
+    series,
+    weeks: [],
+    manifest: {},
+    shards: [...byYear].map(([id, list]) => ({ id, list })),
+  };
 }
 
 function buildIndex(raw, rules) {
@@ -77,7 +82,9 @@ const some = (rand, list, max) => {
 };
 
 function universe(data) {
-  const set = (fn) => [...new Set(data.records.flatMap(fn).filter((v) => v !== '' && v !== 0 && v !== undefined))];
+  const set = (fn) => [
+    ...new Set(data.records.flatMap(fn).filter((v) => v !== '' && v !== 0 && v !== undefined)),
+  ];
   return {
     hy: set((r) => [r.hy]),
     lang: set((r) => [r.lang]),
@@ -93,19 +100,33 @@ function universe(data) {
 /** מסנן אקראי: 0-5 סוגי מסננים, כל אחד עם 1-3 ערכים (וגם ערך שאינו קיים). */
 function randomFilters(rand, u) {
   const f = {};
-  const kinds = ['hy', 'lang', 'source', 'parasha', 'event', 'circle', 'series', 'date', 'years', 'pages', 'size', 'multi', 'flags'];
+  const kinds = [
+    'hy',
+    'lang',
+    'source',
+    'parasha',
+    'event',
+    'circle',
+    'series',
+    'date',
+    'years',
+    'pages',
+    'size',
+    'multi',
+    'flags',
+  ];
   const count = Math.floor(rand() * 5);
   for (let k = 0; k < count; k++) {
     const kind = pick(rand, kinds);
     if (kind === 'date') {
       const [a, b] = [pick(rand, u.dates), pick(rand, u.dates)].sort();
       const mode = rand();
-      if (mode < 0.4) (f.dateFrom = a), (f.dateTo = b);
+      if (mode < 0.4) ((f.dateFrom = a), (f.dateTo = b));
       else if (mode < 0.7) f.dateFrom = a;
       else f.dateTo = b;
     } else if (kind === 'years') {
       const [a, b] = [pick(rand, u.hy), pick(rand, u.hy)].sort((x, y) => x - y);
-      if (rand() < 0.6) (f.hyFrom = a), (f.hyTo = b);
+      if (rand() < 0.6) ((f.hyFrom = a), (f.hyTo = b));
       else if (rand() < 0.5) f.hyFrom = a;
       else f.hyTo = b;
     } else if (kind === 'pages') {
@@ -116,7 +137,16 @@ function randomFilters(rand, u) {
       if (rand() < 0.5) f.sizeMax = Math.floor(rand() * 20) + 1;
     } else if (kind === 'multi') f.multi = true;
     else if (kind === 'flags') {
-      const flags = ['favorite', 'followed', 'downloaded', 'inList', 'unread', 'isNew', 'sinceVisit', 'hiddenOnly'];
+      const flags = [
+        'favorite',
+        'followed',
+        'downloaded',
+        'inList',
+        'unread',
+        'isNew',
+        'sinceVisit',
+        'hiddenOnly',
+      ];
       f[pick(rand, flags)] = true;
     } else {
       const values = some(rand, u[kind], 3);
@@ -149,7 +179,9 @@ function randomQuery(rand, data) {
       () => (r.event ? 'event:' + Core.eventName(r.event) : 'event:חנוכה'),
       () => 'event:' + pick(rand, ['purim', 'שבת', 'פסח', 'zzz']),
       () => 'lang:' + pick(rand, ['he', 'yi', 'en', 'אידיש', 'אנגלית', 'עברית', 'fr']),
-      () => 'source:' + pick(rand, ['ladaat', 'tashma', 'לדעת', 'תשמע', 'gilyoines', 'גיליונס', 'alonolam']),
+      () =>
+        'source:' +
+        pick(rand, ['ladaat', 'tashma', 'לדעת', 'תשמע', 'gilyoines', 'גיליונס', 'alonolam']),
       () => (r.series.circle ? 'circle:' + words(r.series.circle)[0] : 'circle:חסידי'),
     ];
     return pick(rand, kinds)();
@@ -203,11 +235,22 @@ function runMatrix(name, raw, count, seed) {
   const u = universe(data);
   const hideLang = u.lang.includes('yi') ? 'yi' : u.lang[0];
   const hideSeries = u.series[3];
-  const rules = { ...Rules.emptyRules(), rules: [Rules.cleanRule({ action: 'hide', field: 'lang', value: hideLang }), Rules.cleanRule({ action: 'hide', field: 'series', value: hideSeries })] };
+  const rules = {
+    ...Rules.emptyRules(),
+    rules: [
+      Rules.cleanRule({ action: 'hide', field: 'lang', value: hideLang }),
+      Rules.cleanRule({ action: 'hide', field: 'series', value: hideSeries }),
+    ],
+  };
   const index = buildIndex(raw, rules);
-  const hiddenIds = new Set(data.records.filter((r) => r.lang === hideLang || r.series.id === hideSeries).map((r) => r.id));
+  const hiddenIds = new Set(
+    data.records.filter((r) => r.lang === hideLang || r.series.id === hideSeries).map((r) => r.id),
+  );
   assert.equal(index.size, data.records.length, name + ': כל הרשומות באינדקס');
-  assert.ok(hiddenIds.size > 0 && hiddenIds.size < data.records.length, name + ': יש מוסתרים ויש מוצגים');
+  assert.ok(
+    hiddenIds.size > 0 && hiddenIds.size < data.records.length,
+    name + ': יש מוסתרים ויש מוצגים',
+  );
   const rand = rng(seed);
   let compared = 0;
   let nonEmpty = 0;
@@ -231,11 +274,16 @@ function runMatrix(name, raw, count, seed) {
     if (gotIds.length) nonEmpty++;
     const expectedSet = new Set(expected.ids);
     const gotSet = new Set(gotIds);
-    const same = gotSet.size === gotIds.length && gotIds.length === expected.ids.length && gotIds.every((id) => expectedSet.has(id));
+    const same =
+      gotSet.size === gotIds.length &&
+      gotIds.length === expected.ids.length &&
+      gotIds.every((id) => expectedSet.has(id));
     if (!same || got.hidden !== expected.hidden) {
       const miss = expected.ids.filter((id) => !gotSet.has(id)).length;
       const extra = gotIds.filter((id) => !expectedSet.has(id)).length;
-      failures.push(`תוצאות שונות (חסרים ${miss}, מיותרים ${extra}, hidden ${got.hidden}/${expected.hidden}): ${spec}`);
+      failures.push(
+        `תוצאות שונות (חסרים ${miss}, מיותרים ${extra}, hidden ${got.hidden}/${expected.hidden}): ${spec}`,
+      );
       continue;
     }
     // הסדר: מיון לפי תאריך נבדק מול מיון נאיבי; השאר — מונוטוני לפי המפתח.
@@ -253,11 +301,15 @@ function runMatrix(name, raw, count, seed) {
     }
     const expectedFacets = oracle.facets(A, data, q, clean, state, hiddenIds, { includeHidden });
     const gotFacets = index.facetCounts(query, filters, ctxOf(state), { includeHidden });
-    if (gotFacets.total !== expectedFacets.total) failures.push(`ספירת סך הכל ${gotFacets.total}/${expectedFacets.total}: ${spec}`);
+    if (gotFacets.total !== expectedFacets.total)
+      failures.push(`ספירת סך הכל ${gotFacets.total}/${expectedFacets.total}: ${spec}`);
     for (const key of ['parasha', 'event', 'hy', 'lang', 'source', 'circle']) {
       const a = [...gotFacets[key]].sort().join('|');
       const b = [...expectedFacets[key]].sort().join('|');
-      if (a !== b) failures.push(`ספירות ${key} שונות: ${spec}\n  index:  ${a.slice(0, 300)}\n  oracle: ${b.slice(0, 300)}`);
+      if (a !== b)
+        failures.push(
+          `ספירות ${key} שונות: ${spec}\n  index:  ${a.slice(0, 300)}\n  oracle: ${b.slice(0, 300)}`,
+        );
     }
     // הספירה ליד ערך = מה שהחיפוש מחזיר אם בוחרים רק בו (בנוסף לשאר המסננים).
     if (n % 5 === 0) {
@@ -266,7 +318,10 @@ function runMatrix(name, raw, count, seed) {
         for (const v of values) {
           const f2 = { ...clean, [key]: [v] };
           const r = index.search(query, f2, ctxOf(state), { includeHidden });
-          if (r.total !== gotFacets[key].get(v)) failures.push(`ספירה ליד ${key}=${v}: ${gotFacets[key].get(v)} אך החיפוש מחזיר ${r.total}: ${spec}`);
+          if (r.total !== gotFacets[key].get(v))
+            failures.push(
+              `ספירה ליד ${key}=${v}: ${gotFacets[key].get(v)} אך החיפוש מחזיר ${r.total}: ${spec}`,
+            );
         }
       }
     }

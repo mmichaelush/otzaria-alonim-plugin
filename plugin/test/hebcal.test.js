@@ -10,17 +10,43 @@ const local = (y, m, d) => new Date(y, m - 1, d, 12);
 
 test('gematria: מספרים כאותיות עם גרש וגרשיים', () => {
   const cases = [
-    [1, 'א׳'], [5, 'ה׳'], [9, 'ט׳'], [10, 'י׳'], [11, 'י״א'], [14, 'י״ד'], [15, 'ט״ו'], [16, 'ט״ז'],
-    [17, 'י״ז'], [20, 'כ׳'], [27, 'כ״ז'], [29, 'כ״ט'], [30, 'ל׳'], [100, 'ק׳'], [115, 'קט״ו'], [116, 'קט״ז'],
-    [200, 'ר׳'], [300, 'ש׳'], [400, 'ת׳'], [500, 'ת״ק'], [600, 'ת״ר'], [700, 'ת״ש'], [800, 'ת״ת'], [900, 'תת״ק'],
-    [999, 'תתקצ״ט'], [345, 'שמ״ה'], [770, 'תש״ע'],
+    [1, 'א׳'],
+    [5, 'ה׳'],
+    [9, 'ט׳'],
+    [10, 'י׳'],
+    [11, 'י״א'],
+    [14, 'י״ד'],
+    [15, 'ט״ו'],
+    [16, 'ט״ז'],
+    [17, 'י״ז'],
+    [20, 'כ׳'],
+    [27, 'כ״ז'],
+    [29, 'כ״ט'],
+    [30, 'ל׳'],
+    [100, 'ק׳'],
+    [115, 'קט״ו'],
+    [116, 'קט״ז'],
+    [200, 'ר׳'],
+    [300, 'ש׳'],
+    [400, 'ת׳'],
+    [500, 'ת״ק'],
+    [600, 'ת״ר'],
+    [700, 'ת״ש'],
+    [800, 'ת״ת'],
+    [900, 'תת״ק'],
+    [999, 'תתקצ״ט'],
+    [345, 'שמ״ה'],
+    [770, 'תש״ע'],
   ];
   for (const [n, expected] of cases) assert.equal(H.numeral(n), expected, String(n));
 });
 
 test('gematria: ט״ו וט״ז במקום י״ה וי״ו, בכל מאה', () => {
   for (const hundreds of [0, 100, 200, 300, 400, 700]) {
-    for (const [tail, forbidden] of [[15, 'יה'], [16, 'יו']]) {
+    for (const [tail, forbidden] of [
+      [15, 'יה'],
+      [16, 'יו'],
+    ]) {
       const text = H.numeral(hundreds + tail).replace(/[׳״]/g, '');
       assert.ok(!text.endsWith(forbidden), hundreds + tail + ' ' + text);
       assert.ok(text.endsWith(tail === 15 ? 'טו' : 'טז'), text);
@@ -30,9 +56,27 @@ test('gematria: ט״ו וט״ז במקום י״ה וי״ו, בכל מאה', () =
 
 test('gematria: שנים 5780 עד 5800 (בלי אלפים), ועם אלפים', () => {
   const expected = {
-    5780: 'תש״פ', 5781: 'תשפ״א', 5782: 'תשפ״ב', 5783: 'תשפ״ג', 5784: 'תשפ״ד', 5785: 'תשפ״ה', 5786: 'תשפ״ו',
-    5787: 'תשפ״ז', 5788: 'תשפ״ח', 5789: 'תשפ״ט', 5790: 'תש״צ', 5791: 'תשצ״א', 5792: 'תשצ״ב', 5793: 'תשצ״ג',
-    5794: 'תשצ״ד', 5795: 'תשצ״ה', 5796: 'תשצ״ו', 5797: 'תשצ״ז', 5798: 'תשצ״ח', 5799: 'תשצ״ט', 5800: 'ת״ת',
+    5780: 'תש״פ',
+    5781: 'תשפ״א',
+    5782: 'תשפ״ב',
+    5783: 'תשפ״ג',
+    5784: 'תשפ״ד',
+    5785: 'תשפ״ה',
+    5786: 'תשפ״ו',
+    5787: 'תשפ״ז',
+    5788: 'תשפ״ח',
+    5789: 'תשפ״ט',
+    5790: 'תש״צ',
+    5791: 'תשצ״א',
+    5792: 'תשצ״ב',
+    5793: 'תשצ״ג',
+    5794: 'תשצ״ד',
+    5795: 'תשצ״ה',
+    5796: 'תשצ״ו',
+    5797: 'תשצ״ז',
+    5798: 'תשצ״ח',
+    5799: 'תשצ״ט',
+    5800: 'ת״ת',
   };
   for (const [year, letters] of Object.entries(expected)) {
     assert.equal(H.yearLetters(Number(year)), letters, year);
@@ -44,7 +88,8 @@ test('gematria: שנים 5780 עד 5800 (בלי אלפים), ועם אלפים',
 });
 
 test('gematria: ערכים שאינם מספר תקין', () => {
-  for (const bad of [0, -3, NaN, null, undefined, 'x', 10000]) assert.equal(H.numeral(bad), '', String(bad));
+  for (const bad of [0, -3, NaN, null, undefined, 'x', 10000])
+    assert.equal(H.numeral(bad), '', String(bad));
 });
 
 test('gematria: מעגל שלם (numeral ← parseNumeral) לכל 1..999', () => {
@@ -106,7 +151,10 @@ test('לוח: אנגלית — שמות חודשים לטיניים וספרות
   try {
     assert.equal(H.formatHebrew(local(2026, 11, 7), { lang: 'en' }), '27 Cheshvan 5787');
     assert.equal(H.formatHebrew(local(2024, 3, 24), { lang: 'en' }), '14 Adar II 5784');
-    assert.match(H.format(local(2026, 11, 7), { lang: 'en', weekday: true }), /^Saturday, 27 Cheshvan 5787 · /);
+    assert.match(
+      H.format(local(2026, 11, 7), { lang: 'en', weekday: true }),
+      /^Saturday, 27 Cheshvan 5787 · /,
+    );
   } finally {
     A.I18n.configure('he');
   }
@@ -124,7 +172,10 @@ test('לוח: toDate הוא ההפוך של fromDate, ודוחה תאריכים 
 test('לוח: אורך שנה תקין (353/354/355 או 383/384/385) ואורך חודשים מסתכם אליו', () => {
   for (let y = 5700; y <= 5900; y++) {
     const length = H.daysInYear(y);
-    assert.ok(H.isLeap(y) ? [383, 384, 385].includes(length) : [353, 354, 355].includes(length), `${y}: ${length}`);
+    assert.ok(
+      H.isLeap(y) ? [383, 384, 385].includes(length) : [353, 354, 355].includes(length),
+      `${y}: ${length}`,
+    );
     const sum = H.monthsOf(y).reduce((n, m) => n + H.daysInMonth(y, m), 0);
     assert.equal(sum, length, String(y));
   }
@@ -140,7 +191,8 @@ test('לוח: מעגל שלם לכל יום מ-1900 עד 2100', () => {
     assert.ok(back && H.dayNumber(back) === H.dayNumber(date), date.toDateString());
     if (previous) {
       // יום אחרי יום: היום עולה ב-1, או שהחודש מתחלף ביום 1.
-      const next = h.day === previous.day + 1 && h.month === previous.month && h.year === previous.year;
+      const next =
+        h.day === previous.day + 1 && h.month === previous.month && h.year === previous.year;
       const rollover = h.day === 1;
       assert.ok(next || rollover, date.toDateString());
     }
@@ -150,15 +202,33 @@ test('לוח: מעגל שלם לכל יום מ-1900 עד 2100', () => {
 
 // Intl הוא האורקל: שמות החודשים באנגלית, ללא תלות בכתיב עברי.
 const INTL_MONTHS = {
-  Tishri: 'tishri', Heshvan: 'cheshvan', Cheshvan: 'cheshvan', Kislev: 'kislev', Tevet: 'tevet', Shevat: 'shevat',
-  'Adar I': 'adar1', Adar: 'adar', 'Adar II': 'adar2', Nisan: 'nisan', Iyar: 'iyar', Sivan: 'sivan',
-  Tamuz: 'tamuz', Tammuz: 'tamuz', Av: 'av', Elul: 'elul',
+  Tishri: 'tishri',
+  Heshvan: 'cheshvan',
+  Cheshvan: 'cheshvan',
+  Kislev: 'kislev',
+  Tevet: 'tevet',
+  Shevat: 'shevat',
+  'Adar I': 'adar1',
+  Adar: 'adar',
+  'Adar II': 'adar2',
+  Nisan: 'nisan',
+  Iyar: 'iyar',
+  Sivan: 'sivan',
+  Tamuz: 'tamuz',
+  Tammuz: 'tamuz',
+  Av: 'av',
+  Elul: 'elul',
 };
 
 test('לוח: תואם ל-Intl (en-u-ca-hebrew) בכל יום מ-1950 עד 2100', (t) => {
   let formatter;
   try {
-    formatter = new Intl.DateTimeFormat('en-u-ca-hebrew', { day: 'numeric', month: 'long', year: 'numeric', timeZone: 'UTC' });
+    formatter = new Intl.DateTimeFormat('en-u-ca-hebrew', {
+      day: 'numeric',
+      month: 'long',
+      year: 'numeric',
+      timeZone: 'UTC',
+    });
     formatter.formatToParts(new Date(0));
   } catch (error) {
     return t.skip('Intl בלי לוח עברי');

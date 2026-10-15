@@ -22,7 +22,9 @@
   /** בחירה מפורשת בתוסף גוברת על שפת אוצריא; שפה בלי מילון נופלת לעברית. */
   function resolveLanguage(preference, hostLanguage) {
     const requested = preference && preference !== 'auto' ? preference : hostLanguage;
-    const normalized = String(requested || SOURCE_LANGUAGE).split(/[-_]/)[0].toLowerCase();
+    const normalized = String(requested || SOURCE_LANGUAGE)
+      .split(/[-_]/)[0]
+      .toLowerCase();
     if (normalized === SOURCE_LANGUAGE) return SOURCE_LANGUAGE;
     return catalogs()[normalized] ? normalized : SOURCE_LANGUAGE;
   }
@@ -50,7 +52,9 @@
     const source = String(text == null ? '' : text);
     // own-property: מחרוזת כמו "constructor" הייתה מחזירה פונקציה.
     const translated =
-      dictionary && Object.prototype.hasOwnProperty.call(dictionary, source) ? dictionary[source] : null;
+      dictionary && Object.prototype.hasOwnProperty.call(dictionary, source)
+        ? dictionary[source]
+        : null;
     let result = typeof translated === 'string' && translated ? translated : source;
     if (vars) {
       result = result.replace(/\{(\w+)\}/g, (match, name) =>

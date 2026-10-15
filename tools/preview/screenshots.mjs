@@ -60,11 +60,20 @@ try {
     for (const mode of ['light', 'dark']) {
       const page = await browser.newPage(width, height);
       await page.goto(`${base || small}?today=2026-10-15&${query}&mode=${mode}`);
-      await page.waitFor("document.documentElement.dataset.previewReady === '1'", 20000).catch(() => {});
-      await page.sleep(name.includes('skeleton') || name.includes('loading') ? 100 : name.includes('print') ? 1400 : 400);
+      await page
+        .waitFor("document.documentElement.dataset.previewReady === '1'", 20000)
+        .catch(() => {});
+      await page.sleep(
+        name.includes('skeleton') || name.includes('loading')
+          ? 100
+          : name.includes('print')
+            ? 1400
+            : 400,
+      );
       const file = join(outDir, `${name}-${mode}.png`);
       await page.screenshot(file);
-      if (page.errors.length) console.error('✖ ' + name + ' ' + mode + ': ' + page.errors.join(' | '));
+      if (page.errors.length)
+        console.error('✖ ' + name + ' ' + mode + ': ' + page.errors.join(' | '));
       console.log(file);
       await browser.closePage(page);
     }

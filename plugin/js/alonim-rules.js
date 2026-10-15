@@ -15,7 +15,15 @@
 
   const SCHEMA = 1;
   const ACTIONS = Object.freeze(['hide', 'show', 'nodownload', 'pin']);
-  const FIELDS = Object.freeze(['issue', 'series', 'seriesText', 'source', 'lang', 'circle', 'pattern']);
+  const FIELDS = Object.freeze([
+    'issue',
+    'series',
+    'seriesText',
+    'source',
+    'lang',
+    'circle',
+    'pattern',
+  ]);
   const MODES = Object.freeze(['blacklist', 'whitelist']);
   const MAX_RULES = 500;
   const MAX_VALUE = 200;
@@ -46,7 +54,10 @@
   function cleanRule(raw) {
     if (!raw || typeof raw !== 'object') return null;
     if (!ACTIONS.includes(raw.action) || !FIELDS.includes(raw.field)) return null;
-    const value = String(raw.value === undefined || raw.value === null ? '' : raw.value).slice(0, MAX_VALUE);
+    const value = String(raw.value === undefined || raw.value === null ? '' : raw.value).slice(
+      0,
+      MAX_VALUE,
+    );
     if (!value.trim()) return null;
     const rule = {
       id: typeof raw.id === 'string' && raw.id ? raw.id.slice(0, 40) : newId(),
@@ -64,7 +75,8 @@
     const out = emptyRules();
     let dropped = 0;
     if (!raw || typeof raw !== 'object') return { ok: false, rules: out, dropped };
-    if (typeof raw.v === 'number' && raw.v > SCHEMA) return { ok: false, rules: out, dropped, tooNew: true };
+    if (typeof raw.v === 'number' && raw.v > SCHEMA)
+      return { ok: false, rules: out, dropped, tooNew: true };
     if (MODES.includes(raw.mode)) out.mode = raw.mode;
     const seen = new Set();
     for (const item of Array.isArray(raw.rules) ? raw.rules.slice(0, MAX_RULES) : []) {
@@ -88,7 +100,10 @@
   function compile(ruleset, ctx) {
     const set = ruleset && Array.isArray(ruleset.rules) ? ruleset : emptyRules();
     const mode = set.mode === 'whitelist' ? 'whitelist' : 'blacklist';
-    const byId = { issue: { hide: new Map(), show: new Map() }, series: { hide: new Map(), show: new Map() } };
+    const byId = {
+      issue: { hide: new Map(), show: new Map() },
+      series: { hide: new Map(), show: new Map() },
+    };
     const lists = { seriesText: [], source: [], lang: [], circle: [], pattern: [] };
     const flags = { nodownload: [], pin: [] };
     for (const rule of set.rules) {
@@ -104,7 +119,14 @@
     // האינדקס מחשב את הנרמול פעם אחת לגיליון (`_ns`, `_nall`, `_nc`): החלטה
     // על 50,000 גיליונות אינה מנרמלת מחדש בכל שינוי כלל.
     const textOf = (item) => {
-      if (item._ns !== undefined) return { series: item._ns, all: item._nall !== undefined ? item._nall : normalizeKey((item.seriesTitle || '') + ' ' + (item.title || '')) };
+      if (item._ns !== undefined)
+        return {
+          series: item._ns,
+          all:
+            item._nall !== undefined
+              ? item._nall
+              : normalizeKey((item.seriesTitle || '') + ' ' + (item.title || '')),
+        };
       const series = ctx && ctx.seriesTitle ? ctx.seriesTitle(item) : item.seriesTitle || '';
       return { series: normalizeKey(series), all: normalizeKey(series + ' ' + (item.title || '')) };
     };
@@ -153,18 +175,35 @@
       const shownBy = new Map();
       for (const prepared of lists.source) {
         if (!sources.includes(prepared.rule.value)) continue;
-        (prepared.rule.action === 'hide' ? hiddenBy : prepared.rule.action === 'show' ? shownBy : new Map()).set(
-          prepared.rule.value,
-          prepared.rule,
-        );
+        (prepared.rule.action === 'hide'
+          ? hiddenBy
+          : prepared.rule.action === 'show'
+            ? shownBy
+            : new Map()
+        ).set(prepared.rule.value, prepared.rule);
       }
       return { hiddenBy, shownBy, sources };
     }
 
     function decide(item) {
-      if (empty && mode === 'blacklist') return { action: 'show', rule: null, level: 4, noDownload: false, pin: false, hiddenSources: [] };
+      if (empty && mode === 'blacklist')
+        return {
+          action: 'show',
+          rule: null,
+          level: 4,
+          noDownload: false,
+          pin: false,
+          hiddenSources: [],
+        };
       const text = textOf(item);
-      const decision = { action: 'show', rule: null, level: 4, noDownload: false, pin: false, hiddenSources: [] };
+      const decision = {
+        action: 'show',
+        rule: null,
+        level: 4,
+        noDownload: false,
+        pin: false,
+        hiddenSources: [],
+      };
       const issueHide = byId.issue.hide.get(item.id);
       const seriesHide = byId.series.hide.get(item.series);
       const issueShow = byId.issue.show.get(item.id);
@@ -173,7 +212,8 @@
       const itemLevel = levelHit(['lang', 'circle', 'pattern'], item, text);
       const src = sourceDecision(item, text);
       // כל המקורות של הגיליון מוסתרים בכלל מקור.
-      const allSourcesHidden = src.sources.length > 0 && src.sources.every((s) => src.hiddenBy.has(s));
+      const allSourcesHidden =
+        src.sources.length > 0 && src.sources.every((s) => src.hiddenBy.has(s));
       decision.hiddenSources = [...src.hiddenBy.keys()];
 
       if (issueHide || seriesHide) {
@@ -190,12 +230,14 @@
       } else if (itemLevel.hide || itemLevel.show || allSourcesHidden || src.shownBy.size) {
         decision.level = 3;
         if (itemLevel.hide) [decision.action, decision.rule] = ['hide', itemLevel.hide];
-        else if (allSourcesHidden) [decision.action, decision.rule] = ['hide', src.hiddenBy.values().next().value];
+        else if (allSourcesHidden)
+          [decision.action, decision.rule] = ['hide', src.hiddenBy.values().next().value];
         else decision.rule = itemLevel.show || src.shownBy.values().next().value;
       } else if (mode === 'whitelist') {
         decision.action = 'hide';
       }
-      for (const prepared of flags.nodownload) if (matches(prepared, item, text)) decision.noDownload = true;
+      for (const prepared of flags.nodownload)
+        if (matches(prepared, item, text)) decision.noDownload = true;
       for (const prepared of flags.pin) if (matches(prepared, item, text)) decision.pin = true;
       return decision;
     }
@@ -252,7 +294,11 @@
         ? t('לא ברשימת המותרים (מצב "רק מה שהותר")')
         : t('ברירת מחדל: מוצג');
     }
-    return (decision.action === 'hide' ? t('מוסתר לפי הכלל') : t('מוצג לפי הכלל')) + ': ' + describe(decision.rule, names);
+    return (
+      (decision.action === 'hide' ? t('מוסתר לפי הכלל') : t('מוצג לפי הכלל')) +
+      ': ' +
+      describe(decision.rule, names)
+    );
   }
 
   const api = {

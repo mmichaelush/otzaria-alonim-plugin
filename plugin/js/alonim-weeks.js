@@ -11,7 +11,15 @@
   const t = (text, vars) => I18n.t(text, vars);
 
   /** חגים שבהם אין "פרשת השבוע" בחוץ לארץ, ובארץ ישראל לעיתים כן (יום טוב שני של גלויות). */
-  const CHAG_EVENTS = Object.freeze(['rosh-hashana', 'yom-kippur', 'sukkot', 'shemini-atzeret', 'simchat-torah', 'pesach', 'shavuot']);
+  const CHAG_EVENTS = Object.freeze([
+    'rosh-hashana',
+    'yom-kippur',
+    'sukkot',
+    'shemini-atzeret',
+    'simchat-torah',
+    'pesach',
+    'shavuot',
+  ]);
 
   /**
    * מועדים קטנים: ראש חודש, צומות וחול המועד. הם שורות בלוח (אפשר לבחור אותם),
@@ -51,7 +59,15 @@
     let event = row.event || null;
     // כל האירועים של היום; המשניים (שבת מברכים, עשרת ימי תשובה) רק ב-`events`.
     const all = Array.isArray(row.events) ? row.events.filter(Boolean) : event ? [event] : [];
-    if (isShabbat && !diaspora && event && CHAG_EVENTS.includes(event) && !dSlugs.length && ilSlugs.length) event = null;
+    if (
+      isShabbat &&
+      !diaspora &&
+      event &&
+      CHAG_EVENTS.includes(event) &&
+      !dSlugs.length &&
+      ilSlugs.length
+    )
+      event = null;
     let kind = KINDS.shabbat;
     if (!isShabbat) kind = KINDS.holiday;
     else if (event || !parasha.length) kind = KINDS.special;
@@ -59,7 +75,8 @@
     const parashaLabel = parasha.length ? Core.parashaLabel(parasha) : '';
     let title;
     // בשורת חג בעברית התווית מהקטלוג גוברת ("ראש חודש חשוון" נושא את החודש).
-    if (kind === KINDS.holiday) title = (row.label && I18n.language === 'he' ? row.label : eventLabel) || eventLabel;
+    if (kind === KINDS.holiday)
+      title = (row.label && I18n.language === 'he' ? row.label : eventLabel) || eventLabel;
     else if (parashaLabel) title = t('פרשת {name}', { name: parashaLabel });
     else title = eventLabel || t('שבת');
     return {
@@ -86,7 +103,13 @@
   function build(rows, options) {
     const seen = new Set();
     return (Array.isArray(rows) ? rows : [])
-      .filter((row) => row && row.date && !seen.has(row.date + '|' + row.shabbat) && seen.add(row.date + '|' + row.shabbat))
+      .filter(
+        (row) =>
+          row &&
+          row.date &&
+          !seen.has(row.date + '|' + row.shabbat) &&
+          seen.add(row.date + '|' + row.shabbat),
+      )
       .slice()
       .sort((a, b) => (a.date < b.date ? -1 : a.date > b.date ? 1 : a.shabbat === false ? -1 : 1))
       .map((row, i) => ({ ...view(row, options), i }));
@@ -106,7 +129,9 @@
    */
   function current(views, todayYmd) {
     if (!views.length) return { index: -1, status: 'empty' };
-    const i = views.findIndex((v) => v.date >= todayYmd && !(v.kind === KINDS.holiday && MINOR_EVENTS.includes(v.event)));
+    const i = views.findIndex(
+      (v) => v.date >= todayYmd && !(v.kind === KINDS.holiday && MINOR_EVENTS.includes(v.event)),
+    );
     if (i < 0) return { index: views.length - 1, status: 'after' };
     const gap = dayNumber(views[i].date) - dayNumber(todayYmd);
     return { index: i, status: i === 0 && gap > 8 ? 'before' : 'ok' };
@@ -126,7 +151,8 @@
    * `{ kind: 'current'|'future'|'past', weeks }`, כשהמרחק במספר שבועות (לפחות 1).
    */
   function relation(views, index, currentIndex) {
-    if (index < 0 || currentIndex < 0 || index === currentIndex) return { kind: 'current', weeks: 0 };
+    if (index < 0 || currentIndex < 0 || index === currentIndex)
+      return { kind: 'current', weeks: 0 };
     const days = dayNumber(views[index].date) - dayNumber(views[currentIndex].date);
     const weeks = Math.max(1, Math.round(Math.abs(days) / 7));
     return { kind: days > 0 ? 'future' : 'past', weeks };
@@ -147,7 +173,20 @@
   /** התאריך להצגה: תאריך השורה (החג מתוארך ביום שבו הוא מתחיל, חנוכה בערב הנר הראשון). */
   const displayDay = (v) => v.day;
 
-  const api = { CHAG_EVENTS, MINOR_EVENTS, KINDS, view, build, current, indexForDate, indexOfDate, relation, years, ofYear, displayDay };
+  const api = {
+    CHAG_EVENTS,
+    MINOR_EVENTS,
+    KINDS,
+    view,
+    build,
+    current,
+    indexForDate,
+    indexOfDate,
+    relation,
+    years,
+    ofYear,
+    displayDay,
+  };
   A.Weeks = api;
   if (typeof module === 'object' && module.exports) module.exports = api;
 })(typeof self !== 'undefined' ? self : globalThis);

@@ -8,13 +8,20 @@
   'use strict';
 
   // נמחקים: סימני כיווניות ורוחב אפס, מרכאות מכל סוג וגרש/גרשיים (ר' = ר, תשפ"ז = תשפז).
-  const DELETE_RE = /[\u200B-\u200F\u202A-\u202E\u2060-\u2069\uFEFF'"`\u00B4\u2018\u2019\u201A\u201B\u201C\u201D\u201E\u201F\u05F3\u05F4\u02BC]/g;
+  const DELETE_RE =
+    /[\u200B-\u200F\u202A-\u202E\u2060-\u2069\uFEFF'"`\u00B4\u2018\u2019\u201A\u201B\u201C\u201D\u201E\u201F\u05F3\u05F4\u02BC]/g;
   // מקף עברי, מקפי יוניקוד, מינוס, לוכסן וקו תחתון: רווח (לך־לך = לך לך).
   // eslint-disable-next-line no-useless-escape -- זהה לקטלוג (catalog/lib/normalize.mjs), גם בכתיב
   const SPACE_RE = /[\u05BE\u2010-\u2015\u2212\-/\_]/g;
   // ניקוד וטעמים (המקף העברי נמצא בטווח הזה, ולכן הרווחים קודם).
   const NIQQUD_RE = /[\u0591-\u05C7]/g;
-  const FINALS = { '\u05DA': '\u05DB', '\u05DD': '\u05DE', '\u05DF': '\u05E0', '\u05E3': '\u05E4', '\u05E5': '\u05E6' };
+  const FINALS = {
+    '\u05DA': '\u05DB',
+    '\u05DD': '\u05DE',
+    '\u05DF': '\u05E0',
+    '\u05E3': '\u05E4',
+    '\u05E5': '\u05E6',
+  };
 
   function normalizeKey(s) {
     if (s === null || s === undefined) return '';

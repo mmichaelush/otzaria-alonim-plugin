@@ -20,7 +20,9 @@ function files(dir) {
 }
 
 let failed = 0;
-const targets = ['plugin/js', 'plugin/i18n', 'plugin/test', 'tools/preview', 'tools/icon'].flatMap((d) => files(join(root, d)));
+const targets = ['plugin/js', 'plugin/i18n', 'plugin/test', 'tools/preview', 'tools/icon'].flatMap(
+  (d) => files(join(root, d)),
+);
 for (const file of targets) {
   const run = spawnSync(process.execPath, ['--check', file], { encoding: 'utf8' });
   if (run.status !== 0) {

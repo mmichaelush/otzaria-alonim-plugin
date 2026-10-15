@@ -17,8 +17,10 @@
   const CAP = 120;
 
   /** חץ "קודם" פונה לכיוון הקריאה: בעברית ימינה. */
-  const prevIcon = () => (document.documentElement.dir === 'ltr' ? 'chevron_left_24_regular' : 'chevron_right_24_regular');
-  const nextIcon = () => (document.documentElement.dir === 'ltr' ? 'chevron_right_24_regular' : 'chevron_left_24_regular');
+  const prevIcon = () =>
+    document.documentElement.dir === 'ltr' ? 'chevron_left_24_regular' : 'chevron_right_24_regular';
+  const nextIcon = () =>
+    document.documentElement.dir === 'ltr' ? 'chevron_right_24_regular' : 'chevron_left_24_regular';
 
   class WeekScreen {
     constructor(app) {
@@ -27,7 +29,9 @@
 
     mount(host) {
       this.host = host;
-      this.unsub = ['data', 'state', 'files', 'disk', 'sync'].map((name) => this.app.on(name, () => this.schedule()));
+      this.unsub = ['data', 'state', 'files', 'disk', 'sync'].map((name) =>
+        this.app.on(name, () => this.schedule()),
+      );
       this.render();
     }
 
@@ -64,9 +68,22 @@
       if (!views.length) {
         // אין לוח: שבת קרובה מחושבת, כדי שהמסך לא יהיה ריק.
         const date = Core.upcomingShabbat(today);
-        const row = { date: Core.ymd(date), hy: A.HebCal.fromDate(date).year, parasha: [], parashaIL: [], shabbat: true, derived: true };
+        const row = {
+          date: Core.ymd(date),
+          hy: A.HebCal.fromDate(date).year,
+          parasha: [],
+          parashaIL: [],
+          shabbat: true,
+          derived: true,
+        };
         const only = Weeks.build([row], { diaspora: app.state.prefs.diaspora });
-        return { views: only, i: 0, view: only[0], cur: { index: 0, status: 'empty' }, rel: { kind: 'current', weeks: 0 } };
+        return {
+          views: only,
+          i: 0,
+          view: only[0],
+          cur: { index: 0, status: 'empty' },
+          rel: { kind: 'current', weeks: 0 },
+        };
       }
       let i = Weeks.indexOfDate(views, app.view.weekDate);
       if (i < 0) i = cur.index;
@@ -126,17 +143,26 @@
       const items = index.forWeek(sel.view.row).map((i) => index.item(i));
       const followed = new Set(state.followedIds());
       const muted = (it) => state.isMuted(it.series);
-      const mine = items.filter((it) => followed.has(it.series) && !muted(it)).sort((a, b) => b._added - a._added);
+      const mine = items
+        .filter((it) => followed.has(it.series) && !muted(it))
+        .sort((a, b) => b._added - a._added);
       const rest = items
         .filter((it) => !followed.has(it.series) && !muted(it))
-        .sort((a, b) => Number(app.isNew(b)) - Number(app.isNew(a)) || b._dl - a._dl || b._added - a._added);
+        .sort(
+          (a, b) =>
+            Number(app.isNew(b)) - Number(app.isNew(a)) || b._dl - a._dl || b._added - a._added,
+        );
       const shown = mine.concat(rest);
       const ctx = (list) => (i) => ({ count: list.length, at: (k) => list[k], index: i });
 
       const page = el('div', { class: 'page week-page' });
       page.appendChild(this.hero(sel, items.length));
       const status = app.catalog.status;
-      const loading = !index.size && (status.phase === 'checking' || status.phase === 'downloading' || (status.phase === 'idle' && !status.lastOkAt && !status.error));
+      const loading =
+        !index.size &&
+        (status.phase === 'checking' ||
+          status.phase === 'downloading' ||
+          (status.phase === 'idle' && !status.lastOkAt && !status.error));
 
       if (loading) {
         page.appendChild(el('h2', { class: 'section-title' }, t('מתעדכן…')));
@@ -146,9 +172,21 @@
       } else {
         const limit = Math.min(CAP, app.view.weekMore);
         if (state.followedIds().length === 0) page.appendChild(this.followHint());
-        if (mine.length) page.appendChild(this.section(t('מהסדרות שלי'), mine, Math.max(STEP, limit), ctx(shown), t('אתה עוקב'), shown));
+        if (mine.length)
+          page.appendChild(
+            this.section(
+              t('מהסדרות שלי'),
+              mine,
+              Math.max(STEP, limit),
+              ctx(shown),
+              t('אתה עוקב'),
+              shown,
+            ),
+          );
         if (rest.length) {
-          page.appendChild(this.section(t('חדש השבוע'), rest, limit, ctx(shown), null, shown, mine.length));
+          page.appendChild(
+            this.section(t('חדש השבוע'), rest, limit, ctx(shown), null, shown, mine.length),
+          );
         }
         if (!shown.length) page.appendChild(this.emptyWeek(sel));
       }
@@ -160,7 +198,8 @@
 
     /** "בעוד 3 שבועות" / "לפני שבוע": המרחק של השבוע המוצג מהשבוע הנוכחי. */
     relationText(rel) {
-      if (rel.kind === 'future') return rel.weeks === 1 ? t('שבוע הבא') : t('בעוד {n} שבועות', { n: rel.weeks });
+      if (rel.kind === 'future')
+        return rel.weeks === 1 ? t('שבוע הבא') : t('בעוד {n} שבועות', { n: rel.weeks });
       return rel.weeks === 1 ? t('שבוע שעבר') : t('לפני {n} שבועות', { n: rel.weeks });
     }
 
@@ -175,7 +214,12 @@
       return el(
         'section',
         { class: 'week-hero' + (away ? ' is-away' : ''), 'aria-labelledby': 'week-title' },
-        Ui.iconButton(prevIcon(), prev ? t('הקודם: {name}', { name: prev.title }) : t('השבוע הקודם'), () => this.shift(-1), { disabled: !prev, className: 'hero-nav' }),
+        Ui.iconButton(
+          prevIcon(),
+          prev ? t('הקודם: {name}', { name: prev.title }) : t('השבוע הקודם'),
+          () => this.shift(-1),
+          { disabled: !prev, className: 'hero-nav' },
+        ),
         el(
           'div',
           { class: 'hero-text', 'aria-live': 'polite' },
@@ -184,24 +228,57 @@
           el(
             'div',
             { class: 'hero-chips' },
-            view.kind === 'special' && view.parashaLabel && view.eventLabel ? Ui.chip(view.eventLabel, { kind: 'reason', icon: 'calendar_star_24_regular' }) : null,
-            view.kind === 'holiday' ? Ui.chip(t('חג באמצע השבוע'), { kind: 'reason', icon: 'calendar_star_24_regular' }) : null,
-            away ? Ui.chip(this.relationText(rel), { kind: 'away', icon: 'clock_24_regular' }) : Ui.chip(t('השבוע'), { kind: 'now' }),
+            view.kind === 'special' && view.parashaLabel && view.eventLabel
+              ? Ui.chip(view.eventLabel, { kind: 'reason', icon: 'calendar_star_24_regular' })
+              : null,
+            view.kind === 'holiday'
+              ? Ui.chip(t('חג באמצע השבוע'), { kind: 'reason', icon: 'calendar_star_24_regular' })
+              : null,
+            away
+              ? Ui.chip(this.relationText(rel), { kind: 'away', icon: 'clock_24_regular' })
+              : Ui.chip(t('השבוע'), { kind: 'now' }),
             ...view.secondary.map((slug) => Ui.chip(Core.eventName(slug), { kind: 'source' })),
-            view.derived ? Ui.chip(t('לפי העלונים'), { kind: 'source', title: t('השנה הזו אינה בלוח הקטלוג; התאריך נלקח מהעלונים עצמם.') }) : null,
-            count ? Ui.chip(t('{n} גיליונות', { n: Core.formatCount(count) }), { kind: 'source' }) : null,
+            view.derived
+              ? Ui.chip(t('לפי העלונים'), {
+                  kind: 'source',
+                  title: t('השנה הזו אינה בלוח הקטלוג; התאריך נלקח מהעלונים עצמם.'),
+                })
+              : null,
+            count
+              ? Ui.chip(t('{n} גיליונות', { n: Core.formatCount(count) }), { kind: 'source' })
+              : null,
           ),
           el(
             'div',
             { class: 'hero-actions' },
-            Ui.button('tonal', t('מעבר לשבוע…'), () => this.openPicker(sel), { icon: 'calendar_ltr_24_regular', className: 'button-small', key: 'jump' }),
-            away ? Ui.button('text', t('חזרה להשבוע'), () => this.goCurrent(), { className: 'button-small', key: 'current' }) : null,
+            Ui.button('tonal', t('מעבר לשבוע…'), () => this.openPicker(sel), {
+              icon: 'calendar_ltr_24_regular',
+              className: 'button-small',
+              key: 'jump',
+            }),
+            away
+              ? Ui.button('text', t('חזרה להשבוע'), () => this.goCurrent(), {
+                  className: 'button-small',
+                  key: 'current',
+                })
+              : null,
           ),
           status === 'after' || status === 'before'
-            ? el('p', { class: 'hero-note', role: 'status' }, t('לוח השבועות בקטלוג אינו כולל את התאריך של היום, ולכן מוצג השבוע הקרוב ביותר שבו.'))
+            ? el(
+                'p',
+                { class: 'hero-note', role: 'status' },
+                t(
+                  'לוח השבועות בקטלוג אינו כולל את התאריך של היום, ולכן מוצג השבוע הקרוב ביותר שבו.',
+                ),
+              )
             : null,
         ),
-        Ui.iconButton(nextIcon(), next ? t('הבא: {name}', { name: next.title }) : t('השבוע הבא'), () => this.shift(1), { disabled: !next, className: 'hero-nav' }),
+        Ui.iconButton(
+          nextIcon(),
+          next ? t('הבא: {name}', { name: next.title }) : t('השבוע הבא'),
+          () => this.shift(1),
+          { disabled: !next, className: 'hero-nav' },
+        ),
       );
     }
 
@@ -214,31 +291,62 @@
         const at = shown.indexOf(item);
         let reason = forcedReason;
         if (!reason) reason = app.isNew(item) ? '' : item._dl >= 300 ? t('פופולרי') : '';
-        grid.appendChild(Cards.render(app, item, { mode: 'card', reason, ctx: ctxFor(at), index: base + k, total: shown.length, active: -1 }));
+        grid.appendChild(
+          Cards.render(app, item, {
+            mode: 'card',
+            reason,
+            ctx: ctxFor(at),
+            index: base + k,
+            total: shown.length,
+            active: -1,
+          }),
+        );
       });
       const more = list.length > part.length && part.length < CAP;
       const capped = list.length > part.length && part.length >= CAP;
       return el(
         'section',
         { class: 'week-section' },
-        el('h2', { class: 'section-title' }, title, el('span', { class: 'section-count' }, Core.formatCount(list.length))),
+        el(
+          'h2',
+          { class: 'section-title' },
+          title,
+          el('span', { class: 'section-count' }, Core.formatCount(list.length)),
+        ),
         grid,
         more
-          ? el('div', { class: 'load-more' }, Ui.button('outlined', t('הצג עוד'), () => { app.view.weekMore = limit + STEP; this.render(); }))
+          ? el(
+              'div',
+              { class: 'load-more' },
+              Ui.button('outlined', t('הצג עוד'), () => {
+                app.view.weekMore = limit + STEP;
+                this.render();
+              }),
+            )
           : null,
         capped
-          ? el('div', { class: 'load-more' }, Ui.button('outlined', t('הכול בכל העלונים'), () => app.go('all', { query: '' })))
+          ? el(
+              'div',
+              { class: 'load-more' },
+              Ui.button('outlined', t('הכול בכל העלונים'), () => app.go('all', { query: '' })),
+            )
           : null,
       );
     }
 
     continueReading(snaps) {
       const app = this.app;
-      const list = el('div', { class: 'compact-list', role: 'list', 'aria-label': t('המשך קריאה') });
+      const list = el('div', {
+        class: 'compact-list',
+        role: 'list',
+        'aria-label': t('המשך קריאה'),
+      });
       for (const snap of snaps) {
         const item = app.index.get(snap.id);
         const title = (item && item.seriesTitle) || snap.st || snap.ti;
-        const meta = [Core.parashaLabel(snap.p), snap.hy ? Core.hyLetters(snap.hy) : ''].filter(Boolean).join(' · ');
+        const meta = [Core.parashaLabel(snap.p), snap.hy ? Core.hyLetters(snap.hy) : '']
+          .filter(Boolean)
+          .join(' · ');
         list.appendChild(
           el(
             'button',
@@ -246,7 +354,8 @@
               type: 'button',
               class: 'compact-row',
               role: 'listitem',
-              onclick: () => (item ? app.openIssue(item) : app.go('all', { query: snap.st || snap.ti })),
+              onclick: () =>
+                item ? app.openIssue(item) : app.go('all', { query: snap.st || snap.ti }),
             },
             icon('book_open_24_regular'),
             el('span', { class: 'compact-title', dir: 'auto' }, title),
@@ -254,7 +363,12 @@
           ),
         );
       }
-      return el('section', { class: 'week-section' }, el('h2', { class: 'section-title' }, t('המשך קריאה')), list);
+      return el(
+        'section',
+        { class: 'week-section' },
+        el('h2', { class: 'section-title' }, t('המשך קריאה')),
+        list,
+      );
     }
 
     followHint() {
@@ -262,7 +376,12 @@
         'div',
         { class: 'hint-card' },
         icon('alert_24_regular'),
-        el('div', { class: 'hint-text' }, el('strong', {}, t('עקבו אחרי סדרות')), el('span', {}, t('הסדרות שתבחרו יופיעו כאן ראשונות, בכל שבוע.'))),
+        el(
+          'div',
+          { class: 'hint-text' },
+          el('strong', {}, t('עקבו אחרי סדרות')),
+          el('span', {}, t('הסדרות שתבחרו יופיעו כאן ראשונות, בכל שבוע.')),
+        ),
         Ui.button('tonal', t('לרשימת הסדרות'), () => this.app.go('series')),
       );
     }
@@ -275,10 +394,16 @@
       const actions = [];
       const latest = this.latestWithIssues(sel);
       if (latest >= 0 && latest !== sel.i) {
-        actions.push(Ui.button('filled', t('לשבוע האחרון שיש בו עלונים'), () => this.goto(latest), { icon: 'history_24_regular' }));
+        actions.push(
+          Ui.button('filled', t('לשבוע האחרון שיש בו עלונים'), () => this.goto(latest), {
+            icon: 'history_24_regular',
+          }),
+        );
       }
       actions.push(Ui.button('tonal', t('כל העלונים'), () => app.go('all')));
-      let text = t('עלונים לשבת מתפרסמים בדרך כלל במהלך השבוע. אפשר לעבור לשבוע קודם או לעיין בכל העלונים.');
+      let text = t(
+        'עלונים לשבת מתפרסמים בדרך כלל במהלך השבוע. אפשר לעבור לשבוע קודם או לעיין בכל העלונים.',
+      );
       if (loadingMore || status.phase === 'downloading') text = t('הנתונים עדיין נטענים ברקע.');
       else if (future) text = t('זה שבוע עתידי, ועדיין לא פורסמו בו עלונים.');
       return Ui.stateCard({
@@ -296,7 +421,9 @@
       const status = app.catalog.status;
       const offline = app.online === false || status.phase === 'offline';
       let title = t('אין עדיין עלונים');
-      let text = t('הקטלוג עוד לא ירד. כשיהיה חיבור לאינטרנט הוא יורד אוטומטית, ואחר כך הכול עובד גם בלי רשת.');
+      let text = t(
+        'הקטלוג עוד לא ירד. כשיהיה חיבור לאינטרנט הוא יורד אוטומטית, ואחר כך הכול עובד גם בלי רשת.',
+      );
       let iconName = 'cloud_arrow_down_24_regular';
       let error = false;
       if (status.schemaTooNew || status.pluginTooOld) {
@@ -305,7 +432,9 @@
         iconName = 'arrow_sync_24_regular';
       } else if (status.error === 'forbidden' || status.error === 'permission') {
         title = t('הקטלוג חסום');
-        text = t('אוצריא חוסמת את הגישה לכתובת הקטלוג. הכתובת צריכה אישור ברשימת ההיתר של אוצריא (קבצים אחרים עובדים בלי קשר לכך).');
+        text = t(
+          'אוצריא חוסמת את הגישה לכתובת הקטלוג. הכתובת צריכה אישור ברשימת ההיתר של אוצריא (קבצים אחרים עובדים בלי קשר לכך).',
+        );
         iconName = 'shield_checkmark_24_regular';
         error = true;
       } else if (offline) {
@@ -321,7 +450,11 @@
         title,
         text,
         error,
-        actions: [Ui.button('filled', t('בדיקה חוזרת'), () => app.catalog.sync(), { icon: 'arrow_sync_24_regular' })],
+        actions: [
+          Ui.button('filled', t('בדיקה חוזרת'), () => app.catalog.sync(), {
+            icon: 'arrow_sync_24_regular',
+          }),
+        ],
       });
     }
   }

@@ -22,7 +22,16 @@ const item = (n) => ({
   hy: 5787,
   date: '2026-10-17',
   parasha: ['noach'],
-  assets: [{ src: 'ladaat', ext: String(n), url: 'https://ladaat.co/gilyonot/uploads/2026-10-17/files/' + n + '.pdf', page: 'https://ladaat.co/gilyonot/view/' + n, bytes: 3000, pages: 2 }],
+  assets: [
+    {
+      src: 'ladaat',
+      ext: String(n),
+      url: 'https://ladaat.co/gilyonot/uploads/2026-10-17/files/' + n + '.pdf',
+      page: 'https://ladaat.co/gilyonot/view/' + n,
+      bytes: 3000,
+      pages: 2,
+    },
+  ],
 });
 
 async function setup(options) {
@@ -32,7 +41,13 @@ async function setup(options) {
   const caps = new Capabilities({ log: quiet });
   caps.setHost(o.version === undefined ? '0.9.99' : o.version);
   let folder = null;
-  const files = new Files(runtime, { log: quiet, sleep: async () => {}, caps, getFolder: () => folder, setFolder: (f) => (folder = f) });
+  const files = new Files(runtime, {
+    log: quiet,
+    sleep: async () => {},
+    caps,
+    getFolder: () => folder,
+    setFolder: (f) => (folder = f),
+  });
   if (o.folder !== false) await files.pickFolder();
   return { sdk, runtime, caps, files };
 }
@@ -54,7 +69,12 @@ test('מארח חדש: קריאה בלי הורדה — fetchFile, בלי כתי
 
 test('מארח חדש: קובץ שכבר בתיקייה נפתח משם, בלי fetchFile', async () => {
   const { sdk, files } = await setup();
-  files.disk.set(A.Core.idFragment(item(2).id), { path: '5787/עלון/x [000000000002].pdf', name: 'x.pdf', size: 3000, modified: null });
+  files.disk.set(A.Core.idFragment(item(2).id), {
+    path: '5787/עלון/x [000000000002].pdf',
+    name: 'x.pdf',
+    size: 3000,
+    modified: null,
+  });
   sdk.putFile('5787/עלון/x [000000000002].pdf');
   const file = await files.openForReading(item(2));
   assert.ok(!file.remote);
@@ -71,7 +91,10 @@ test('מארח ישן: אין fetchFile — קריאה מורידה ל-_קריא
   assert.match(sdk.downloads[0].destPath, /_קריאה/);
   assert.equal(caps.has('fetchFile'), false);
   const noFolder = await setup({ version: '0.9.98', folder: false });
-  await assert.rejects(noFolder.files.openForReading(item(4)), (e) => e instanceof FileError && e.code === 'no_folder');
+  await assert.rejects(
+    noFolder.files.openForReading(item(4)),
+    (e) => e instanceof FileError && e.code === 'no_folder',
+  );
 });
 
 test('מארח שמצהיר 0.9.99 אך חסרה בו השיטה (legacyHost): נופל להורדה ולומד', async () => {
@@ -96,7 +119,11 @@ test('fetchFile: כשלים ממופים לקודי FileError (חסום, HTML ב
   const outside = await setup();
   const odd = item(9);
   odd.assets[0].url = 'https://other.example/x.pdf';
-  await assert.rejects(outside.files.openForReading(odd), (e) => e.code === 'blocked', 'מחוץ ל-allowlist של התוסף: חסום עוד לפני הבקשה');
+  await assert.rejects(
+    outside.files.openForReading(odd),
+    (e) => e.code === 'blocked',
+    'מחוץ ל-allowlist של התוסף: חסום עוד לפני הבקשה',
+  );
   assert.equal(outside.sdk.fetchedFiles.length, 0);
 });
 
@@ -137,11 +164,23 @@ test('Bulk.printSequence: מדפיס ברצף, עוצר בביטול, וממשי
   const log = [];
   const done = await A.Bulk.printSequence(app, items, (k, s) => log.push(k + ':' + s));
   assert.deepEqual(done, { done: 3, stoppedAt: -1, reason: '' });
-  assert.deepEqual(log, ['0:printing', '0:printed', '1:printing', '1:printed', '2:printing', '2:printed']);
+  assert.deepEqual(log, [
+    '0:printing',
+    '0:printed',
+    '1:printing',
+    '1:printed',
+    '2:printing',
+    '2:printed',
+  ]);
   assert.equal(sdk.printed.length, 3);
 
   const cancelling = await setup({ folder: false, sdk: { scenario: 'print-cancel' } });
-  const app2 = { files: cancelling.files, caps: cancelling.caps, state: { logEvent: () => {} }, full: async (it) => it };
+  const app2 = {
+    files: cancelling.files,
+    caps: cancelling.caps,
+    state: { logEvent: () => {} },
+    full: async (it) => it,
+  };
   const stopped = await A.Bulk.printSequence(app2, items, () => {});
   assert.deepEqual(stopped, { done: 0, stoppedAt: 0, reason: 'cancelled' });
   const single = await A.Bulk.printSequence(app, items, () => {}, { from: 1, single: true });

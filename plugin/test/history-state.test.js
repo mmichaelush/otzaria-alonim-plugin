@@ -9,10 +9,22 @@ const A = loadPlugin();
 const { createRuntime } = A.Runtime;
 const { State } = A.State;
 const quiet = { warn() {}, error() {}, debug() {}, info() {} };
-const item = (n) => ({ id: 'i_' + n, series: 's_1', seriesTitle: 'עלון', title: 'עלון ' + n, hy: 5787, date: '2026-10-17', parasha: ['noach'] });
+const item = (n) => ({
+  id: 'i_' + n,
+  series: 's_1',
+  seriesTitle: 'עלון',
+  title: 'עלון ' + n,
+  hy: 5787,
+  date: '2026-10-17',
+  parasha: ['noach'],
+});
 
 function make(sdk, clock) {
-  const state = new State(createRuntime(sdk || createFakeSdk(), { logger: quiet }), { saveDelay: 0, log: quiet, now: () => clock.t });
+  const state = new State(createRuntime(sdk || createFakeSdk(), { logger: quiet }), {
+    saveDelay: 0,
+    log: quiet,
+    now: () => clock.t,
+  });
   return state;
 }
 
@@ -31,8 +43,14 @@ test('היסטוריה: אירועים מהחדש לישן, כפילות באו�
   clock.t += 1;
   s.logEvent('downloaded', item(2));
   s.logEvent('printed', item(2));
-  assert.deepEqual(s.historyEvents().map((e) => e.k), ['printed', 'downloaded', 'opened', 'read', 'opened']);
-  assert.deepEqual(s.historyEvents('opened').map((e) => e.id), ['i_1', 'i_1']);
+  assert.deepEqual(
+    s.historyEvents().map((e) => e.k),
+    ['printed', 'downloaded', 'opened', 'read', 'opened'],
+  );
+  assert.deepEqual(
+    s.historyEvents('opened').map((e) => e.id),
+    ['i_1', 'i_1'],
+  );
   s.logEvent('bogus', item(3));
   assert.equal(s.historyEvents().length, 5, 'סוג לא מוכר נדחה');
 });
@@ -75,9 +93,15 @@ test('חיפושים אחרונים: ייחודיים, האחרון ראשון, 
   s.addSearch('א');
   s.addSearch('  אסיפת גליונות ');
   s.addSearch('נח');
-  assert.deepEqual(s.searches.map((x) => x.q), ['נח', 'אסיפת גליונות']);
+  assert.deepEqual(
+    s.searches.map((x) => x.q),
+    ['נח', 'אסיפת גליונות'],
+  );
   s.removeSearch('נח');
-  assert.deepEqual(s.searches.map((x) => x.q), ['אסיפת גליונות']);
+  assert.deepEqual(
+    s.searches.map((x) => x.q),
+    ['אסיפת גליונות'],
+  );
   for (let n = 0; n < 40; n++) s.addSearch('חיפוש ' + n);
   assert.equal(s.searches.length, 25);
   s.clearSearches();
@@ -91,7 +115,10 @@ test('סדרות שנצפו לאחרונה', async () => {
   s.viewSeries('s_a');
   s.viewSeries('s_b');
   s.viewSeries('s_a');
-  assert.deepEqual(s.recentSeries().map((x) => x.id), ['s_a', 's_b']);
+  assert.deepEqual(
+    s.recentSeries().map((x) => x.id),
+    ['s_a', 's_b'],
+  );
 });
 
 test('כיבוי ההיסטוריה: לא נרשם דבר (גם לא המשך קריאה), והנתונים הקיימים נשארים עד ניקוי', async () => {
@@ -134,10 +161,24 @@ test('היסטוריה: נשמרת ונטענת, ואינה בייצוא', async
 
 test('נתוני היסטוריה פגומים מנוקים בטעינה', async () => {
   const sdk = createFakeSdk();
-  sdk.storage.set('state_history', { v: 1, events: [{ id: 'i_1', k: 'opened', t: 5 }, { id: 'i_2', k: 'weird', t: 1 }, 7, null], searches: [{ q: 'ok', t: 1 }, { q: '', t: 2 }, 'x'], series: [{ id: 's', t: 1 }, {}] });
+  sdk.storage.set('state_history', {
+    v: 1,
+    events: [{ id: 'i_1', k: 'opened', t: 5 }, { id: 'i_2', k: 'weird', t: 1 }, 7, null],
+    searches: [{ q: 'ok', t: 1 }, { q: '', t: 2 }, 'x'],
+    series: [{ id: 's', t: 1 }, {}],
+  });
   const s = make(sdk, { t: 1 });
   await s.load();
-  assert.deepEqual(s.historyEvents().map((e) => e.id), ['i_1']);
-  assert.deepEqual(s.searches.map((x) => x.q), ['ok']);
-  assert.deepEqual(s.recentSeries().map((x) => x.id), ['s']);
+  assert.deepEqual(
+    s.historyEvents().map((e) => e.id),
+    ['i_1'],
+  );
+  assert.deepEqual(
+    s.searches.map((x) => x.q),
+    ['ok'],
+  );
+  assert.deepEqual(
+    s.recentSeries().map((x) => x.id),
+    ['s'],
+  );
 });

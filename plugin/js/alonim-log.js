@@ -93,7 +93,16 @@
 
     /** אירוע כשורת טקסט מנוקה. */
     static format(entry) {
-      return new Date(entry.at).toISOString().slice(11, 19) + ' ' + entry.level + ' ' + entry.cat + (entry.code ? ' [' + entry.code + ']' : '') + ' ' + scrub(entry.text);
+      return (
+        new Date(entry.at).toISOString().slice(11, 19) +
+        ' ' +
+        entry.level +
+        ' ' +
+        entry.cat +
+        (entry.code ? ' [' + entry.code + ']' : '') +
+        ' ' +
+        scrub(entry.text)
+      );
     }
 
     /** הזנב כטקסט, מנוקה. [options]: סינון כמו `filter`. */

@@ -10,7 +10,10 @@ const { CatalogIndex, parseQuery } = A.Index;
 const Rules = A.Rules;
 
 function build(issues, series) {
-  const idx = new CatalogIndex({ source: (id) => ({ ladaat: 'לדעת', tashma: 'תשמע', gilyoines: 'גיליונס', alonolam: 'עלון עולם' })[id] });
+  const idx = new CatalogIndex({
+    source: (id) =>
+      ({ ladaat: 'לדעת', tashma: 'תשמע', gilyoines: 'גיליונס', alonolam: 'עלון עולם' })[id],
+  });
   idx.setSeries(series);
   idx.addIssues(issues);
   return idx;
@@ -55,12 +58,16 @@ test('שדות: series year parasha lang source', () => {
   const { series, issues } = SMALL();
   const idx = build(issues, series);
   for (const it of titles(idx, idx.search('year:תשפ"ו', {}, {}, {}))) assert.equal(it.hy, 5786);
-  for (const it of titles(idx, idx.search('year:5785-5786', {}, {}, {}))) assert.ok(it.hy === 5785 || it.hy === 5786);
+  for (const it of titles(idx, idx.search('year:5785-5786', {}, {}, {})))
+    assert.ok(it.hy === 5785 || it.hy === 5786);
   for (const it of titles(idx, idx.search('lang:en', {}, {}, {}))) assert.equal(it.lang, 'en');
   for (const it of titles(idx, idx.search('lang:אנגלית', {}, {}, {}))) assert.equal(it.lang, 'en');
-  for (const it of titles(idx, idx.search('parasha:vayera', {}, {}, {}))) assert.ok(it.parasha.includes('vayera'));
-  for (const it of titles(idx, idx.search('source:לדעת', {}, {}, {}))) assert.ok(it.assets.some((a) => a.src === 'ladaat'));
-  for (const it of titles(idx, idx.search('series:"עלון שבת"', {}, {}, {}))) assert.equal(it.seriesTitle, 'עלון שבת');
+  for (const it of titles(idx, idx.search('parasha:vayera', {}, {}, {})))
+    assert.ok(it.parasha.includes('vayera'));
+  for (const it of titles(idx, idx.search('source:לדעת', {}, {}, {})))
+    assert.ok(it.assets.some((a) => a.src === 'ladaat'));
+  for (const it of titles(idx, idx.search('series:"עלון שבת"', {}, {}, {})))
+    assert.equal(it.seriesTitle, 'עלון שבת');
 });
 
 test('מסננים ומיון', () => {
@@ -68,9 +75,15 @@ test('מסננים ומיון', () => {
   const idx = build(issues, series);
   const r = idx.search('', { hy: 5785, lang: 'he' }, {}, { sort: 'size' });
   const sizes = titles(idx, r).map((it) => it._bytes);
-  assert.deepEqual(sizes, [...sizes].sort((a, b) => b - a));
+  assert.deepEqual(
+    sizes,
+    [...sizes].sort((a, b) => b - a),
+  );
   const byDate = titles(idx, idx.search('', {}, {}, { sort: 'date' })).map((it) => it._date);
-  assert.deepEqual(byDate, [...byDate].sort((a, b) => b - a));
+  assert.deepEqual(
+    byDate,
+    [...byDate].sort((a, b) => b - a),
+  );
   const alpha = titles(idx, idx.search('', {}, {}, { sort: 'alpha' })).map((it) => it._ns);
   assert.deepEqual(alpha, [...alpha].sort());
   const fav = idx.search('', { favorite: true }, { isFavorite: (it) => it.no === 3 }, {});
@@ -103,11 +116,18 @@ test('כללים: חסימה מפורשת > הרשאה מפורשת > כלל ס�
   idx.setRules(set(rule('hide', 'series', sample.series), rule('show', 'series', sample.series)));
   assert.equal(idx.isVisible(sample), false, 'חסימה מפורשת גוברת על הרשאה');
 
-  idx.setRules(set(rule('hide', 'seriesText', sample.seriesTitle.split(' ')[0]), rule('hide', 'lang', 'xx'), rule('show', 'issue', sample.id)));
+  idx.setRules(
+    set(
+      rule('hide', 'seriesText', sample.seriesTitle.split(' ')[0]),
+      rule('hide', 'lang', 'xx'),
+      rule('show', 'issue', sample.id),
+    ),
+  );
   assert.equal(idx.isVisible(sample), true, 'הרשאה על גיליון גוברת על כלל שם');
 
   idx.setRules({ ...base, mode: 'whitelist', rules: [rule('show', 'lang', 'yi')] });
-  for (let i = 0; i < idx.size; i++) assert.equal(idx.isVisible(idx.item(i)), idx.item(i).lang === 'yi');
+  for (let i = 0; i < idx.size; i++)
+    assert.equal(idx.isVisible(idx.item(i)), idx.item(i).lang === 'yi');
 
   idx.setRules(set());
   assert.equal(idx.search('', {}, {}, {}).total, 600);
@@ -116,12 +136,33 @@ test('כללים: חסימה מפורשת > הרשאה מפורשת > כלל ס�
 test('כלל מקור: מסתיר גיליון רק כשכל העותקים ממקורות מוסתרים', () => {
   const idx = build(
     [
-      { id: 'i_1', series: 's', title: 'א', parasha: ['noach'], hy: 5787, assets: [{ src: 'ladaat', ext: '1' }, { src: 'tashma', ext: '2' }] },
-      { id: 'i_2', series: 's', title: 'ב', parasha: ['noach'], hy: 5787, assets: [{ src: 'ladaat', ext: '3' }] },
+      {
+        id: 'i_1',
+        series: 's',
+        title: 'א',
+        parasha: ['noach'],
+        hy: 5787,
+        assets: [
+          { src: 'ladaat', ext: '1' },
+          { src: 'tashma', ext: '2' },
+        ],
+      },
+      {
+        id: 'i_2',
+        series: 's',
+        title: 'ב',
+        parasha: ['noach'],
+        hy: 5787,
+        assets: [{ src: 'ladaat', ext: '3' }],
+      },
     ],
     [{ id: 's', title: 'סדרה', lang: 'he' }],
   );
-  idx.setRules({ v: 1, mode: 'blacklist', rules: [Rules.cleanRule({ action: 'hide', field: 'source', value: 'ladaat' })] });
+  idx.setRules({
+    v: 1,
+    mode: 'blacklist',
+    rules: [Rules.cleanRule({ action: 'hide', field: 'source', value: 'ladaat' })],
+  });
   assert.equal(idx.isVisible(idx.get('i_1')), true);
   assert.equal(idx.isVisible(idx.get('i_2')), false);
   assert.deepEqual(idx.decision(idx.get('i_1')).hiddenSources, ['ladaat']);
@@ -131,7 +172,14 @@ test('nodownload ו-pin הם דגלים ולא מסתירים', () => {
   const { series, issues } = SMALL();
   const idx = build(issues, series);
   const sample = idx.item(5);
-  idx.setRules({ v: 1, mode: 'blacklist', rules: [Rules.cleanRule({ action: 'nodownload', field: 'series', value: sample.series }), Rules.cleanRule({ action: 'pin', field: 'lang', value: sample.lang })] });
+  idx.setRules({
+    v: 1,
+    mode: 'blacklist',
+    rules: [
+      Rules.cleanRule({ action: 'nodownload', field: 'series', value: sample.series }),
+      Rules.cleanRule({ action: 'pin', field: 'lang', value: sample.lang }),
+    ],
+  });
   const d = idx.decision(sample);
   assert.equal(d.action, 'show');
   assert.equal(d.noDownload, true);
@@ -157,7 +205,16 @@ test('סימולציה: כמה גיליונות ייעלמו ודוגמאות, �
 test('sanitize: סכימה, גרסה גבוהה, כללים פגומים נזרקים', () => {
   assert.equal(Rules.sanitize(null).ok, false);
   assert.equal(Rules.sanitize({ v: 99, rules: [] }).tooNew, true);
-  const r = Rules.sanitize({ v: 1, mode: 'whitelist', rules: [{ action: 'hide', field: 'lang', value: 'yi', evil: 1 }, { action: 'boom', field: 'lang', value: 'x' }, 7, { action: 'hide', field: 'series', value: '' }] });
+  const r = Rules.sanitize({
+    v: 1,
+    mode: 'whitelist',
+    rules: [
+      { action: 'hide', field: 'lang', value: 'yi', evil: 1 },
+      { action: 'boom', field: 'lang', value: 'x' },
+      7,
+      { action: 'hide', field: 'series', value: '' },
+    ],
+  });
   assert.equal(r.ok, true);
   assert.equal(r.rules.mode, 'whitelist');
   assert.equal(r.rules.rules.length, 1);
@@ -168,13 +225,40 @@ test('sanitize: סכימה, גרסה גבוהה, כללים פגומים נזר�
 test('קבוצות: סדרה, שבוע, פרשה+שנה כשאין תאריך, מזהה קודם של סדרה', () => {
   const idx = build(
     [
-      { id: 'i_1', series: 'old', title: 'א', date: '2026-10-17', hy: 5787, parasha: ['noach'], assets: [] },
-      { id: 'i_2', series: 's_new', title: 'ב', date: null, hy: 5787, parasha: ['noach'], assets: [] },
-      { id: 'i_3', series: 's_new', title: 'ג', date: '2026-10-10', hy: 5787, parasha: ['bereshit'], assets: [] },
+      {
+        id: 'i_1',
+        series: 'old',
+        title: 'א',
+        date: '2026-10-17',
+        hy: 5787,
+        parasha: ['noach'],
+        assets: [],
+      },
+      {
+        id: 'i_2',
+        series: 's_new',
+        title: 'ב',
+        date: null,
+        hy: 5787,
+        parasha: ['noach'],
+        assets: [],
+      },
+      {
+        id: 'i_3',
+        series: 's_new',
+        title: 'ג',
+        date: '2026-10-10',
+        hy: 5787,
+        parasha: ['bereshit'],
+        assets: [],
+      },
     ],
     [{ id: 's_new', title: 'סדרה', previousIds: ['old'], lang: 'he' }],
   );
-  idx.setWeeks([{ date: '2026-10-10', hy: 5787, parasha: ['bereshit'] }, { date: '2026-10-17', hy: 5787, parasha: ['noach'] }]);
+  idx.setWeeks([
+    { date: '2026-10-10', hy: 5787, parasha: ['bereshit'] },
+    { date: '2026-10-17', hy: 5787, parasha: ['noach'] },
+  ]);
   assert.equal(idx.get('i_1').series, 's_new');
   assert.equal(idx.issuesOfSeries('old').length, 3);
   assert.deepEqual(idx.forWeek(idx.weeks[1]).sort(), [0, 1]);
@@ -198,6 +282,7 @@ test('ביצועים: אינדקס וחיפוש על 50,000 גיליונות', (
   }
   console.log('index build 50k:', Math.round(build) + 'ms', JSON.stringify(timings));
   // תקרה מרווחת: מכונות CI איטיות. היעד האמיתי (50ms) נמדד ב-tools/preview/perf.mjs.
-  for (const key of Object.keys(timings)) assert.ok(parseInt(timings[key], 10) < 200, key + ' ' + timings[key]);
+  for (const key of Object.keys(timings))
+    assert.ok(parseInt(timings[key], 10) < 200, key + ' ' + timings[key]);
   assert.ok(build < 4000, 'build ' + build);
 });

@@ -18,11 +18,24 @@ const rules = {
 };
 
 module.exports = [
-  { ignores: ['node_modules/**', 'catalog/**', '.claude/**', 'tools/preview/out/**', 'tools/qa/**', 'plugin/test/fixtures/**'] },
+  {
+    ignores: [
+      'node_modules/**',
+      'catalog/**',
+      '.claude/**',
+      'tools/preview/out/**',
+      'tools/qa/**',
+      'plugin/test/fixtures/**',
+    ],
+  },
   js.configs.recommended,
   {
     files: ['plugin/js/**/*.js', 'plugin/i18n/**/*.js'],
-    languageOptions: { ecmaVersion: 2022, sourceType: 'script', globals: { ...globals.browser, module: 'writable', Buffer: 'readonly' } },
+    languageOptions: {
+      ecmaVersion: 2022,
+      sourceType: 'script',
+      globals: { ...globals.browser, module: 'writable', Buffer: 'readonly' },
+    },
     rules,
   },
   {
@@ -32,12 +45,20 @@ module.exports = [
   },
   {
     files: ['tools/**/*.mjs'],
-    languageOptions: { ecmaVersion: 2022, sourceType: 'module', globals: { ...globals.node, ...globals.browser } },
+    languageOptions: {
+      ecmaVersion: 2022,
+      sourceType: 'module',
+      globals: { ...globals.node, ...globals.browser },
+    },
     rules,
   },
   {
     files: ['tools/preview/*.js'],
-    languageOptions: { ecmaVersion: 2022, sourceType: 'script', globals: { ...globals.browser, module: 'writable', Buffer: 'readonly' } },
+    languageOptions: {
+      ecmaVersion: 2022,
+      sourceType: 'script',
+      globals: { ...globals.browser, module: 'writable', Buffer: 'readonly' },
+    },
     rules,
   },
 ];

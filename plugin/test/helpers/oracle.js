@@ -3,7 +3,12 @@
 // אם שניהם מסכימים על כל שילוב אקראי של מסננים ושאילתות, האינדקס נכון.
 'use strict';
 
-const SOURCE_NAMES = { ladaat: 'לדעת', tashma: 'תשמע', gilyoines: 'גיליונס', alonolam: 'עלון עולם' };
+const SOURCE_NAMES = {
+  ladaat: 'לדעת',
+  tashma: 'תשמע',
+  gilyoines: 'גיליונס',
+  alonolam: 'עלון עולם',
+};
 
 /** רשומות עם השדות הנגזרים (ירושה מהסדרה), מהנתונים הגולמיים. */
 function prepare(A, raw) {
@@ -15,7 +20,9 @@ function prepare(A, raw) {
     for (const it of shard.list) {
       const s = seriesById.get(it.series) || { id: it.series, title: '', circle: '', lang: 'he' };
       const assets = it.assets || [];
-      const parasha = (Array.isArray(it.parasha) ? it.parasha : it.parasha ? [it.parasha] : []).slice(0, 2);
+      const parasha = (
+        Array.isArray(it.parasha) ? it.parasha : it.parasha ? [it.parasha] : []
+      ).slice(0, 2);
       const title = it.title && it.title !== s.title ? it.title : '';
       const lang = it.lang || s.lang || 'he';
       const hay =
@@ -25,10 +32,16 @@ function prepare(A, raw) {
           searchKey(title),
           searchKey(s.circle || ''),
           it.no ? String(it.no) : '',
-          searchKey(parasha.map((p) => (Core.PARASHOT[p] || '') + ' ' + p).join(' ') + ' ' + (it.event ? (Core.EVENTS[it.event] || '') + ' ' + it.event : '')),
+          searchKey(
+            parasha.map((p) => (Core.PARASHOT[p] || '') + ' ' + p).join(' ') +
+              ' ' +
+              (it.event ? (Core.EVENTS[it.event] || '') + ' ' + it.event : ''),
+          ),
           it.hy ? it.hy + ' ' + searchKey(Core.hyLetters(it.hy)) + ' ' + (it.hy % 1000) : '',
           lang + ' ' + searchKey(Core.LANG_NAMES[lang] || ''),
-          [...new Set(assets.map((a) => a.src))].map((src) => src + ' ' + searchKey(SOURCE_NAMES[src] || '')).join(' '),
+          [...new Set(assets.map((a) => a.src))]
+            .map((src) => src + ' ' + searchKey(SOURCE_NAMES[src] || ''))
+            .join(' '),
         ]
           .map((x) => x.trim())
           .filter(Boolean)
@@ -49,7 +62,12 @@ function prepare(A, raw) {
         hy: it.hy || 0,
         date: it.date || '',
         // גיליון archive אינו "חדש": זמן ההוספה שלו אינו נחשב.
-        added: it.archive === true ? 0 : it.added ? Math.floor((Date.parse(it.added) || 0) / 1000) * 1000 : 0,
+        added:
+          it.archive === true
+            ? 0
+            : it.added
+              ? Math.floor((Date.parse(it.added) || 0) / 1000) * 1000
+              : 0,
         addedRaw: it.added ? Math.floor((Date.parse(it.added) || 0) / 1000) * 1000 : 0,
         parasha,
         event: it.event || '',
@@ -92,7 +110,9 @@ function termMatches(A, rec, term) {
   const { Core } = A;
   switch (term.field) {
     case 'year':
-      return term.from ? rec.hy >= term.from && rec.hy <= term.to : String(rec.hy || '').startsWith(term.norm);
+      return term.from
+        ? rec.hy >= term.from && rec.hy <= term.to
+        : String(rec.hy || '').startsWith(term.norm);
     case 'series':
       return (' ' + rec.seriesKey + ' ').includes(term.needle);
     case 'parasha': {
@@ -102,9 +122,15 @@ function termMatches(A, rec, term) {
     case 'event':
       return namedSlugs(A, 'event', term.norm).has(rec.event);
     case 'lang':
-      return (' ' + rec.lang + ' ' + searchKey(Core.LANG_NAMES[rec.lang] || '') + ' ').includes(term.needle);
+      return (' ' + rec.lang + ' ' + searchKey(Core.LANG_NAMES[rec.lang] || '') + ' ').includes(
+        term.needle,
+      );
     case 'source':
-      return (' ' + rec.sources.map((s) => s + ' ' + searchKey(SOURCE_NAMES[s] || '')).join(' ') + ' ').includes(term.needle);
+      return (
+        ' ' +
+        rec.sources.map((s) => s + ' ' + searchKey(SOURCE_NAMES[s] || '')).join(' ') +
+        ' '
+      ).includes(term.needle);
     case 'circle':
       return rec.circleKey.includes(term.norm);
     default:
@@ -138,10 +164,20 @@ function groups(A, query, f, state, hiddenIds) {
   if (f.event) add('event', (r) => Boolean(r.event) && has(f.event, r.event), true);
   if (f.circle) add('circle', (r) => has(f.circle, r.series.circle || ''), true);
   if (f.series) add('series', (r) => has(f.series, r.series.id));
-  if (f.dateFrom || f.dateTo) add('date', (r) => Boolean(r.date) && (!f.dateFrom || r.date >= f.dateFrom) && (!f.dateTo || r.date <= f.dateTo));
+  if (f.dateFrom || f.dateTo)
+    add(
+      'date',
+      (r) =>
+        Boolean(r.date) &&
+        (!f.dateFrom || r.date >= f.dateFrom) &&
+        (!f.dateTo || r.date <= f.dateTo),
+    );
   if (f.hyFrom || f.hyTo) add('years', (r) => range(r.hy, f.hyFrom, f.hyTo));
   if (f.pagesMin || f.pagesMax) add('pages', (r) => range(r.pages, f.pagesMin, f.pagesMax));
-  if (f.sizeMin || f.sizeMax) add('size', (r) => range(r.kb, f.sizeMin ? f.sizeMin * 1024 : 0, f.sizeMax ? f.sizeMax * 1024 : 0));
+  if (f.sizeMin || f.sizeMax)
+    add('size', (r) =>
+      range(r.kb, f.sizeMin ? f.sizeMin * 1024 : 0, f.sizeMax ? f.sizeMax * 1024 : 0),
+    );
   if (f.multi) add('multi', (r) => r.sources.length >= 2);
   if (query.clauses.length) add('text', (r) => textMatches(A, r, query));
   if (f.sinceVisit) add('sinceVisit', (r) => r.added > (state.lastVisit || 0));
@@ -182,7 +218,15 @@ function filter(A, data, query, f, state, hiddenIds, options) {
 function facets(A, data, query, f, state, hiddenIds, options) {
   const o = options || {};
   const gs = groups(A, query, f, state, hiddenIds);
-  const out = { total: 0, parasha: new Map(), event: new Map(), hy: new Map(), lang: new Map(), source: new Map(), circle: new Map() };
+  const out = {
+    total: 0,
+    parasha: new Map(),
+    event: new Map(),
+    hy: new Map(),
+    lang: new Map(),
+    source: new Map(),
+    circle: new Map(),
+  };
   const bump = (m, k) => m.set(k, (m.get(k) || 0) + 1);
   const facetKeys = new Set(gs.filter((g) => g.facet).map((g) => g.key));
   for (const rec of data.records) {

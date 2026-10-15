@@ -14,32 +14,78 @@
   const CODES = Object.freeze({
     // ---- קבצים
     no_folder: { area: 'files', retry: false, text: N('עוד לא נבחרה תיקייה לשמירת העלונים.') },
-    blocked: { area: 'files', retry: false, text: N('הכתובת של הקובץ טרם אושרה באוצריא, ולכן אי אפשר להוריד אותו דרך התוסף. אפשר לפתוח את הגיליון באתר המקור.') },
-    no_direct_link: { area: 'files', retry: false, text: N('המקור הזה מספק קישור לאתר בלבד, בלי הורדה ישירה.') },
+    blocked: {
+      area: 'files',
+      retry: false,
+      text: N(
+        'הכתובת של הקובץ טרם אושרה באוצריא, ולכן אי אפשר להוריד אותו דרך התוסף. אפשר לפתוח את הגיליון באתר המקור.',
+      ),
+    },
+    no_direct_link: {
+      area: 'files',
+      retry: false,
+      text: N('המקור הזה מספק קישור לאתר בלבד, בלי הורדה ישירה.'),
+    },
     permission: { area: 'files', retry: false, text: N('לתוסף אין הרשאה לשמור קבצים בתיקייה.') },
-    not_pdf: { area: 'files', retry: true, text: N('הקובץ שירד אינו PDF תקין, ולכן נמחק. אפשר לנסות שוב או לפתוח באתר המקור.') },
+    not_pdf: {
+      area: 'files',
+      retry: true,
+      text: N('הקובץ שירד אינו PDF תקין, ולכן נמחק. אפשר לנסות שוב או לפתוח באתר המקור.'),
+    },
     truncated: { area: 'files', retry: true, text: N('ההורדה נקטעה באמצע. אפשר לנסות שוב.') },
     timeout: { area: 'files', retry: true, text: N('ההורדה לקחה יותר מדי זמן. אפשר לנסות שוב.') },
     failed: { area: 'files', retry: true, text: N('ההורדה נכשלה. אפשר לנסות שוב.') },
-    missing_file: { area: 'files', retry: true, text: N('הקובץ נמחק מהתיקייה. אפשר להוריד אותו שוב.') },
+    missing_file: {
+      area: 'files',
+      retry: true,
+      text: N('הקובץ נמחק מהתיקייה. אפשר להוריד אותו שוב.'),
+    },
     open_failed: { area: 'files', retry: true, text: N('אוצריא לא הצליחה לפתוח את הקובץ.') },
     cancelled: { area: 'files', retry: true, text: N('ההורדה בוטלה.') },
-    missing_data: { area: 'files', retry: true, text: N('פרטי הגיליון אינם זמינים כרגע (הקטלוג עדיין נטען, או שאין חיבור). אפשר לנסות שוב או לפתוח באתר המקור.') },
-    forbidden_folder: { area: 'files', retry: false, text: N('אוצריא אינה מאפשרת לבחור את התיקייה הזו (תיקיית מערכת או שורש כונן). בחרו תיקייה ייעודית, למשל תחת "מסמכים".') },
+    missing_data: {
+      area: 'files',
+      retry: true,
+      text: N(
+        'פרטי הגיליון אינם זמינים כרגע (הקטלוג עדיין נטען, או שאין חיבור). אפשר לנסות שוב או לפתוח באתר המקור.',
+      ),
+    },
+    forbidden_folder: {
+      area: 'files',
+      retry: false,
+      text: N(
+        'אוצריא אינה מאפשרת לבחור את התיקייה הזו (תיקיית מערכת או שורש כונן). בחרו תיקייה ייעודית, למשל תחת "מסמכים".',
+      ),
+    },
     pick_failed: { area: 'files', retry: true, text: N('בחירת התיקייה נכשלה.') },
-    too_large: { area: 'files', retry: false, text: N('הקובץ גדול מדי לקריאה בתוסף. אפשר להוריד אותו ולפתוח בקורא של אוצריא.') },
+    too_large: {
+      area: 'files',
+      retry: false,
+      text: N('הקובץ גדול מדי לקריאה בתוסף. אפשר להוריד אותו ולפתוח בקורא של אוצריא.'),
+    },
     // ---- רשת וקטלוג
     forbidden: { area: 'net', retry: false, text: N('הכתובת אינה ברשימת ההיתר של אוצריא.') },
     busy: { area: 'net', retry: true, text: N('אוצריא מגבילה את קצב הבקשות כרגע. ינסה שוב לבד.') },
     network: { area: 'net', retry: true, text: N('אין חיבור לרשת, או שהאתר אינו עונה.') },
     http: { area: 'net', retry: true, text: N('השרת החזיר שגיאה.') },
-    bad_schema: { area: 'catalog', retry: false, text: N('הקטלוג בפורמט שהתוסף אינו מכיר. עדכנו את התוסף מהחנות של אוצריא.') },
+    bad_schema: {
+      area: 'catalog',
+      retry: false,
+      text: N('הקטלוג בפורמט שהתוסף אינו מכיר. עדכנו את התוסף מהחנות של אוצריא.'),
+    },
     bad_file: { area: 'catalog', retry: true, text: N('קובץ קטלוג פגום. ינסה שוב לבד.') },
-    hash: { area: 'catalog', retry: true, text: N('קובץ קטלוג לא תואם לחתימה (מטמון ישן). ינסה שוב לבד.') },
+    hash: {
+      area: 'catalog',
+      retry: true,
+      text: N('קובץ קטלוג לא תואם לחתימה (מטמון ישן). ינסה שוב לבד.'),
+    },
     // ---- ממשק
     screen_failed: { area: 'ui', retry: true, text: N('משהו השתבש בהצגת המסך הזה.') },
     dialog_failed: { area: 'ui', retry: true, text: N('משהו השתבש בפתיחת החלון.') },
-    unsupported: { area: 'ui', retry: false, text: N('המארח אינו תומך ביכולת הזו, ולכן נעשה שימוש במסלול חלופי.') },
+    unsupported: {
+      area: 'ui',
+      retry: false,
+      text: N('המארח אינו תומך ביכולת הזו, ולכן נעשה שימוש במסלול חלופי.'),
+    },
   });
 
   const known = (code) => Object.hasOwn(CODES, code);

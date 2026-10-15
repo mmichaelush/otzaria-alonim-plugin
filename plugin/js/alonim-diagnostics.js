@@ -9,12 +9,18 @@
   const I18n = A.I18n;
 
   /** שורה ריקה-בטוחה: ערך חסר מוצג כ-"?". */
-  const show = (value) => (value === undefined || value === null || value === '' ? '?' : String(value));
+  const show = (value) =>
+    value === undefined || value === null || value === '' ? '?' : String(value);
 
   /** מצב הזיכרון של הדף (Chromium בלבד); `null` כשאינו זמין. */
   function memory() {
     const m = root.performance && root.performance.memory;
-    return m ? { usedMb: Math.round(m.usedJSHeapSize / 1048576), limitMb: Math.round(m.jsHeapSizeLimit / 1048576) } : null;
+    return m
+      ? {
+          usedMb: Math.round(m.usedJSHeapSize / 1048576),
+          limitMb: Math.round(m.jsHeapSizeLimit / 1048576),
+        }
+      : null;
   }
 
   /** תמונת מצב מובנית. */
@@ -43,17 +49,30 @@
         shardsLoaded: s.shardsLoaded,
         shardsTotal: s.shardsTotal,
         weeksRows: app.index.weeks.length,
-        weeksArchive: app.catalog.hasWeeksArchive() ? (app.catalog.weeksArchiveLoaded() ? 'loaded' : 'available') : 'none',
+        weeksArchive: app.catalog.hasWeeksArchive()
+          ? app.catalog.weeksArchiveLoaded()
+            ? 'loaded'
+            : 'available'
+          : 'none',
         aliases: app.index.issueAlias.size,
       },
       files: {
         folder: app.files.hasFolder ? disk.status : 'none',
         files: disk.count || 0,
-        queued: app.files.list().filter((j) => j.status === 'queued' || j.status === 'active').length,
+        queued: app.files.list().filter((j) => j.status === 'queued' || j.status === 'active')
+          .length,
         remoteGrants: app.files.remote.size,
       },
-      state: { readOnly: app.state.readOnly, failedDomains: [...app.state.failed], history: app.state.historyOn },
-      perf: { lastQueryMs: Math.round(app.lastQueryMs * 10) / 10, indexBuildMs: Math.round(app.index.lastBuildMs), memory: memory() },
+      state: {
+        readOnly: app.state.readOnly,
+        failedDomains: [...app.state.failed],
+        history: app.state.historyOn,
+      },
+      perf: {
+        lastQueryMs: Math.round(app.lastQueryMs * 10) / 10,
+        indexBuildMs: Math.round(app.index.lastBuildMs),
+        memory: memory(),
+      },
       log: app.log.counts(),
     };
   }
@@ -64,16 +83,69 @@
     const d = snapshot(app);
     const lines = [
       'Alonim plugin ' + d.plugin.version + ' (' + d.plugin.language + ')',
-      'Otzaria ' + show(d.host.version) + ' / ' + show(d.host.platform) + ' / ' + show(d.host.language) + (d.host.online === false ? ' / offline' : ''),
+      'Otzaria ' +
+        show(d.host.version) +
+        ' / ' +
+        show(d.host.platform) +
+        ' / ' +
+        show(d.host.language) +
+        (d.host.online === false ? ' / offline' : ''),
       'permissions: ' + (d.host.permissions.join(', ') || 'none'),
       'capabilities' + (d.host.legacyOverride ? ' (legacy override ON)' : '') + ':',
-      ...d.caps.map((c) => '  ' + c.feature + ' (' + c.method + '): ' + (c.available ? 'yes' : 'no') + ' [' + c.source + (c.detail ? ': ' + c.detail : '') + ']'),
-      'catalog v' + d.catalog.catalogVersion + (d.catalog.generatedAt ? ' (' + d.catalog.generatedAt + ')' : '') + ', issues ' + d.catalog.issues + ', phase ' + d.catalog.phase + (d.catalog.error ? ' (' + d.catalog.error + ')' : ''),
-      'shards ' + show(d.catalog.shardsLoaded) + '/' + show(d.catalog.shardsTotal) + ', weeks ' + d.catalog.weeksRows + ', archive ' + d.catalog.weeksArchive + ', id aliases ' + d.catalog.aliases,
-      'folder: ' + d.files.folder + ', files ' + d.files.files + ', queue ' + d.files.queued + ', remote grants ' + d.files.remoteGrants,
-      'state read-only: ' + d.state.readOnly + (d.state.failedDomains.length ? ' (failed: ' + d.state.failedDomains.join(',') + ')' : '') + ', history ' + (d.state.history ? 'on' : 'off'),
-      'perf: last query ' + d.perf.lastQueryMs + 'ms, index build ' + d.perf.indexBuildMs + 'ms' + (d.perf.memory ? ', heap ' + d.perf.memory.usedMb + 'MB' : ''),
-      'log: ' + Object.entries(d.log).map(([k, v]) => k + ' ' + v).join(', '),
+      ...d.caps.map(
+        (c) =>
+          '  ' +
+          c.feature +
+          ' (' +
+          c.method +
+          '): ' +
+          (c.available ? 'yes' : 'no') +
+          ' [' +
+          c.source +
+          (c.detail ? ': ' + c.detail : '') +
+          ']',
+      ),
+      'catalog v' +
+        d.catalog.catalogVersion +
+        (d.catalog.generatedAt ? ' (' + d.catalog.generatedAt + ')' : '') +
+        ', issues ' +
+        d.catalog.issues +
+        ', phase ' +
+        d.catalog.phase +
+        (d.catalog.error ? ' (' + d.catalog.error + ')' : ''),
+      'shards ' +
+        show(d.catalog.shardsLoaded) +
+        '/' +
+        show(d.catalog.shardsTotal) +
+        ', weeks ' +
+        d.catalog.weeksRows +
+        ', archive ' +
+        d.catalog.weeksArchive +
+        ', id aliases ' +
+        d.catalog.aliases,
+      'folder: ' +
+        d.files.folder +
+        ', files ' +
+        d.files.files +
+        ', queue ' +
+        d.files.queued +
+        ', remote grants ' +
+        d.files.remoteGrants,
+      'state read-only: ' +
+        d.state.readOnly +
+        (d.state.failedDomains.length ? ' (failed: ' + d.state.failedDomains.join(',') + ')' : '') +
+        ', history ' +
+        (d.state.history ? 'on' : 'off'),
+      'perf: last query ' +
+        d.perf.lastQueryMs +
+        'ms, index build ' +
+        d.perf.indexBuildMs +
+        'ms' +
+        (d.perf.memory ? ', heap ' + d.perf.memory.usedMb + 'MB' : ''),
+      'log: ' +
+        Object.entries(d.log)
+          .map(([k, v]) => k + ' ' + v)
+          .join(', '),
       '',
       app.log.tail(o.tail || 60, o.filter),
     ];

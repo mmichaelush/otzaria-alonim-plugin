@@ -28,7 +28,17 @@
     hiddenOnly: N('מוסתרים לפי הכללים בלבד'),
   });
 
-  const FLAG_ORDER = ['multi', 'favorite', 'followed', 'downloaded', 'inList', 'unread', 'isNew', 'sinceVisit', 'hiddenOnly'];
+  const FLAG_ORDER = [
+    'multi',
+    'favorite',
+    'followed',
+    'downloaded',
+    'inList',
+    'unread',
+    'isNew',
+    'sinceVisit',
+    'hiddenOnly',
+  ];
 
   const rangeText = (from, to, fmt, unit) => {
     const f = (v) => fmt(v) + (unit ? ' ' + unit : '');
@@ -83,7 +93,14 @@
             class: 'filter-tag',
             title: t('הסרת המסנן'),
             'aria-label': t('הסרת מסנן: {name}', { name: chip.label }),
-            onclick: () => onChange(Filters.remove(filters, chip.key, Filters.LIST_KEYS.includes(chip.key) ? chip.value : undefined)),
+            onclick: () =>
+              onChange(
+                Filters.remove(
+                  filters,
+                  chip.key,
+                  Filters.LIST_KEYS.includes(chip.key) ? chip.value : undefined,
+                ),
+              ),
           },
           el('span', { class: 'filter-tag-text', dir: 'auto' }, chip.label),
           icon('dismiss_24_regular'),
@@ -107,7 +124,10 @@
       key: 'parasha',
       title: t('פרשה'),
       searchable: true,
-      options: order(Core.PARASHOT, facets.parashot).map((v) => ({ value: v, label: Core.parashaName(v) })),
+      options: order(Core.PARASHOT, facets.parashot).map((v) => ({
+        value: v,
+        label: Core.parashaName(v),
+      })),
     });
     groupDefs.push({
       key: 'event',
@@ -120,17 +140,28 @@
       key: 'hy',
       title: t('שנה עברית'),
       searchable: true,
-      options: yearList.map((y) => ({ value: y, label: A.UiDates.yearLabel(y), unloaded: !facets.years.has(y), total: manifestYears.get(y) || 0 })),
+      options: yearList.map((y) => ({
+        value: y,
+        label: A.UiDates.yearLabel(y),
+        unloaded: !facets.years.has(y),
+        total: manifestYears.get(y) || 0,
+      })),
     });
     groupDefs.push({
       key: 'lang',
       title: t('שפה'),
-      options: Core.LANG_CODES.filter((l) => facets.langs.has(l)).map((v) => ({ value: v, label: Core.langName(v) })),
+      options: Core.LANG_CODES.filter((l) => facets.langs.has(l)).map((v) => ({
+        value: v,
+        label: Core.langName(v),
+      })),
     });
     groupDefs.push({
       key: 'source',
       title: t('מקור'),
-      options: app.allSources().filter((s) => facets.sources.has(s.id)).map((s) => ({ value: s.id, label: s.name })),
+      options: app
+        .allSources()
+        .filter((s) => facets.sources.has(s.id))
+        .map((s) => ({ value: s.id, label: s.name })),
     });
     groupDefs.push({
       key: 'circle',
@@ -157,7 +188,9 @@
 
     function computeCounts() {
       const s = host.get();
-      counts = app.index.facetCounts(s.query, s.filters, app.searchContext(), { includeHidden: s.includeHidden });
+      counts = app.index.facetCounts(s.query, s.filters, app.searchContext(), {
+        includeHidden: s.includeHidden,
+      });
       for (const def of groupDefs) {
         const map = counts[def.key];
         const group = refs.groups.get(def.key);
@@ -190,9 +223,22 @@
           onchange: () => commit(Filters.toggle(current(), def.key, option.value)),
         });
         const count = el('span', { class: 'opt-count' }, '');
-        const label = el('label', { class: 'filter-option' }, input, el('span', { class: 'opt-label', dir: 'auto' }, option.label), count);
+        const label = el(
+          'label',
+          { class: 'filter-option' },
+          input,
+          el('span', { class: 'opt-label', dir: 'auto' }, option.label),
+          count,
+        );
         list.appendChild(label);
-        rows.push({ value: option.value, label, input, count, text: A.Normalize.searchKey(option.label), unloaded: option.unloaded });
+        rows.push({
+          value: option.value,
+          label,
+          input,
+          count,
+          text: A.Normalize.searchKey(option.label),
+          unloaded: option.unloaded,
+        });
       }
       const badge = el('span', { class: 'filter-group-badge', hidden: true });
       const body = el('div', { class: 'filter-group-body' });
@@ -206,13 +252,19 @@
             autocomplete: 'off',
             oninput: (event) => {
               const q = A.Normalize.searchKey(event.target.value);
-              for (const row of rows) row.label.hidden = Boolean(q) && !(' ' + row.text).includes(' ' + q);
+              for (const row of rows)
+                row.label.hidden = Boolean(q) && !(' ' + row.text).includes(' ' + q);
             },
           }),
         );
       }
       body.appendChild(list);
-      const details = el('details', { class: 'filter-group', dataset: { group: def.key } }, el('summary', {}, el('span', { class: 'filter-group-title' }, def.title), badge), body);
+      const details = el(
+        'details',
+        { class: 'filter-group', dataset: { group: def.key } },
+        el('summary', {}, el('span', { class: 'filter-group-title' }, def.title), badge),
+        body,
+      );
       refs.groups.set(def.key, { rows, badge, details });
       return details;
     }
@@ -220,7 +272,11 @@
     // ---- סדרות (בורר עם חיפוש)
 
     function seriesGroup() {
-      const list = el('div', { class: 'filter-options series-options', role: 'group', 'aria-label': t('סדרות') });
+      const list = el('div', {
+        class: 'filter-options series-options',
+        role: 'group',
+        'aria-label': t('סדרות'),
+      });
       const selectedHost = el('div', { class: 'active-filters' });
       const badge = el('span', { class: 'filter-group-badge', hidden: true });
       const input = el('input', {
@@ -234,14 +290,40 @@
         const selected = new Set(current().series || []);
         const text = input.value.trim();
         const found = text ? app.index.searchSeries(text, {}, null).slice(0, 40) : [];
-        Ui.fill(selectedHost, [...selected].map((id) => el('button', { type: 'button', class: 'filter-tag', 'aria-label': t('הסרת מסנן: {name}', { name: chipLabel(app, 'series', id) }), onclick: () => commit(Filters.remove(current(), 'series', id)) }, el('span', { class: 'filter-tag-text', dir: 'auto' }, chipLabel(app, 'series', id)), icon('dismiss_24_regular'))));
+        Ui.fill(
+          selectedHost,
+          [...selected].map((id) =>
+            el(
+              'button',
+              {
+                type: 'button',
+                class: 'filter-tag',
+                'aria-label': t('הסרת מסנן: {name}', { name: chipLabel(app, 'series', id) }),
+                onclick: () => commit(Filters.remove(current(), 'series', id)),
+              },
+              el('span', { class: 'filter-tag-text', dir: 'auto' }, chipLabel(app, 'series', id)),
+              icon('dismiss_24_regular'),
+            ),
+          ),
+        );
         Ui.fill(
           list,
           found.map((s) =>
-            el('label', { class: 'filter-option' }, el('input', { type: 'checkbox', checked: selected.has(s.id), onchange: () => commit(Filters.toggle(current(), 'series', s.id)) }), el('span', { class: 'opt-label', dir: 'auto' }, s.title), el('span', { class: 'opt-count' }, s.circle || '')),
+            el(
+              'label',
+              { class: 'filter-option' },
+              el('input', {
+                type: 'checkbox',
+                checked: selected.has(s.id),
+                onchange: () => commit(Filters.toggle(current(), 'series', s.id)),
+              }),
+              el('span', { class: 'opt-label', dir: 'auto' }, s.title),
+              el('span', { class: 'opt-count' }, s.circle || ''),
+            ),
           ),
         );
-        if (text && !found.length) list.appendChild(el('p', { class: 'picker-empty' }, t('לא נמצאה סדרה בשם הזה.')));
+        if (text && !found.length)
+          list.appendChild(el('p', { class: 'picker-empty' }, t('לא נמצאה סדרה בשם הזה.')));
         const n = selected.size;
         badge.hidden = !n;
         badge.textContent = String(n);
@@ -249,7 +331,12 @@
       input.addEventListener('input', draw);
       refs.series = { draw, badge };
       const body = el('div', { class: 'filter-group-body' }, selectedHost, input, list);
-      return el('details', { class: 'filter-group', dataset: { group: 'series' } }, el('summary', {}, el('span', { class: 'filter-group-title' }, t('סדרה')), badge), body);
+      return el(
+        'details',
+        { class: 'filter-group', dataset: { group: 'series' } },
+        el('summary', {}, el('span', { class: 'filter-group-title' }, t('סדרה')), badge),
+        body,
+      );
     }
 
     // ---- טווחים
@@ -262,15 +349,27 @@
         input.value = Core.ymd(date);
         apply();
       });
-      const toggle = Ui.iconButton('calendar_star_24_regular', t('בחירה לפי תאריך עברי'), () => {
-        hebrew.el.hidden = !hebrew.el.hidden;
-        toggle.setAttribute('aria-expanded', String(!hebrew.el.hidden));
-      }, { expanded: false, className: 'range-toggle' });
+      const toggle = Ui.iconButton(
+        'calendar_star_24_regular',
+        t('בחירה לפי תאריך עברי'),
+        () => {
+          hebrew.el.hidden = !hebrew.el.hidden;
+          toggle.setAttribute('aria-expanded', String(!hebrew.el.hidden));
+        },
+        { expanded: false, className: 'range-toggle' },
+      );
       hebrew.el.hidden = true;
       function apply() {
         const f = current();
         const other = kind === 'from' ? f.dateTo || '' : f.dateFrom || '';
-        commit(Filters.setRange(f, 'date', kind === 'from' ? input.value : other, kind === 'from' ? other : input.value));
+        commit(
+          Filters.setRange(
+            f,
+            'date',
+            kind === 'from' ? input.value : other,
+            kind === 'from' ? other : input.value,
+          ),
+        );
       }
       input.addEventListener('change', () => {
         const d = Core.parseYmd(input.value);
@@ -285,25 +384,59 @@
         if (d) hebrew.set(d);
       };
       refs.ranges[key] = sync1;
-      return el('div', { class: 'range-field' }, el('span', { class: 'picker-label' }, label), el('div', { class: 'picker-inline' }, input, toggle), caption, hebrew.el);
+      return el(
+        'div',
+        { class: 'range-field' },
+        el('span', { class: 'picker-label' }, label),
+        el('div', { class: 'picker-inline' }, input, toggle),
+        caption,
+        hebrew.el,
+      );
     }
 
     function yearField(label, kind) {
       const key = kind === 'from' ? 'hyFrom' : 'hyTo';
-      const select = Ui.selectField(label, [{ value: '', label: '—' }, ...yearList.slice().map((y) => ({ value: y, label: A.UiDates.yearLabel(y) }))], '', (value) => {
-        const f = current();
-        const other = kind === 'from' ? f.hyTo || 0 : f.hyFrom || 0;
-        commit(Filters.setRange(f, 'year', kind === 'from' ? value : other, kind === 'from' ? other : value));
-      });
+      const select = Ui.selectField(
+        label,
+        [
+          { value: '', label: '—' },
+          ...yearList.slice().map((y) => ({ value: y, label: A.UiDates.yearLabel(y) })),
+        ],
+        '',
+        (value) => {
+          const f = current();
+          const other = kind === 'from' ? f.hyTo || 0 : f.hyFrom || 0;
+          commit(
+            Filters.setRange(
+              f,
+              'year',
+              kind === 'from' ? value : other,
+              kind === 'from' ? other : value,
+            ),
+          );
+        },
+      );
       refs.ranges[key] = () => {
         select.value = String(current()[key] || '');
       };
-      return el('div', { class: 'range-field' }, el('span', { class: 'picker-label' }, label), select);
+      return el(
+        'div',
+        { class: 'range-field' },
+        el('span', { class: 'picker-label' }, label),
+        select,
+      );
     }
 
     function numberField(label, name, bound, step) {
       const key = name + bound;
-      const input = el('input', { type: 'number', class: 'input range-input', min: '1', step: String(step || 1), inputmode: 'numeric', 'aria-label': label });
+      const input = el('input', {
+        type: 'number',
+        class: 'input range-input',
+        min: '1',
+        step: String(step || 1),
+        inputmode: 'numeric',
+        'aria-label': label,
+      });
       input.addEventListener('change', () => {
         const f = current();
         const lo = name === 'pages' ? 'pagesMin' : 'sizeMin';
@@ -316,11 +449,26 @@
         const f = current();
         input.value = f[name === 'pages' ? 'pages' + bound : 'size' + bound] || '';
       };
-      return el('div', { class: 'range-field' }, el('span', { class: 'picker-label' }, label), input);
+      return el(
+        'div',
+        { class: 'range-field' },
+        el('span', { class: 'picker-label' }, label),
+        input,
+      );
     }
 
     const rangeGroup = (title, key, ...fields) =>
-      el('details', { class: 'filter-group', dataset: { group: key } }, el('summary', {}, el('span', { class: 'filter-group-title' }, title), (refs.ranges[key + 'Badge'] = el('span', { class: 'filter-group-badge', hidden: true }))), el('div', { class: 'filter-group-body range-grid' }, ...fields));
+      el(
+        'details',
+        { class: 'filter-group', dataset: { group: key } },
+        el(
+          'summary',
+          {},
+          el('span', { class: 'filter-group-title' }, title),
+          (refs.ranges[key + 'Badge'] = el('span', { class: 'filter-group-badge', hidden: true })),
+        ),
+        el('div', { class: 'filter-group-body range-grid' }, ...fields),
+      );
 
     // ---- דגלים
 
@@ -329,37 +477,104 @@
       const hasVisit = app.state.visitBase > 0;
       for (const key of FLAG_ORDER) {
         if (key === 'sinceVisit' && !hasVisit) continue;
-        const input = el('input', { type: 'checkbox', onchange: () => commit(Filters.toggle(current(), key)) });
+        const input = el('input', {
+          type: 'checkbox',
+          onchange: () => commit(Filters.toggle(current(), key)),
+        });
         refs.flags.set(key, input);
-        list.appendChild(el('label', { class: 'filter-option' }, input, el('span', { class: 'opt-label' }, t(FLAG_LABELS[key]))));
+        list.appendChild(
+          el(
+            'label',
+            { class: 'filter-option' },
+            input,
+            el('span', { class: 'opt-label' }, t(FLAG_LABELS[key])),
+          ),
+        );
       }
-      return el('details', { class: 'filter-group', open: true, dataset: { group: 'flags' } }, el('summary', {}, el('span', { class: 'filter-group-title' }, t('מצב')), (refs.flagBadge = el('span', { class: 'filter-group-badge', hidden: true }))), el('div', { class: 'filter-group-body' }, list));
+      return el(
+        'details',
+        { class: 'filter-group', open: true, dataset: { group: 'flags' } },
+        el(
+          'summary',
+          {},
+          el('span', { class: 'filter-group-title' }, t('מצב')),
+          (refs.flagBadge = el('span', { class: 'filter-group-badge', hidden: true })),
+        ),
+        el('div', { class: 'filter-group-body' }, list),
+      );
     }
 
     // ---- הגדרות שמורות
 
-    const presetSelect = el('select', { class: 'select preset-select', 'aria-label': t('הגדרות חיפוש שמורות') });
-    const presetName = el('input', { class: 'input', type: 'text', maxlength: '80', placeholder: t('שם להגדרה'), 'aria-label': t('שם להגדרה'), autocomplete: 'off' });
-    const presetForm = el('form', { class: 'preset-form', hidden: true, onsubmit: (event) => {
-      event.preventDefault();
-      const name = presetName.value.trim();
-      if (!name) return;
-      const s = host.get();
-      const saved = app.state.savePreset(name, { query: s.query, filters: s.filters, sort: s.sort });
-      presetForm.hidden = true;
-      presetName.value = '';
-      drawPresets(saved && saved.id);
-      app.toast(saved ? t('ההגדרה "{name}" נשמרה', { name }) : t('אי אפשר לשמור עוד הגדרות.'), { error: !saved });
-    } }, presetName, Ui.button('filled', t('שמירה'), () => presetForm.requestSubmit(), { className: 'button-small' }));
-    const deletePreset = Ui.iconButton('delete_24_regular', t('מחיקת ההגדרה השמורה'), () => {
-      const removed = app.state.deletePreset(presetSelect.value);
-      drawPresets();
-      if (removed) app.toast(t('ההגדרה "{name}" נמחקה', { name: removed.name }), { action: { label: t('ביטול הפעולה'), run: () => { app.state.restorePreset(removed); } } });
-    }, { disabled: true });
+    const presetSelect = el('select', {
+      class: 'select preset-select',
+      'aria-label': t('הגדרות חיפוש שמורות'),
+    });
+    const presetName = el('input', {
+      class: 'input',
+      type: 'text',
+      maxlength: '80',
+      placeholder: t('שם להגדרה'),
+      'aria-label': t('שם להגדרה'),
+      autocomplete: 'off',
+    });
+    const presetForm = el(
+      'form',
+      {
+        class: 'preset-form',
+        hidden: true,
+        onsubmit: (event) => {
+          event.preventDefault();
+          const name = presetName.value.trim();
+          if (!name) return;
+          const s = host.get();
+          const saved = app.state.savePreset(name, {
+            query: s.query,
+            filters: s.filters,
+            sort: s.sort,
+          });
+          presetForm.hidden = true;
+          presetName.value = '';
+          drawPresets(saved && saved.id);
+          app.toast(saved ? t('ההגדרה "{name}" נשמרה', { name }) : t('אי אפשר לשמור עוד הגדרות.'), {
+            error: !saved,
+          });
+        },
+      },
+      presetName,
+      Ui.button('filled', t('שמירה'), () => presetForm.requestSubmit(), {
+        className: 'button-small',
+      }),
+    );
+    const deletePreset = Ui.iconButton(
+      'delete_24_regular',
+      t('מחיקת ההגדרה השמורה'),
+      () => {
+        const removed = app.state.deletePreset(presetSelect.value);
+        drawPresets();
+        if (removed)
+          app.toast(t('ההגדרה "{name}" נמחקה', { name: removed.name }), {
+            action: {
+              label: t('ביטול הפעולה'),
+              run: () => {
+                app.state.restorePreset(removed);
+              },
+            },
+          });
+      },
+      { disabled: true },
+    );
 
     function drawPresets(selectId) {
       const presets = app.state.presets;
-      Ui.fill(presetSelect, [el('option', { value: '' }, presets.length ? t('הגדרות שמורות…') : t('אין עדיין הגדרות שמורות')), ...presets.map((p) => el('option', { value: p.id, selected: p.id === selectId }, p.name))]);
+      Ui.fill(presetSelect, [
+        el(
+          'option',
+          { value: '' },
+          presets.length ? t('הגדרות שמורות…') : t('אין עדיין הגדרות שמורות'),
+        ),
+        ...presets.map((p) => el('option', { value: p.id, selected: p.id === selectId }, p.name)),
+      ]);
       presetSelect.disabled = !presets.length;
       deletePreset.disabled = !presetSelect.value;
     }
@@ -389,7 +604,12 @@
       refs.flagBadge.hidden = !flagCount;
       refs.flagBadge.textContent = String(flagCount);
       for (const fn of Object.values(refs.ranges)) if (typeof fn === 'function') fn();
-      const badges = { date: f.dateFrom || f.dateTo, year: f.hyFrom || f.hyTo, pages: f.pagesMin || f.pagesMax, size: f.sizeMin || f.sizeMax };
+      const badges = {
+        date: f.dateFrom || f.dateTo,
+        year: f.hyFrom || f.hyTo,
+        pages: f.pagesMin || f.pagesMax,
+        size: f.sizeMin || f.sizeMax,
+      };
       for (const [key, on] of Object.entries(badges)) {
         const badge = refs.ranges[key + 'Badge'];
         if (badge) {
@@ -405,19 +625,56 @@
     const body = el(
       'div',
       { class: 'filter-panel' },
-      el('p', { class: 'filter-help' }, t('בתוך מסנן מספיק שאחד מהערכים מתאים (או). בין מסננים כולם חייבים להתאים (וגם). הספירה ליד כל ערך היא מה שיתקבל אם תבחרו בו, יחד עם שאר המסננים.')),
-      el('div', { class: 'preset-row' }, presetSelect, deletePreset, Ui.button('text', t('שמירת ההגדרה הנוכחית…'), () => {
-        presetForm.hidden = !presetForm.hidden;
-        if (!presetForm.hidden) presetName.focus();
-      }, { icon: 'bookmark_multiple_24_regular', className: 'button-small' })),
+      el(
+        'p',
+        { class: 'filter-help' },
+        t(
+          'בתוך מסנן מספיק שאחד מהערכים מתאים (או). בין מסננים כולם חייבים להתאים (וגם). הספירה ליד כל ערך היא מה שיתקבל אם תבחרו בו, יחד עם שאר המסננים.',
+        ),
+      ),
+      el(
+        'div',
+        { class: 'preset-row' },
+        presetSelect,
+        deletePreset,
+        Ui.button(
+          'text',
+          t('שמירת ההגדרה הנוכחית…'),
+          () => {
+            presetForm.hidden = !presetForm.hidden;
+            if (!presetForm.hidden) presetName.focus();
+          },
+          { icon: 'bookmark_multiple_24_regular', className: 'button-small' },
+        ),
+      ),
       presetForm,
       flagsGroup(),
       ...groupEls,
       seriesGroup(),
-      rangeGroup(t('תאריך'), 'date', dateField(t('מתאריך'), 'from'), dateField(t('עד תאריך'), 'to')),
-      rangeGroup(t('טווח שנים'), 'year', yearField(t('משנה'), 'from'), yearField(t('עד שנה'), 'to')),
-      rangeGroup(t('עמודים'), 'pages', numberField(t('לפחות עמודים'), 'pages', 'Min'), numberField(t('לכל היותר עמודים'), 'pages', 'Max')),
-      rangeGroup(t('גודל קובץ (MB)'), 'size', numberField(t('לפחות MB'), 'size', 'Min'), numberField(t('לכל היותר MB'), 'size', 'Max')),
+      rangeGroup(
+        t('תאריך'),
+        'date',
+        dateField(t('מתאריך'), 'from'),
+        dateField(t('עד תאריך'), 'to'),
+      ),
+      rangeGroup(
+        t('טווח שנים'),
+        'year',
+        yearField(t('משנה'), 'from'),
+        yearField(t('עד שנה'), 'to'),
+      ),
+      rangeGroup(
+        t('עמודים'),
+        'pages',
+        numberField(t('לפחות עמודים'), 'pages', 'Min'),
+        numberField(t('לכל היותר עמודים'), 'pages', 'Max'),
+      ),
+      rangeGroup(
+        t('גודל קובץ (MB)'),
+        'size',
+        numberField(t('לפחות MB'), 'size', 'Min'),
+        numberField(t('לכל היותר MB'), 'size', 'Max'),
+      ),
     );
     refs.total = el('span', {}, '');
     const dlg = Ui.dialog({
@@ -434,7 +691,8 @@
     dlg.el.querySelector('[data-key="done"]').appendChild(refs.total);
     drawPresets();
     sync();
-    for (const group of refs.groups.values()) if (group.badge.textContent !== '0' && !group.badge.hidden) group.details.open = true;
+    for (const group of refs.groups.values())
+      if (group.badge.textContent !== '0' && !group.badge.hidden) group.details.open = true;
     computeCounts();
     return dlg;
   }

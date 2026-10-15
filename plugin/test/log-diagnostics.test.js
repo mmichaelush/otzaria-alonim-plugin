@@ -17,19 +17,30 @@ test('Log: רמות, קטגוריות, קוד שגיאה מתוך Error, וטב�
   files.error('download failed', { code: 'x' });
   catalog.debug('details');
   assert.equal(log.entries.length, 4);
-  assert.deepEqual(log.entries.map((e) => e.cat), ['app', 'catalog', 'files', 'catalog']);
+  assert.deepEqual(
+    log.entries.map((e) => e.cat),
+    ['app', 'catalog', 'files', 'catalog'],
+  );
   assert.equal(log.entries[1].code, 'network');
   assert.equal(catalog.entries, log.entries, 'אותה טבעת');
   assert.deepEqual(log.counts(), { debug: 1, info: 1, warn: 1, error: 1 });
   assert.equal(log.filter({ level: 'warn' }).length, 2);
   assert.equal(log.filter({ cat: 'catalog' }).length, 2);
   assert.equal(log.filter({ level: 'warn', cat: 'catalog' }).length, 1);
-  assert.match(log.tail(10, { level: 'warn' }), /warn catalog \[network\] sync failed network down/);
+  assert.match(
+    log.tail(10, { level: 'warn' }),
+    /warn catalog \[network\] sync failed network down/,
+  );
 });
 
 test('Log: הטבעת מוגבלת, console רק מ-info ומעלה, ומנויים מקבלים אירועים', () => {
   const seen = [];
-  const sink = { info: (m) => seen.push('info:' + m), warn: (m) => seen.push('warn:' + m), error: () => {}, debug: () => seen.push('DEBUG') };
+  const sink = {
+    info: (m) => seen.push('info:' + m),
+    warn: (m) => seen.push('warn:' + m),
+    error: () => {},
+    debug: () => seen.push('DEBUG'),
+  };
   const log = new Log(sink);
   const got = [];
   const off = log.onEntry((e) => got.push(e.text));
@@ -48,7 +59,9 @@ test('Log: הטבעת מוגבלת, console רק מ-info ומעלה, ומנוי�
 });
 
 test('scrub: נתיבי דיסק וכתובות מקומיות לא יוצאים בדיווח', () => {
-  const text = scrub('failed C:\\Users\\Me\\Documents\\x.pdf and /Users/me/a.pdf and http://127.0.0.1:39811/files/1 ok');
+  const text = scrub(
+    'failed C:\\Users\\Me\\Documents\\x.pdf and /Users/me/a.pdf and http://127.0.0.1:39811/files/1 ok',
+  );
   assert.ok(!/Users|127\.0\.0\.1|Documents/.test(text), text);
   assert.ok(text.includes('<path>') && text.includes('<local>'));
 });
@@ -66,16 +79,30 @@ function fakeApp() {
     permissions: ['network.access', 'fs.user_files.read'],
     online: true,
     lastQueryMs: 12.34,
-    catalog: { status: { phase: 'idle', error: '', lastOkAt: 5, shardsLoaded: 2, shardsTotal: 3 }, meta: { catalogVersion: 7 }, manifest: { generatedAt: '2026-10-15T07:40:00Z' }, hasWeeksArchive: () => true, weeksArchiveLoaded: () => false },
+    catalog: {
+      status: { phase: 'idle', error: '', lastOkAt: 5, shardsLoaded: 2, shardsTotal: 3 },
+      meta: { catalogVersion: 7 },
+      manifest: { generatedAt: '2026-10-15T07:40:00Z' },
+      hasWeeksArchive: () => true,
+      weeksArchiveLoaded: () => false,
+    },
     index: { size: 1234, weeks: [1, 2, 3], issueAlias: new Map([['a', 'b']]), lastBuildMs: 456.7 },
-    files: { hasFolder: true, diskState: { status: 'ok', count: 9 }, list: () => [{ status: 'queued' }, { status: 'done' }], remote: new Map([['i', {}]]) },
+    files: {
+      hasFolder: true,
+      diskState: { status: 'ok', count: 9 },
+      list: () => [{ status: 'queued' }, { status: 'done' }],
+      remote: new Map([['i', {}]]),
+    },
     state: { readOnly: false, failed: new Set(), historyOn: true },
   };
 }
 
 test('Diagnostics.report: טקסט מלא ומנוקה — מארח, יכולות, קטלוג, קבצים, יומן', () => {
   const app = fakeApp();
-  app.log.warn('failed C:\\Users\\Me\\secret\\x.pdf', Object.assign(new Error('boom'), { code: 'forbidden' }));
+  app.log.warn(
+    'failed C:\\Users\\Me\\secret\\x.pdf',
+    Object.assign(new Error('boom'), { code: 'forbidden' }),
+  );
   const text = A.Diagnostics.report(app);
   assert.match(text, /^Alonim plugin \d+\.\d+\.\d+/);
   assert.match(text, /Otzaria 0\.9\.99 \/ windows \/ he/);

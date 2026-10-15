@@ -38,7 +38,8 @@ test('אין תרגום ריק או זהה למקור', () => {
 test('שמות הפרשות, האירועים והשפות מתורגמים', () => {
   for (const name of Object.values(A.Core.PARASHOT)) assert.ok(Object.hasOwn(catalog, name), name);
   for (const name of Object.values(A.Core.EVENTS)) assert.ok(Object.hasOwn(catalog, name), name);
-  for (const name of Object.values(A.Core.LANG_NAMES)) assert.ok(Object.hasOwn(catalog, name), name);
+  for (const name of Object.values(A.Core.LANG_NAMES))
+    assert.ok(Object.hasOwn(catalog, name), name);
 });
 
 test('resolveLanguage: בחירה מפורשת גוברת, שפה בלי מילון חוזרת לעברית', () => {

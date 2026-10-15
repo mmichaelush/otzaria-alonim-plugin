@@ -64,7 +64,12 @@
       // חיפוש שהושלם (Enter או יציאה מהשדה) נכנס להיסטוריית החיפושים.
       this.input.addEventListener('change', () => app.state.addSearch(this.input.value));
       this.input.addEventListener('focus', () => this.renderSuggest(true));
-      this.input.addEventListener('blur', () => setTimeout(() => !this.suggestHost.contains(document.activeElement) && this.hideSuggest(), 120));
+      this.input.addEventListener('blur', () =>
+        setTimeout(
+          () => !this.suggestHost.contains(document.activeElement) && this.hideSuggest(),
+          120,
+        ),
+      );
       this.input.addEventListener('keydown', (event) => {
         if (event.key === 'ArrowDown' && !this.suggestHost.hidden) {
           event.preventDefault();
@@ -83,21 +88,56 @@
           this.setQuery('');
         }
       });
-      this.clearBtn = Ui.iconButton('dismiss_24_regular', t('ניקוי החיפוש'), () => {
-        this.setQuery('');
-        this.input.focus();
-      }, { className: 'search-clear' });
+      this.clearBtn = Ui.iconButton(
+        'dismiss_24_regular',
+        t('ניקוי החיפוש'),
+        () => {
+          this.setQuery('');
+          this.input.focus();
+        },
+        { className: 'search-clear' },
+      );
       this.clearBtn.hidden = !v.query;
-      this.builderBtn = Ui.iconButton('filter_24_regular', t('בונה שאילתות'), () => {
-        v.builder = !v.builder;
-        this.renderBuilder();
-      }, { className: 'search-tool', expanded: v.builder, pressed: v.builder });
-      this.filtersBtn = Ui.button('tonal', '', () => this.openPanel(), { icon: 'filter_24_regular', className: 'filters-toggle button-small', key: 'filters' });
+      this.builderBtn = Ui.iconButton(
+        'filter_24_regular',
+        t('בונה שאילתות'),
+        () => {
+          v.builder = !v.builder;
+          this.renderBuilder();
+        },
+        { className: 'search-tool', expanded: v.builder, pressed: v.builder },
+      );
+      this.filtersBtn = Ui.button('tonal', '', () => this.openPanel(), {
+        icon: 'filter_24_regular',
+        className: 'filters-toggle button-small',
+        key: 'filters',
+      });
 
-      this.suggestHost = el('div', { class: 'search-suggest', hidden: true, role: 'group', 'aria-label': t('חיפושים אחרונים ושמורים') });
+      this.suggestHost = el('div', {
+        class: 'search-suggest',
+        hidden: true,
+        role: 'group',
+        'aria-label': t('חיפושים אחרונים ושמורים'),
+      });
       this.suggestHost.addEventListener('keydown', (event) => this.onSuggestKey(event));
-      this.suggestHost.addEventListener('focusout', () => setTimeout(() => !this.suggestHost.contains(document.activeElement) && document.activeElement !== this.input && this.hideSuggest(), 120));
-      const searchBar = el('div', { class: 'search-bar' }, icon('search_24_regular'), this.input, this.clearBtn, this.builderBtn, this.filtersBtn);
+      this.suggestHost.addEventListener('focusout', () =>
+        setTimeout(
+          () =>
+            !this.suggestHost.contains(document.activeElement) &&
+            document.activeElement !== this.input &&
+            this.hideSuggest(),
+          120,
+        ),
+      );
+      const searchBar = el(
+        'div',
+        { class: 'search-bar' },
+        icon('search_24_regular'),
+        this.input,
+        this.clearBtn,
+        this.builderBtn,
+        this.filtersBtn,
+      );
       this.builderHost = el('div', { class: 'builder-host' });
       this.filterRow = el('div', { class: 'filter-row is-always' });
       this.chipsHost = el('div', { class: 'chips-host' });
@@ -110,9 +150,26 @@
       Cards.attachListKeys(this.list, () => ({ count: this.shown.length, perRow: this.perRow }));
       this.perRow = 1;
 
-      this.selectionBar = new A.Selection.SelectionBar(app, { count: () => this.result.idx.length, all: () => this.result.idx.map((i) => app.index.item(i)) });
+      this.selectionBar = new A.Selection.SelectionBar(app, {
+        count: () => this.result.idx.length,
+        all: () => this.result.idx.map((i) => app.index.item(i)),
+      });
       host.replaceChildren(
-        el('div', { class: 'page fill-page all-page' }, el('div', { class: 'toolbar' }, el('div', { class: 'search-wrap' }, searchBar, this.suggestHost), this.builderHost, this.filterRow, this.chipsHost, this.countLine), this.listHost, this.selectionBar.el),
+        el(
+          'div',
+          { class: 'page fill-page all-page' },
+          el(
+            'div',
+            { class: 'toolbar' },
+            el('div', { class: 'search-wrap' }, searchBar, this.suggestHost),
+            this.builderHost,
+            this.filterRow,
+            this.chipsHost,
+            this.countLine,
+          ),
+          this.listHost,
+          this.selectionBar.el,
+        ),
       );
       this.renderQuickRow();
       this.renderChips();
@@ -144,9 +201,13 @@
         }),
       );
       if (v.scroll) this.list.root.scrollTop = v.scroll;
-      this.list.root.addEventListener('scroll', () => {
-        v.scroll = this.list.root.scrollTop;
-      }, { passive: true });
+      this.list.root.addEventListener(
+        'scroll',
+        () => {
+          v.scroll = this.list.root.scrollTop;
+        },
+        { passive: true },
+      );
     }
 
     destroy() {
@@ -175,13 +236,28 @@
         el(
           'div',
           { class: 'suggest-row' },
-          el('button', { type: 'button', class: 'suggest-pick', onclick: onPick }, icon(iconName), el('span', { class: 'suggest-text', dir: 'auto' }, label)),
-          onRemove ? Ui.iconButton('dismiss_24_regular', removeLabel, onRemove, { className: 'suggest-remove' }) : null,
+          el(
+            'button',
+            { type: 'button', class: 'suggest-pick', onclick: onPick },
+            icon(iconName),
+            el('span', { class: 'suggest-text', dir: 'auto' }, label),
+          ),
+          onRemove
+            ? Ui.iconButton('dismiss_24_regular', removeLabel, onRemove, {
+                className: 'suggest-remove',
+              })
+            : null,
         );
       const nodes = [];
       if (presets.length) {
         nodes.push(el('h3', { class: 'suggest-title' }, t('הגדרות שמורות')));
-        for (const p of presets) nodes.push(row(p.name, 'bookmark_multiple_24_regular', () => { this.applyPreset(p); this.hideSuggest(); }));
+        for (const p of presets)
+          nodes.push(
+            row(p.name, 'bookmark_multiple_24_regular', () => {
+              this.applyPreset(p);
+              this.hideSuggest();
+            }),
+          );
       }
       if (searches.length) {
         nodes.push(
@@ -189,11 +265,37 @@
             'h3',
             { class: 'suggest-title' },
             t('חיפושים אחרונים'),
-            el('button', { type: 'button', class: 'link-button', onclick: () => { app.state.clearSearches(); this.renderSuggest(true); } }, t('ניקוי')),
+            el(
+              'button',
+              {
+                type: 'button',
+                class: 'link-button',
+                onclick: () => {
+                  app.state.clearSearches();
+                  this.renderSuggest(true);
+                },
+              },
+              t('ניקוי'),
+            ),
           ),
         );
         for (const s of searches.slice(0, 8)) {
-          nodes.push(row(s.q, 'history_24_regular', () => { this.setQuery(s.q); this.hideSuggest(); this.input.focus(); }, () => { app.state.removeSearch(s.q); this.renderSuggest(true); }, t('הסרת החיפוש מההיסטוריה')));
+          nodes.push(
+            row(
+              s.q,
+              'history_24_regular',
+              () => {
+                this.setQuery(s.q);
+                this.hideSuggest();
+                this.input.focus();
+              },
+              () => {
+                app.state.removeSearch(s.q);
+                this.renderSuggest(true);
+              },
+              t('הסרת החיפוש מההיסטוריה'),
+            ),
+          );
         }
       }
       Ui.fill(this.suggestHost, nodes);
@@ -248,7 +350,13 @@
     /** שומר את המצב לפתיחה הבאה (השמירה עצמה מאוחדת ב-State). */
     persist() {
       const v = this.v;
-      this.app.state.setViewState('all', { query: v.query, filters: v.filters, sort: v.sort, group: v.group, includeHidden: v.includeHidden });
+      this.app.state.setViewState('all', {
+        query: v.query,
+        filters: v.filters,
+        sort: v.sort,
+        group: v.group,
+        includeHidden: v.includeHidden,
+      });
     }
 
     /**
@@ -263,7 +371,8 @@
       let to = f.hyTo || 0;
       if (f.dateFrom && !from) from = A.HebCal.fromDate(Core.parseYmd(f.dateFrom)).year;
       if (f.dateTo && !to) to = A.HebCal.fromDate(Core.parseYmd(f.dateTo)).year;
-      if (from || to) for (const y of manifest) if ((!from || y >= from) && (!to || y <= to)) years.add(y);
+      if (from || to)
+        for (const y of manifest) if ((!from || y >= from) && (!to || y <= to)) years.add(y);
       for (const y of years) this.app.catalog.ensureYear(Number(y));
     }
 
@@ -272,8 +381,14 @@
       const f = this.v.filters;
       const catalog = this.app.catalog;
       const wanted = new Set(f.hy || []);
-      if (f.hyFrom || f.hyTo) for (const y of catalog.yearCounts().keys()) if ((!f.hyFrom || y >= f.hyFrom) && (!f.hyTo || y <= f.hyTo)) wanted.add(y);
-      return [...wanted].filter((y) => catalog.shardsOfYear(y).some((x) => !catalog.emitted.has('issues/' + x.id + '.json'))).sort((a, b) => b - a);
+      if (f.hyFrom || f.hyTo)
+        for (const y of catalog.yearCounts().keys())
+          if ((!f.hyFrom || y >= f.hyFrom) && (!f.hyTo || y <= f.hyTo)) wanted.add(y);
+      return [...wanted]
+        .filter((y) =>
+          catalog.shardsOfYear(y).some((x) => !catalog.emitted.has('issues/' + x.id + '.json')),
+        )
+        .sort((a, b) => b - a);
     }
 
     refresh() {
@@ -282,8 +397,20 @@
 
     onState(domains) {
       const f = this.v.filters;
-      const dependsOnState = ['favorite', 'followed', 'downloaded', 'inList', 'unread', 'isNew', 'sinceVisit'].some((k) => f[k]);
-      if (domains.includes('rules') || (dependsOnState && domains.some((d) => ['favorites', 'read', 'series', 'lists'].includes(d)))) {
+      const dependsOnState = [
+        'favorite',
+        'followed',
+        'downloaded',
+        'inList',
+        'unread',
+        'isNew',
+        'sinceVisit',
+      ].some((k) => f[k]);
+      if (
+        domains.includes('rules') ||
+        (dependsOnState &&
+          domains.some((d) => ['favorites', 'read', 'series', 'lists'].includes(d)))
+      ) {
         this.schedule();
       } else if (domains.includes('prefs')) {
         this.renderQuickRow();
@@ -320,7 +447,10 @@
         this.updateCount();
         return;
       }
-      this.result = app.index.search(v.query, v.filters, app.searchContext(), { sort: v.sort, includeHidden: v.includeHidden });
+      this.result = app.index.search(v.query, v.filters, app.searchContext(), {
+        sort: v.sort,
+        includeHidden: v.includeHidden,
+      });
       app.lastQueryMs = this.result.ms;
       if (!keepScroll) this.list.resetScroll();
       this.persist();
@@ -339,7 +469,8 @@
       if (!kind) {
         this.shown = idx;
         const rows = [];
-        for (let start = 0; start < idx.length; start += perRow) rows.push({ start, n: Math.min(perRow, idx.length - start) });
+        for (let start = 0; start < idx.length; start += perRow)
+          rows.push({ start, n: Math.min(perRow, idx.length - start) });
         return rows;
       }
       const flat = [];
@@ -360,7 +491,11 @@
       const first = index.item(group.idx[0]);
       switch (kind) {
         case 'week':
-          return group.key ? [Core.weekLabel(first), Core.dateText(first.date, { short: true })].filter(Boolean).join(' · ') : t('ללא תאריך');
+          return group.key
+            ? [Core.weekLabel(first), Core.dateText(first.date, { short: true })]
+                .filter(Boolean)
+                .join(' · ')
+            : t('ללא תאריך');
         case 'series':
           return first.seriesTitle || first.title;
         case 'year':
@@ -402,7 +537,14 @@
         render: (r, node) => {
           const d = rowsDesc[r];
           if (d.header !== undefined) {
-            node.appendChild(el('h3', { class: 'year-header', dir: 'auto' }, d.header, el('span', { class: 'section-count' }, Core.formatCount(d.count))));
+            node.appendChild(
+              el(
+                'h3',
+                { class: 'year-header', dir: 'auto' },
+                d.header,
+                el('span', { class: 'section-count' }, Core.formatCount(d.count)),
+              ),
+            );
             return;
           }
           node.classList.add('is-grid');
@@ -440,36 +582,114 @@
         this.renderEmpty();
         return;
       }
-      const parts = [el('span', { class: 'results-count' }, t('{n} גיליונות', { n: Core.formatCount(r.total) }))];
+      const parts = [
+        el('span', { class: 'results-count' }, t('{n} גיליונות', { n: Core.formatCount(r.total) })),
+      ];
       if (r.hidden > 0 && !v.includeHidden) {
-        parts.push(el('button', { type: 'button', class: 'link-button', onclick: () => { v.includeHidden = true; this.schedule(); } }, t('{n} מוסתרים לפי הכללים: הצג', { n: Core.formatCount(r.hidden) })));
+        parts.push(
+          el(
+            'button',
+            {
+              type: 'button',
+              class: 'link-button',
+              onclick: () => {
+                v.includeHidden = true;
+                this.schedule();
+              },
+            },
+            t('{n} מוסתרים לפי הכללים: הצג', { n: Core.formatCount(r.hidden) }),
+          ),
+        );
       }
       if (v.includeHidden) {
-        parts.push(el('button', { type: 'button', class: 'link-button', onclick: () => { v.includeHidden = false; this.schedule(); } }, t('הסתר שוב את המוסתרים')));
+        parts.push(
+          el(
+            'button',
+            {
+              type: 'button',
+              class: 'link-button',
+              onclick: () => {
+                v.includeHidden = false;
+                this.schedule();
+              },
+            },
+            t('הסתר שוב את המוסתרים'),
+          ),
+        );
       }
       // סטטוס טעינה: התוצאות מדויקות לנתונים שנטענו; ממה שחסר אומרים במפורש.
       const loading = this.loadingYears();
       const cold = app.catalog.coldPending();
-      const limitedByYear = Boolean((v.filters.hy || []).length || v.filters.hyFrom || v.filters.hyTo || v.filters.dateFrom || v.filters.dateTo);
+      const limitedByYear = Boolean(
+        (v.filters.hy || []).length ||
+        v.filters.hyFrom ||
+        v.filters.hyTo ||
+        v.filters.dateFrom ||
+        v.filters.dateTo,
+      );
       if (loading.length) {
-        parts.push(el('span', { class: 'loading-note' }, t('טוען שנים נוספות: {years}. התוצאות יתעדכנו.', { years: loading.map((y) => Core.hyLetters(y)).join(', ') })));
+        parts.push(
+          el(
+            'span',
+            { class: 'loading-note' },
+            t('טוען שנים נוספות: {years}. התוצאות יתעדכנו.', {
+              years: loading.map((y) => Core.hyLetters(y)).join(', '),
+            }),
+          ),
+        );
       } else if (cold.shards && !limitedByYear && !app.coldLoading) {
-        parts.push(el('button', { type: 'button', class: 'link-button', onclick: () => app.loadCold() }, t('כולל את השנים האחרונות בלבד. לטעינת {n} גיליונות ישנים נוספים', { n: Core.formatCount(cold.issues) })));
+        parts.push(
+          el(
+            'button',
+            { type: 'button', class: 'link-button', onclick: () => app.loadCold() },
+            t('כולל את השנים האחרונות בלבד. לטעינת {n} גיליונות ישנים נוספים', {
+              n: Core.formatCount(cold.issues),
+            }),
+          ),
+        );
       }
-      if (app.coldLoading) parts.push(el('span', { class: 'loading-note' }, t('טוען שנים ישנות: {done} מתוך {total}', app.coldLoading)));
+      if (app.coldLoading)
+        parts.push(
+          el(
+            'span',
+            { class: 'loading-note' },
+            t('טוען שנים ישנות: {done} מתוך {total}', app.coldLoading),
+          ),
+        );
       // "חדשים": סימון הכול כנקראו, ואיפוס נקודת הביקור (חדשים מאז הביקור האחרון).
       if ((v.filters.isNew || v.filters.sinceVisit || v.filters.unread) && r.total > 0) {
-        parts.push(el('button', { type: 'button', class: 'link-button', onclick: () => this.markAllRead() }, t('סמן את כולם כנקראו')));
+        parts.push(
+          el(
+            'button',
+            { type: 'button', class: 'link-button', onclick: () => this.markAllRead() },
+            t('סמן את כולם כנקראו'),
+          ),
+        );
       }
       if (v.filters.sinceVisit) {
-        parts.push(el('button', { type: 'button', class: 'link-button', onclick: () => this.startNewVisit() }, t('התחל ביקור חדש')));
+        parts.push(
+          el(
+            'button',
+            { type: 'button', class: 'link-button', onclick: () => this.startNewVisit() },
+            t('התחל ביקור חדש'),
+          ),
+        );
       }
       if (this.activeFilterCount() || v.query) {
-        parts.push(el('button', { type: 'button', class: 'link-button', onclick: () => this.reset() }, t('איפוס')));
+        parts.push(
+          el(
+            'button',
+            { type: 'button', class: 'link-button', onclick: () => this.reset() },
+            t('איפוס'),
+          ),
+        );
       }
       this.countLine.replaceChildren(...parts);
       const active = this.activeFilterCount();
-      this.filtersBtn.replaceChildren(icon('filter_24_regular'), active ? t('מסננים ({n})', { n: active }) : t('מסננים'));
+      this.filtersBtn.replaceChildren(
+        icon('filter_24_regular'),
+        active ? t('מסננים ({n})', { n: active }) : t('מסננים'),
+      );
       app.announce(t('{n} גיליונות', { n: Core.formatCount(r.total) }));
       this.renderEmpty();
     }
@@ -482,7 +702,9 @@
       if (items.length <= 30) return run();
       return Ui.confirmDialog({
         title: t('סימון הכול כנקרא'),
-        text: t('לסמן {n} גיליונות כנקראו? אפשר לבטל מיד אחרי.', { n: Core.formatCount(items.length) }),
+        text: t('לסמן {n} גיליונות כנקראו? אפשר לבטל מיד אחרי.', {
+          n: Core.formatCount(items.length),
+        }),
         confirmLabel: t('סמן כנקראו'),
         onConfirm: run,
       });
@@ -503,7 +725,11 @@
         this.list.root.hidden = true;
         const status = app.catalog.status;
         const busy = status.phase === 'checking' || status.phase === 'downloading';
-        this.listHost.appendChild(busy || (!status.error && !status.lastOkAt) ? Ui.skeleton(7) : new A.WeekScreen(app).emptyCatalog());
+        this.listHost.appendChild(
+          busy || (!status.error && !status.lastOkAt)
+            ? Ui.skeleton(7)
+            : new A.WeekScreen(app).emptyCatalog(),
+        );
         return;
       }
       if (this.result.total === 0) {
@@ -511,16 +737,28 @@
         const v = this.v;
         const actions = [];
         const loading = this.loadingYears().length > 0;
-        if (this.activeFilterCount() || v.query) actions.push(Ui.button('filled', t('איפוס החיפוש והמסננים'), () => this.reset()));
-        if (this.activeFilterCount()) actions.push(Ui.button('tonal', t('עריכת המסננים'), () => this.openPanel()));
-        if (this.result.hidden && !v.includeHidden) actions.push(Ui.button('tonal', t('הצג גם מוסתרים'), () => { v.includeHidden = true; this.schedule(); }));
+        if (this.activeFilterCount() || v.query)
+          actions.push(Ui.button('filled', t('איפוס החיפוש והמסננים'), () => this.reset()));
+        if (this.activeFilterCount())
+          actions.push(Ui.button('tonal', t('עריכת המסננים'), () => this.openPanel()));
+        if (this.result.hidden && !v.includeHidden)
+          actions.push(
+            Ui.button('tonal', t('הצג גם מוסתרים'), () => {
+              v.includeHidden = true;
+              this.schedule();
+            }),
+          );
         this.listHost.appendChild(
           Ui.stateCard({
             icon: 'search_24_regular',
             title: loading ? t('טוען את הנתונים…') : t('לא נמצאו עלונים'),
             text: [
-              loading ? t('השנים שביקשתם עדיין נטענות, והתוצאות יופיעו כשיגיעו.') : t('אפשר לקצר את החיפוש, לבדוק את האיות או להסיר מסנן.'),
-              !loading && app.catalog.shards.length > app.catalog.status.shardsLoaded ? t('חלק מהנתונים עדיין נטענים ברקע.') : '',
+              loading
+                ? t('השנים שביקשתם עדיין נטענות, והתוצאות יופיעו כשיגיעו.')
+                : t('אפשר לקצר את החיפוש, לבדוק את האיות או להסיר מסנן.'),
+              !loading && app.catalog.shards.length > app.catalog.status.shardsLoaded
+                ? t('חלק מהנתונים עדיין נטענים ברקע.')
+                : '',
             ],
             actions,
             compact: true,
@@ -545,7 +783,12 @@
 
     openPanel() {
       A.FilterUi.openPanel(this.app, {
-        get: () => ({ query: this.v.query, filters: this.v.filters, sort: this.v.sort, includeHidden: this.v.includeHidden }),
+        get: () => ({
+          query: this.v.query,
+          filters: this.v.filters,
+          sort: this.v.sort,
+          includeHidden: this.v.includeHidden,
+        }),
         set: (filters) => this.setFilters(filters),
         applyPreset: (preset) => this.applyPreset(preset),
       });
@@ -556,15 +799,27 @@
       const v = this.v;
       const toggle = (key, label, iconName) => {
         const on = Boolean(v.filters[key]);
-        return Ui.button(on ? 'tonal' : 'outlined', label, () => this.setFilters(Filters.toggle(v.filters, key)), {
-          pressed: on,
-          icon: on ? 'checkmark_24_regular' : iconName,
-          className: 'filter-chip',
-        });
+        return Ui.button(
+          on ? 'tonal' : 'outlined',
+          label,
+          () => this.setFilters(Filters.toggle(v.filters, key)),
+          {
+            pressed: on,
+            icon: on ? 'checkmark_24_regular' : iconName,
+            className: 'filter-chip',
+          },
+        );
       };
       const groupSelect = selectField(
         t('קיבוץ'),
-        [['', N('ללא קיבוץ')], ['week', N('לפי שבוע')], ['series', N('לפי סדרה')], ['year', N('לפי שנה')], ['circle', N('לפי חוג')], ['lang', N('לפי שפה')]].map(([value, label]) => ({ value, label: t(label) })),
+        [
+          ['', N('ללא קיבוץ')],
+          ['week', N('לפי שבוע')],
+          ['series', N('לפי סדרה')],
+          ['year', N('לפי שנה')],
+          ['circle', N('לפי חוג')],
+          ['lang', N('לפי שפה')],
+        ].map(([value, label]) => ({ value, label: t(label) })),
         v.group,
         (value) => {
           v.group = value;
@@ -586,8 +841,18 @@
       const viewToggle = el(
         'div',
         { class: 'segmented', role: 'group', 'aria-label': t('תצוגה') },
-        Ui.iconButton('grid_24_regular', t('תצוגת כרטיסים'), () => app.state.setPref('view', 'cards'), { pressed: app.state.prefs.view !== 'list', className: 'segment' }),
-        Ui.iconButton('text_bullet_list_24_regular', t('תצוגת רשימה צפופה'), () => app.state.setPref('view', 'list'), { pressed: app.state.prefs.view === 'list', className: 'segment' }),
+        Ui.iconButton(
+          'grid_24_regular',
+          t('תצוגת כרטיסים'),
+          () => app.state.setPref('view', 'cards'),
+          { pressed: app.state.prefs.view !== 'list', className: 'segment' },
+        ),
+        Ui.iconButton(
+          'text_bullet_list_24_regular',
+          t('תצוגת רשימה צפופה'),
+          () => app.state.setPref('view', 'list'),
+          { pressed: app.state.prefs.view === 'list', className: 'segment' },
+        ),
       );
       Ui.fill(
         this.filterRow,
@@ -601,7 +866,10 @@
     }
 
     renderChips() {
-      Ui.fill(this.chipsHost, A.FilterUi.chipsRow(this.app, this.v.filters, (next) => this.setFilters(next)));
+      Ui.fill(
+        this.chipsHost,
+        A.FilterUi.chipsRow(this.app, this.v.filters, (next) => this.setFilters(next)),
+      );
     }
 
     // --------------------------------------------------- בונה שאילתות
@@ -614,7 +882,13 @@
         this.builderHost.replaceChildren();
         return;
       }
-      const field = (label, name, placeholder) => el('label', { class: 'builder-field' }, el('span', {}, label), el('input', { class: 'input', name, placeholder, dir: 'auto', autocomplete: 'off' }));
+      const field = (label, name, placeholder) =>
+        el(
+          'label',
+          { class: 'builder-field' },
+          el('span', {}, label),
+          el('input', { class: 'input', name, placeholder, dir: 'auto', autocomplete: 'off' }),
+        );
       const form = el(
         'form',
         {
@@ -635,7 +909,13 @@
             this.input.focus();
           },
         },
-        el('p', { class: 'builder-help' }, t('מלאו שדות, והחיפוש יורכב לבד. אפשר גם להקליד ישירות: series:שם year:תשפ״ז או year:תשפ״ה-תשפ״ז parasha:נח event:חנוכה lang:en source:לדעת, ביטוי במרכאות, מינוס להחרגה ו-OR בין חלופות. ללא שם שדה: חיפוש בכל הפרטים.')),
+        el(
+          'p',
+          { class: 'builder-help' },
+          t(
+            'מלאו שדות, והחיפוש יורכב לבד. אפשר גם להקליד ישירות: series:שם year:תשפ״ז או year:תשפ״ה-תשפ״ז parasha:נח event:חנוכה lang:en source:לדעת, ביטוי במרכאות, מינוס להחרגה ו-OR בין חלופות. ללא שם שדה: חיפוש בכל הפרטים.',
+          ),
+        ),
         el(
           'div',
           { class: 'builder-grid' },
@@ -647,7 +927,22 @@
           field(t('מקור'), 'source', t('לדעת')),
           field(t('בלי המילים'), 'without', t('מילים להחרגה')),
         ),
-        el('div', { class: 'builder-actions' }, Ui.button('filled', t('הוסף לחיפוש'), () => form.requestSubmit(), { className: 'button-small' }), Ui.button('text', t('סגירה'), () => { v.builder = false; this.renderBuilder(); }, { className: 'button-small' })),
+        el(
+          'div',
+          { class: 'builder-actions' },
+          Ui.button('filled', t('הוסף לחיפוש'), () => form.requestSubmit(), {
+            className: 'button-small',
+          }),
+          Ui.button(
+            'text',
+            t('סגירה'),
+            () => {
+              v.builder = false;
+              this.renderBuilder();
+            },
+            { className: 'button-small' },
+          ),
+        ),
       );
       this.builderHost.replaceChildren(form);
     }

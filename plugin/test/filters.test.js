@@ -11,15 +11,25 @@ const { CatalogIndex } = A.Index;
 // ---------------------------------------------------------- מודל המסננים
 
 test('Filters.clean: צורה קנונית, ערך בודד נעטף, מפתחות ריקים נמחקים', () => {
-  assert.deepEqual(Filters.clean({ lang: 'he', hy: 5787, source: '', circle: [] }), { lang: ['he'], hy: [5787] });
+  assert.deepEqual(Filters.clean({ lang: 'he', hy: 5787, source: '', circle: [] }), {
+    lang: ['he'],
+    hy: [5787],
+  });
   assert.deepEqual(Filters.clean({ hy: ['5787', 5786, 5787, 'x', 0, -3] }), { hy: [5787, 5786] });
   assert.deepEqual(Filters.clean(null), {});
-  assert.deepEqual(Filters.clean({ favorite: true, unread: false, multi: 'yes' }), { favorite: true });
+  assert.deepEqual(Filters.clean({ favorite: true, unread: false, multi: 'yes' }), {
+    favorite: true,
+  });
 });
 
 test('Filters.clean: טווחים — תאריך תקין בלבד, טווח הפוך מתהפך', () => {
-  assert.deepEqual(Filters.clean({ dateFrom: '2026-02-01', dateTo: '2026-01-01' }), { dateFrom: '2026-01-01', dateTo: '2026-02-01' });
-  assert.deepEqual(Filters.clean({ dateFrom: '1/2/2026', dateTo: '2026-01-01' }), { dateTo: '2026-01-01' });
+  assert.deepEqual(Filters.clean({ dateFrom: '2026-02-01', dateTo: '2026-01-01' }), {
+    dateFrom: '2026-01-01',
+    dateTo: '2026-02-01',
+  });
+  assert.deepEqual(Filters.clean({ dateFrom: '1/2/2026', dateTo: '2026-01-01' }), {
+    dateTo: '2026-01-01',
+  });
   assert.deepEqual(Filters.clean({ hyFrom: 5787, hyTo: 5785 }), { hyFrom: 5785, hyTo: 5787 });
   assert.deepEqual(Filters.clean({ pagesMin: '12', pagesMax: 0, sizeMax: -4 }), { pagesMin: 12 });
 });
@@ -27,7 +37,16 @@ test('Filters.clean: טווחים — תאריך תקין בלבד, טווח ה�
 test('Filters.count ו-isEmpty: ערך ברשימה, טווח ודגל נספרים כל אחד פעם אחת', () => {
   assert.equal(Filters.count({}), 0);
   assert.ok(Filters.isEmpty({ lang: [] }));
-  assert.equal(Filters.count({ lang: ['he', 'yi'], hy: [5787], dateFrom: '2026-01-01', dateTo: '2026-02-01', favorite: true }), 5);
+  assert.equal(
+    Filters.count({
+      lang: ['he', 'yi'],
+      hy: [5787],
+      dateFrom: '2026-01-01',
+      dateTo: '2026-02-01',
+      favorite: true,
+    }),
+    5,
+  );
 });
 
 test('Filters.toggle / setList / remove / setRange', () => {
@@ -60,8 +79,14 @@ test('Filters.toggle / setList / remove / setRange', () => {
 });
 
 test('Filters.chips: תגית לכל ערך, טווח ודגל, עם הטקסט מהמתרגם', () => {
-  const chips = Filters.chips({ lang: ['he', 'yi'], dateFrom: '2026-01-01', multi: true }, (key, value) => key + '=' + JSON.stringify(value));
-  assert.deepEqual(chips.map((c) => c.id), ['lang:he', 'lang:yi', 'range:date', 'flag:multi']);
+  const chips = Filters.chips(
+    { lang: ['he', 'yi'], dateFrom: '2026-01-01', multi: true },
+    (key, value) => key + '=' + JSON.stringify(value),
+  );
+  assert.deepEqual(
+    chips.map((c) => c.id),
+    ['lang:he', 'lang:yi', 'range:date', 'flag:multi'],
+  );
   assert.equal(chips[2].label, 'date={"from":"2026-01-01","to":""}');
 });
 
@@ -80,22 +105,52 @@ function mini() {
     { id: 's_b', title: 'Torah Weekly', lang: 'en', circle: '' },
     { id: 's_c', title: 'דער בלאט', lang: 'yi', circle: 'בעלזא' },
   ];
-  const mk = (id, s, over) => ({ id: 'i_' + id, series: s, title: 'x', date: '2026-10-17', hy: 5787, parasha: ['noach'], assets: [{ src: 'ladaat', ext: id, bytes: 3 * 1048576, pages: 10 }], ...over });
+  const mk = (id, s, over) => ({
+    id: 'i_' + id,
+    series: s,
+    title: 'x',
+    date: '2026-10-17',
+    hy: 5787,
+    parasha: ['noach'],
+    assets: [{ src: 'ladaat', ext: id, bytes: 3 * 1048576, pages: 10 }],
+    ...over,
+  });
   const issues = [
     mk('01', 's_a', {}),
     mk('02', 's_a', { hy: 5786, date: '2025-10-18', parasha: ['bereshit'] }),
     mk('03', 's_a', { hy: 5785, date: '2024-12-21', parasha: ['miketz'], event: 'chanukah' }),
-    mk('04', 's_b', { hy: 5785, date: '2025-08-23', parasha: ['vaetchanan'], event: 'shabbat-nachamu', assets: [{ src: 'gilyoines', ext: '4', bytes: 800000, pages: 4 }] }),
-    mk('05', 's_c', { hy: 5784, date: '2024-04-20', parasha: ['tzav'], event: 'shabbat-hagadol', assets: [{ src: 'tashma', ext: '5' }, { src: 'ladaat', ext: '5', pages: 6 }] }),
+    mk('04', 's_b', {
+      hy: 5785,
+      date: '2025-08-23',
+      parasha: ['vaetchanan'],
+      event: 'shabbat-nachamu',
+      assets: [{ src: 'gilyoines', ext: '4', bytes: 800000, pages: 4 }],
+    }),
+    mk('05', 's_c', {
+      hy: 5784,
+      date: '2024-04-20',
+      parasha: ['tzav'],
+      event: 'shabbat-hagadol',
+      assets: [
+        { src: 'tashma', ext: '5' },
+        { src: 'ladaat', ext: '5', pages: 6 },
+      ],
+    }),
     mk('06', 's_c', { hy: 5780, date: undefined, parasha: ['chayei-sara'] }),
     mk('07', 's_b', { hy: 5787, date: '2026-11-07', parasha: ['chayei-sara', 'toldot'] }),
   ];
-  const index = new CatalogIndex({ source: (id) => ({ ladaat: 'לדעת', tashma: 'תשמע', gilyoines: 'גיליונס' })[id] || id });
+  const index = new CatalogIndex({
+    source: (id) => ({ ladaat: 'לדעת', tashma: 'תשמע', gilyoines: 'גיליונס' })[id] || id,
+  });
   index.setSeries(series);
   index.addIssues(issues, 'x');
   return index;
 }
-const ids = (index, query, filters) => index.search(query, filters || {}, {}, { sort: 'date' }).idx.map((i) => index.ids[i].slice(2)).sort();
+const ids = (index, query, filters) =>
+  index
+    .search(query, filters || {}, {}, { sort: 'date' })
+    .idx.map((i) => index.ids[i].slice(2))
+    .sort();
 
 test('אופרטור year: שנה, מספר או אותיות, וטווח בכל שילוב (הטווח באותיות החזיר 0 לפני התיקון)', () => {
   const index = mini();
@@ -175,11 +230,19 @@ test('מסננים: טווחי תאריך, שנים, עמודים וגודל; ח
   const index = mini();
   assert.deepEqual(ids(index, '', { dateFrom: '2025-01-01', dateTo: '2025-12-31' }), ['02', '04']);
   assert.deepEqual(ids(index, '', { dateFrom: '2026-10-17' }), ['01', '07']);
-  assert.deepEqual(ids(index, '', { dateTo: '2024-12-31' }), ['03', '05'], 'הגיליון בלי תאריך (06) אינו עובר');
+  assert.deepEqual(
+    ids(index, '', { dateTo: '2024-12-31' }),
+    ['03', '05'],
+    'הגיליון בלי תאריך (06) אינו עובר',
+  );
   assert.deepEqual(ids(index, '', { hyFrom: 5785, hyTo: 5786 }), ['02', '03', '04']);
   assert.deepEqual(ids(index, '', { pagesMin: 6 }), ['01', '02', '03', '05', '06', '07']);
   assert.deepEqual(ids(index, '', { pagesMax: 5 }), ['04']);
-  assert.deepEqual(ids(index, '', { sizeMin: 2 }), ['01', '02', '03', '06', '07'], 'גיליון 05 בלי גודל לא עובר');
+  assert.deepEqual(
+    ids(index, '', { sizeMin: 2 }),
+    ['01', '02', '03', '06', '07'],
+    'גיליון 05 בלי גודל לא עובר',
+  );
   assert.deepEqual(ids(index, '', { sizeMax: 1 }), ['04']);
   assert.deepEqual(ids(index, '', { multi: true }), ['05']);
 });
@@ -199,7 +262,8 @@ test('facetCounts: הספירה ליד ערך = התוצאה כשבוחרים ב
   assert.equal(g.parasha.get('noach'), 1);
   assert.equal(g.parasha.get('toldot'), 1);
   assert.equal(g.parasha.get('tzav'), undefined);
-  for (const [lang, n] of g.lang) assert.equal(index.search('year:5787', { lang: [lang] }, {}, {}).total, n);
+  for (const [lang, n] of g.lang)
+    assert.equal(index.search('year:5787', { lang: [lang] }, {}, {}).total, n);
 });
 
 test('סינון לפי מצב: מועדפים, סדרות במעקב, ברשימה, חדשים מאז ביקור, מוסתרים בלבד', () => {
@@ -213,7 +277,11 @@ test('סינון לפי מצב: מועדפים, סדרות במעקב, ברשי�
     isDownloaded: (it) => it.id === 'i_03',
     lastVisit: 0,
   };
-  const run = (filters) => index.search('', filters, ctx, {}).idx.map((i) => index.ids[i].slice(2)).sort();
+  const run = (filters) =>
+    index
+      .search('', filters, ctx, {})
+      .idx.map((i) => index.ids[i].slice(2))
+      .sort();
   assert.deepEqual(run({ favorite: true }), ['01']);
   assert.deepEqual(run({ followed: true }), ['05', '06']);
   assert.deepEqual(run({ inList: true }), ['04']);
@@ -221,7 +289,10 @@ test('סינון לפי מצב: מועדפים, סדרות במעקב, ברשי�
   assert.deepEqual(run({ isNew: true }), ['07']);
   assert.deepEqual(run({ downloaded: true }), ['03']);
   assert.deepEqual(run({ favorite: true, followed: true }), []);
-  index.setRules({ ...A.Rules.emptyRules(), rules: [A.Rules.cleanRule({ action: 'hide', field: 'lang', value: 'en' })] });
+  index.setRules({
+    ...A.Rules.emptyRules(),
+    rules: [A.Rules.cleanRule({ action: 'hide', field: 'lang', value: 'en' })],
+  });
   assert.deepEqual(run({ hiddenOnly: true }), ['04', '07']);
   assert.equal(index.search('', {}, ctx, {}).hidden, 2);
 });
@@ -233,18 +304,35 @@ test('groupResults: קבוצות לפי שבוע, סדרה, שנה, חוג וש�
   const titleOf = (key) => index.seriesArr[key].title;
   for (const kind of A.Index.GROUPS) {
     const groups = index.groupResults(all, kind);
-    assert.equal(groups.reduce((n, g) => n + g.idx.length, 0), all.length, kind + ': כל הגיליונות בקבוצה');
+    assert.equal(
+      groups.reduce((n, g) => n + g.idx.length, 0),
+      all.length,
+      kind + ': כל הגיליונות בקבוצה',
+    );
     assert.equal(new Set(groups.flatMap((g) => g.idx)).size, all.length, kind + ': בלי כפילויות');
   }
   assert.deepEqual(keysOf('year'), [5787, 5786, 5785, 5784, 5780], 'שנים מהחדשה לישנה');
   const weeks = keysOf('week');
   assert.equal(weeks[weeks.length - 1], 0, 'גיליון בלי תאריך בסוף');
-  assert.ok(weeks.slice(0, -1).every((k, n, arr) => n === 0 || arr[n - 1] > k), 'שבועות מהחדש לישן');
-  assert.deepEqual(keysOf('series').map(titleOf), ['Torah Weekly', 'אסיפת גליונות', 'דער בלאט'], 'לפי א-ב, לטינית לפני עברית');
+  assert.ok(
+    weeks.slice(0, -1).every((k, n, arr) => n === 0 || arr[n - 1] > k),
+    'שבועות מהחדש לישן',
+  );
+  assert.deepEqual(
+    keysOf('series').map(titleOf),
+    ['Torah Weekly', 'אסיפת גליונות', 'דער בלאט'],
+    'לפי א-ב, לטינית לפני עברית',
+  );
   assert.deepEqual(keysOf('circle'), ['בעלזא', 'חסידי', ''], 'חוג ריק בסוף');
   const langs = keysOf('lang').map((id) => index.langs.get(id));
-  assert.deepEqual(langs, ['he', 'yi', 'en'].sort((a, b) => A.Core.LANG_CODES.indexOf(a) - A.Core.LANG_CODES.indexOf(b)));
-  const inGroup = index.groupResults(all, 'year').find((g) => g.key === 5785).idx.map((i) => index.ids[i]);
+  assert.deepEqual(
+    langs,
+    ['he', 'yi', 'en'].sort((a, b) => A.Core.LANG_CODES.indexOf(a) - A.Core.LANG_CODES.indexOf(b)),
+  );
+  const inGroup = index
+    .groupResults(all, 'year')
+    .find((g) => g.key === 5785)
+    .idx.map((i) => index.ids[i]);
   assert.deepEqual(inGroup.slice().sort(), ['i_03', 'i_04'], 'חברי הקבוצה');
 });
 
@@ -266,8 +354,15 @@ test('גיליון archive: אינו "חדש", אינו מקבל עדיפות ל
   assert.equal(old.added, '2026-10-14T10:00:00.000Z', 'added האמיתי נשמר לתצוגה');
   assert.equal(index.get('i_new').archive, undefined);
   const byNew = index.search('', {}, {}, { sort: 'new' }).idx.map((i) => index.ids[i]);
-  assert.deepEqual(byNew, ['i_mid', 'i_new', 'i_old'], 'archive אחרון במיון "חדש", למרות ש-added שלו הוא המאוחר ביותר');
-  const since = index.search('', { sinceVisit: true }, { lastVisit: Date.parse('2026-10-01T00:00:00Z') }, {}).idx.map((i) => index.ids[i]).sort();
+  assert.deepEqual(
+    byNew,
+    ['i_mid', 'i_new', 'i_old'],
+    'archive אחרון במיון "חדש", למרות ש-added שלו הוא המאוחר ביותר',
+  );
+  const since = index
+    .search('', { sinceVisit: true }, { lastVisit: Date.parse('2026-10-01T00:00:00Z') }, {})
+    .idx.map((i) => index.ids[i])
+    .sort();
   assert.deepEqual(since, ['i_mid', 'i_new']);
 });
 

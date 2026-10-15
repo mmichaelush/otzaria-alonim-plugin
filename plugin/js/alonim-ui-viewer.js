@@ -97,7 +97,8 @@
       try {
         // הכתובות אינן באינדקס שבזיכרון: קוראים אותן מקובץ השרד לפני ההורדה.
         // קובץ שכבר בתיקייה נפתח בלי הכתובות (גם כשהקטלוג אינו זמין).
-        const full = app.files.hasFolder && app.files.isDownloaded(s.item) ? s.item : await app.full(s.item);
+        const full =
+          app.files.hasFolder && app.files.isDownloaded(s.item) ? s.item : await app.full(s.item);
         if (token !== this.token) return;
         if (!full) {
           s.phase = 'error';
@@ -142,7 +143,8 @@
         this.refreshBar();
         // מארח חדש: הדפסה דורשת לחיצת משתמש טרייה, ולכן מציגים כפתור "הדפס" במקום לקרוא בעצמנו.
         if (s.options.print && app.caps.has('printFile') && file.token) s.pendingPrint = true;
-        else if (s.options.print && s.phase === 'ready') setTimeout(() => token === this.token && this.print(), 700);
+        else if (s.options.print && s.phase === 'ready')
+          setTimeout(() => token === this.token && this.print(), 700);
         else if (s.options.print) this.print();
         if (s.pendingPrint) this.drawBody();
       } catch (error) {
@@ -178,7 +180,13 @@
       if (!ctx || !ctx.count) return { prev: null, next: null, label: '' };
       const i = ctx.index;
       const at = (k) => (k >= 0 && k < ctx.count ? ctx.at(k) : null);
-      return { prev: at(i - 1), next: at(i + 1), label: t('{i} מתוך {n}', { i: i + 1, n: ctx.count }), index: i, item };
+      return {
+        prev: at(i - 1),
+        next: at(i + 1),
+        label: t('{i} מתוך {n}', { i: i + 1, n: ctx.count }),
+        index: i,
+        item,
+      };
     }
 
     go(delta) {
@@ -204,27 +212,78 @@
       const meta = Cards.metaParts(item).join(' · ');
       const dl = Cards.downloadButton(app, item, st, 'viewer-tool');
       // הסרגל נבנה מחדש בכל שינוי מצב: המיקוד חוזר לכפתור שהיה בו.
-      const focused = this.bar.contains(document.activeElement) ? document.activeElement.getAttribute('data-key') || document.activeElement.getAttribute('aria-label') : null;
+      const focused = this.bar.contains(document.activeElement)
+        ? document.activeElement.getAttribute('data-key') ||
+          document.activeElement.getAttribute('aria-label')
+        : null;
       this.bar.replaceChildren(
-        Ui.iconButton(rtl ? 'arrow_right_24_regular' : 'arrow_left_24_regular', t('חזרה לרשימה'), () => app.closeViewer(), { key: 'back', className: 'viewer-tool' }),
-        el('div', { class: 'viewer-title' }, el('h2', { class: 'viewer-name', dir: 'auto' }, title), el('p', { class: 'viewer-sub', dir: 'auto' }, [meta, nb.label, t('באדיבות {names}', { names: app.creditNames(item) })].filter(Boolean).join(' · '))),
+        Ui.iconButton(
+          rtl ? 'arrow_right_24_regular' : 'arrow_left_24_regular',
+          t('חזרה לרשימה'),
+          () => app.closeViewer(),
+          { key: 'back', className: 'viewer-tool' },
+        ),
+        el(
+          'div',
+          { class: 'viewer-title' },
+          el('h2', { class: 'viewer-name', dir: 'auto' }, title),
+          el(
+            'p',
+            { class: 'viewer-sub', dir: 'auto' },
+            [meta, nb.label, t('באדיבות {names}', { names: app.creditNames(item) })]
+              .filter(Boolean)
+              .join(' · '),
+          ),
+        ),
         el(
           'div',
           { class: 'viewer-tools' },
-          Ui.iconButton(prevIcon, t('הגיליון הקודם'), () => this.go(-1), { disabled: !nb.prev, className: 'viewer-tool' }),
-          Ui.iconButton(nextIcon, t('הגיליון הבא'), () => this.go(1), { disabled: !nb.next, className: 'viewer-tool' }),
-          Ui.iconButton('document_pdf_24_regular', t('הדפסה'), () => this.print(), { className: 'viewer-tool' }),
+          Ui.iconButton(prevIcon, t('הגיליון הקודם'), () => this.go(-1), {
+            disabled: !nb.prev,
+            className: 'viewer-tool',
+          }),
+          Ui.iconButton(nextIcon, t('הגיליון הבא'), () => this.go(1), {
+            disabled: !nb.next,
+            className: 'viewer-tool',
+          }),
+          Ui.iconButton('document_pdf_24_regular', t('הדפסה'), () => this.print(), {
+            className: 'viewer-tool',
+          }),
           dl,
-          Ui.iconButton(st.favorite ? 'star_24_filled' : 'star_24_regular', st.favorite ? t('הסר ממועדפים') : t('הוסף למועדפים'), () => app.toggleFavorite(item), { pressed: st.favorite, className: 'viewer-tool star-button', key: 'fav' }),
-          Ui.iconButton('checkmark_circle_24_regular', st.read ? t('סמן כלא נקרא') : t('סמן כנקרא'), () => app.toggleRead(item), { pressed: st.read, className: 'viewer-tool', key: 'read' }),
-          Ui.iconButton('open_24_regular', t('פתח באתר המקור'), () => app.openSiteFor(item), { className: 'viewer-tool' }),
-          Ui.iconButton('info_24_regular', t('פרטי הגיליון'), () => app.showDetails(item, s.ctx), { className: 'viewer-tool' }),
-          s.mode === 'direct' ? Ui.iconButton('arrow_sync_24_regular', t('הצגה חלופית (אם המסמך אינו מוצג)'), () => this.useBlobView(), { className: 'viewer-tool', key: 'alt-view' }) : null,
+          Ui.iconButton(
+            st.favorite ? 'star_24_filled' : 'star_24_regular',
+            st.favorite ? t('הסר ממועדפים') : t('הוסף למועדפים'),
+            () => app.toggleFavorite(item),
+            { pressed: st.favorite, className: 'viewer-tool star-button', key: 'fav' },
+          ),
+          Ui.iconButton(
+            'checkmark_circle_24_regular',
+            st.read ? t('סמן כלא נקרא') : t('סמן כנקרא'),
+            () => app.toggleRead(item),
+            { pressed: st.read, className: 'viewer-tool', key: 'read' },
+          ),
+          Ui.iconButton('open_24_regular', t('פתח באתר המקור'), () => app.openSiteFor(item), {
+            className: 'viewer-tool',
+          }),
+          Ui.iconButton('info_24_regular', t('פרטי הגיליון'), () => app.showDetails(item, s.ctx), {
+            className: 'viewer-tool',
+          }),
+          s.mode === 'direct'
+            ? Ui.iconButton(
+                'arrow_sync_24_regular',
+                t('הצגה חלופית (אם המסמך אינו מוצג)'),
+                () => this.useBlobView(),
+                { className: 'viewer-tool', key: 'alt-view' },
+              )
+            : null,
         ),
       );
       if (focused) {
         for (const b of this.bar.querySelectorAll('button')) {
-          if ((b.getAttribute('data-key') || b.getAttribute('aria-label')) === focused || b.getAttribute('aria-label') === focused) {
+          if (
+            (b.getAttribute('data-key') || b.getAttribute('aria-label')) === focused ||
+            b.getAttribute('aria-label') === focused
+          ) {
             if (!b.disabled) b.focus({ preventScroll: true });
             break;
           }
@@ -239,31 +298,116 @@
       const item = s.item;
       let content;
       if (s.phase === 'ready' && s.file) {
-        this.frame = el('iframe', { class: 'viewer-frame', src: s.file.frameUrl || s.file.blobUrl, title: Cards.titleOf(item), referrerpolicy: 'no-referrer' });
+        this.frame = el('iframe', {
+          class: 'viewer-frame',
+          src: s.file.frameUrl || s.file.blobUrl,
+          title: Cards.titleOf(item),
+          referrerpolicy: 'no-referrer',
+        });
         content = s.pendingPrint
-          ? el('div', { class: 'viewer-stack' }, el('div', { class: 'viewer-banner', role: 'status' }, el('span', {}, t('הגיליון מוכן להדפסה')), Ui.button('filled', t('הדפסה'), () => { s.pendingPrint = false; this.print(); this.drawBody(); }, { icon: 'document_pdf_24_regular', className: 'button-small', key: 'print-now' }), Ui.button('text', t('לא עכשיו'), () => { s.pendingPrint = false; this.drawBody(); }, { className: 'button-small' })), this.frame)
+          ? el(
+              'div',
+              { class: 'viewer-stack' },
+              el(
+                'div',
+                { class: 'viewer-banner', role: 'status' },
+                el('span', {}, t('הגיליון מוכן להדפסה')),
+                Ui.button(
+                  'filled',
+                  t('הדפסה'),
+                  () => {
+                    s.pendingPrint = false;
+                    this.print();
+                    this.drawBody();
+                  },
+                  { icon: 'document_pdf_24_regular', className: 'button-small', key: 'print-now' },
+                ),
+                Ui.button(
+                  'text',
+                  t('לא עכשיו'),
+                  () => {
+                    s.pendingPrint = false;
+                    this.drawBody();
+                  },
+                  { className: 'button-small' },
+                ),
+              ),
+              this.frame,
+            )
           : this.frame;
       } else if (s.phase === 'nofolder') {
         content = Ui.stateCard({
           icon: 'folder_24_regular',
           title: t('בחרו תיקייה כדי לקרוא'),
-          text: t('הגיליון נפתח מקובץ בתיקייה שלכם, כך שהוא נשאר זמין גם בלי רשת. בוחרים תיקייה פעם אחת.'),
-          actions: [Ui.button('filled', t('בחירת תיקייה'), () => app.emit('need-folder', { then: () => this.load() }), { icon: 'folder_open_24_regular' }), Ui.button('text', t('פתח באתר המקור'), () => app.openSiteFor(item), { icon: 'open_24_regular' })],
+          text: t(
+            'הגיליון נפתח מקובץ בתיקייה שלכם, כך שהוא נשאר זמין גם בלי רשת. בוחרים תיקייה פעם אחת.',
+          ),
+          actions: [
+            Ui.button(
+              'filled',
+              t('בחירת תיקייה'),
+              () => app.emit('need-folder', { then: () => this.load() }),
+              { icon: 'folder_open_24_regular' },
+            ),
+            Ui.button('text', t('פתח באתר המקור'), () => app.openSiteFor(item), {
+              icon: 'open_24_regular',
+            }),
+          ],
         });
       } else if (s.phase === 'unsupported') {
         content = Ui.stateCard({
           icon: 'document_pdf_24_regular',
-          title: s.reason === 'size' ? t('הקובץ גדול מדי לצפיין הפנימי') : t('הצפיין הפנימי אינו נתמך במערכת הזו'),
-          text: s.file && s.file.remote ? t('אפשר להוריד את הגיליון לתיקייה ולפתוח אותו בקורא של אוצריא.') : t('הקובץ הורד לתיקייה. אפשר לפתוח אותו בקורא של אוצריא.'),
-          actions: [Ui.button('filled', t('פתח בקורא של אוצריא'), () => this.openInReader(), { icon: 'book_open_24_regular' }), Ui.button('text', t('פתח באתר המקור'), () => app.openSiteFor(item), { icon: 'open_24_regular' })],
+          title:
+            s.reason === 'size'
+              ? t('הקובץ גדול מדי לצפיין הפנימי')
+              : t('הצפיין הפנימי אינו נתמך במערכת הזו'),
+          text:
+            s.file && s.file.remote
+              ? t('אפשר להוריד את הגיליון לתיקייה ולפתוח אותו בקורא של אוצריא.')
+              : t('הקובץ הורד לתיקייה. אפשר לפתוח אותו בקורא של אוצריא.'),
+          actions: [
+            Ui.button('filled', t('פתח בקורא של אוצריא'), () => this.openInReader(), {
+              icon: 'book_open_24_regular',
+            }),
+            Ui.button('text', t('פתח באתר המקור'), () => app.openSiteFor(item), {
+              icon: 'open_24_regular',
+            }),
+          ],
         });
       } else if (s.phase === 'error') {
         const code = s.error;
         const actions = [];
-        if (!['blocked', 'no_direct_link'].includes(code)) actions.push(Ui.button('filled', t('ניסיון חוזר'), () => this.load(), { icon: 'arrow_clockwise_24_regular' }));
-        actions.push(Ui.button(['blocked', 'no_direct_link'].includes(code) ? 'filled' : 'tonal', t('פתח באתר המקור'), () => app.openSiteFor(item), { icon: 'open_24_regular' }));
-        if (code === 'no_folder' || code === 'permission') actions.unshift(Ui.button('filled', t('בחירת תיקייה'), () => app.emit('need-folder', { then: () => this.load() }), { icon: 'folder_open_24_regular' }));
-        content = Ui.stateCard({ icon: 'warning_24_regular', error: true, title: t('אי אפשר לפתוח את הגיליון'), text: app.fileErrorText(code), actions, note: t('קוד: {code}', { code }) });
+        if (!['blocked', 'no_direct_link'].includes(code))
+          actions.push(
+            Ui.button('filled', t('ניסיון חוזר'), () => this.load(), {
+              icon: 'arrow_clockwise_24_regular',
+            }),
+          );
+        actions.push(
+          Ui.button(
+            ['blocked', 'no_direct_link'].includes(code) ? 'filled' : 'tonal',
+            t('פתח באתר המקור'),
+            () => app.openSiteFor(item),
+            { icon: 'open_24_regular' },
+          ),
+        );
+        if (code === 'no_folder' || code === 'permission')
+          actions.unshift(
+            Ui.button(
+              'filled',
+              t('בחירת תיקייה'),
+              () => app.emit('need-folder', { then: () => this.load() }),
+              { icon: 'folder_open_24_regular' },
+            ),
+          );
+        content = Ui.stateCard({
+          icon: 'warning_24_regular',
+          error: true,
+          title: t('אי אפשר לפתוח את הגיליון'),
+          text: app.fileErrorText(code),
+          actions,
+          note: t('קוד: {code}', { code }),
+        });
       } else {
         const job = s.job;
         const active = job && job.status === 'active';
@@ -272,9 +416,25 @@
           'div',
           { class: 'viewer-loading', role: 'status', 'aria-live': 'polite' },
           el('span', { class: 'spinner is-large', 'aria-hidden': 'true' }),
-          el('p', { class: 'viewer-loading-title' }, active ? t('מוריד את הגיליון…') : job ? t('ממתין בתור…') : t('פותח…')),
-          size ? el('p', { class: 'viewer-loading-note' }, t('גודל משוער: {size}', { size })) : null,
-          job ? Ui.button('text', t('ביטול'), () => { app.files.cancel(job.id); app.closeViewer(); }, { className: 'button-small' }) : null,
+          el(
+            'p',
+            { class: 'viewer-loading-title' },
+            active ? t('מוריד את הגיליון…') : job ? t('ממתין בתור…') : t('פותח…'),
+          ),
+          size
+            ? el('p', { class: 'viewer-loading-note' }, t('גודל משוער: {size}', { size }))
+            : null,
+          job
+            ? Ui.button(
+                'text',
+                t('ביטול'),
+                () => {
+                  app.files.cancel(job.id);
+                  app.closeViewer();
+                },
+                { className: 'button-small' },
+              )
+            : null,
         );
       }
       this.body.replaceChildren(content);
@@ -296,7 +456,8 @@
         // המסלול הראשון קורא ל-SDK מיד, בתוך לחיצת המשתמש (בלי await לפניו).
         printFile: () => this.printViaHost(),
         frame: () => {
-          if (s.phase !== 'ready' || !this.frame || !app.files.printViaFrame(this.frame)) return false;
+          if (s.phase !== 'ready' || !this.frame || !app.files.printViaFrame(this.frame))
+            return false;
           app.toast(t('נפתח חלון ההדפסה'));
           return true;
         },
@@ -333,7 +494,18 @@
         'div',
         { class: 'print-guide' },
         el('h3', { class: 'details-section' }, t('או להדפיס מהצפיין')),
-        el('ol', { class: 'state-steps' }, el('li', {}, t('לחצו על המסמך כדי שיקבל מיקוד.')), el('li', {}, t('בסרגל הכלים של הצפיין לחצו על סמל המדפסת, או הקישו'), ' ', el('kbd', {}, 'Ctrl+P'))),
+        el(
+          'ol',
+          { class: 'state-steps' },
+          el('li', {}, t('לחצו על המסמך כדי שיקבל מיקוד.')),
+          el(
+            'li',
+            {},
+            t('בסרגל הכלים של הצפיין לחצו על סמל המדפסת, או הקישו'),
+            ' ',
+            el('kbd', {}, 'Ctrl+P'),
+          ),
+        ),
       );
       const dlg = Ui.dialog({
         title: t('הדפסה'),
@@ -341,22 +513,48 @@
         body: el(
           'div',
           { class: 'print-dialog' },
-          el('p', { class: 'dialog-text' }, t('אוצריא אינה מאפשרת לתוסף להפעיל הדפסה ישירות מהצפיין. יש שתי דרכים נוחות:')),
+          el(
+            'p',
+            { class: 'dialog-text' },
+            t('אוצריא אינה מאפשרת לתוסף להפעיל הדפסה ישירות מהצפיין. יש שתי דרכים נוחות:'),
+          ),
           el('h3', { class: 'details-section' }, t('בקורא של אוצריא (מומלץ)')),
-          el('p', { class: 'dialog-text' }, t('בקורא של אוצריא יש הדפסה מלאה. זה עובד כשהתיקייה שבחרתם מוגדרת באוצריא כתיקייה אישית (הגדרות ← ספרייה).')),
-          Ui.button('filled', t('פתח בקורא של אוצריא'), async () => {
-            result.hidden = true;
-            const outcome = await this.openInReader();
-            if (outcome.ok) dlg.close();
-            else {
-              result.hidden = false;
-              result.textContent = this.readerProblem(outcome.reason);
-            }
-          }, { icon: 'book_open_24_regular', key: 'reader' }),
+          el(
+            'p',
+            { class: 'dialog-text' },
+            t(
+              'בקורא של אוצריא יש הדפסה מלאה. זה עובד כשהתיקייה שבחרתם מוגדרת באוצריא כתיקייה אישית (הגדרות ← ספרייה).',
+            ),
+          ),
+          Ui.button(
+            'filled',
+            t('פתח בקורא של אוצריא'),
+            async () => {
+              result.hidden = true;
+              const outcome = await this.openInReader();
+              if (outcome.ok) dlg.close();
+              else {
+                result.hidden = false;
+                result.textContent = this.readerProblem(outcome.reason);
+              }
+            },
+            { icon: 'book_open_24_regular', key: 'reader' },
+          ),
           result,
           guide,
         ),
-        actions: [Ui.button('text', t('סגירה'), () => dlg.close()), Ui.button('tonal', t('ממקד את המסמך'), () => { dlg.close(); if (this.frame) this.frame.focus(); }, { disabled: !(s && s.phase === 'ready') })],
+        actions: [
+          Ui.button('text', t('סגירה'), () => dlg.close()),
+          Ui.button(
+            'tonal',
+            t('ממקד את המסמך'),
+            () => {
+              dlg.close();
+              if (this.frame) this.frame.focus();
+            },
+            { disabled: !(s && s.phase === 'ready') },
+          ),
+        ],
         focus: '[data-key="reader"]',
       });
     }
@@ -365,9 +563,14 @@
       const folder = this.app.files.folder;
       switch (reason) {
         case 'permission':
-          return t('הרשאות הקורא של אוצריא כבויות לתוסף. אפשר להפעיל אותן בהרשאות התוסף, או להדפיס מהצפיין.');
+          return t(
+            'הרשאות הקורא של אוצריא כבויות לתוסף. אפשר להפעיל אותן בהרשאות התוסף, או להדפיס מהצפיין.',
+          );
         case 'not_indexed':
-          return t('אוצריא עדיין לא רואה את הקובץ. הוסיפו את התיקייה {path} בהגדרות אוצריא ← ספרייה ← תיקיות אישיות, ונסו שוב.', { path: folder ? folder.path : '' });
+          return t(
+            'אוצריא עדיין לא רואה את הקובץ. הוסיפו את התיקייה {path} בהגדרות אוצריא ← ספרייה ← תיקיות אישיות, ונסו שוב.',
+            { path: folder ? folder.path : '' },
+          );
         case 'not_saved':
           return t('כדי לפתוח בקורא של אוצריא יש לשמור את הגיליון קודם (כפתור ההורדה).');
         default:

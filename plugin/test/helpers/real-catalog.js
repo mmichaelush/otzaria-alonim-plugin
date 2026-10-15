@@ -14,7 +14,11 @@ function findCatalog() {
     candidates.push(path.join(dir, 'catalog', 'out'));
     dir = path.dirname(dir);
   }
-  return candidates.find((c) => fs.existsSync(path.join(c, 'series.json')) && fs.existsSync(path.join(c, 'issues'))) || null;
+  return (
+    candidates.find(
+      (c) => fs.existsSync(path.join(c, 'series.json')) && fs.existsSync(path.join(c, 'issues')),
+    ) || null
+  );
 }
 
 const readJson = (file) => JSON.parse(fs.readFileSync(file, 'utf8'));
@@ -29,20 +33,30 @@ function loadRaw(dir) {
     .map((f) => ({ id: f.replace(/\.json$/, ''), list: readJson(path.join(issuesDir, f)) }));
   return {
     series: readJson(path.join(dir, 'series.json')),
-    weeks: fs.existsSync(path.join(dir, 'weeks.json')) ? readJson(path.join(dir, 'weeks.json')) : [],
-    manifest: fs.existsSync(path.join(dir, 'manifest.json')) ? readJson(path.join(dir, 'manifest.json')) : {},
+    weeks: fs.existsSync(path.join(dir, 'weeks.json'))
+      ? readJson(path.join(dir, 'weeks.json'))
+      : [],
+    manifest: fs.existsSync(path.join(dir, 'manifest.json'))
+      ? readJson(path.join(dir, 'manifest.json'))
+      : {},
     shards,
   };
 }
 
-const SOURCE_NAMES = { ladaat: 'לדעת', tashma: 'תשמע', gilyoines: 'גיליונס', alonolam: 'עלון עולם' };
+const SOURCE_NAMES = {
+  ladaat: 'לדעת',
+  tashma: 'תשמע',
+  gilyoines: 'גיליונס',
+  alonolam: 'עלון עולם',
+};
 
 /** אינדקס מלא (או רק השרדים ב-[only]) מהנתונים הגולמיים. */
 function buildIndex(A, raw, only) {
   const index = new A.Index.CatalogIndex({ source: (id) => SOURCE_NAMES[id] || id });
   index.setSeries(raw.series);
   index.setWeeks(raw.weeks);
-  for (const shard of raw.shards) if (!only || only.includes(shard.id)) index.addIssues(shard.list, shard.id);
+  for (const shard of raw.shards)
+    if (!only || only.includes(shard.id)) index.addIssues(shard.list, shard.id);
   return index;
 }
 

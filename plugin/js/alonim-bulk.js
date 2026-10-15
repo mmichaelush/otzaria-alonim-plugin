@@ -15,7 +15,11 @@
   /** שורת טקסט לגיליון: "סדרה · שבוע · שנה (תאריך) — כתובת". */
   function exportLine(item, url) {
     const week = Core.weekLabel(item);
-    const parts = [item.seriesTitle || item.title, week, item.hy ? Core.hyLetters(item.hy) : ''].filter(Boolean);
+    const parts = [
+      item.seriesTitle || item.title,
+      week,
+      item.hy ? Core.hyLetters(item.hy) : '',
+    ].filter(Boolean);
     let line = parts.join(' · ');
     if (item.date) line += ' (' + Core.dateText(item.date, { short: true }) + ')';
     return url ? line + ' — ' + url : line;
@@ -64,7 +68,9 @@
       app.state.setFavorite(item, on);
       n++;
     }
-    app.toast(on ? t('{n} גיליונות נוספו למועדפים', { n }) : t('{n} גיליונות הוסרו מהמועדפים', { n }));
+    app.toast(
+      on ? t('{n} גיליונות נוספו למועדפים', { n }) : t('{n} גיליונות הוסרו מהמועדפים', { n }),
+    );
     return n;
   }
 
@@ -78,9 +84,17 @@
       changed.push(item);
     }
     const n = changed.length;
-    app.toast(on ? t('{n} גיליונות סומנו כנקראו', { n }) : t('{n} גיליונות סומנו כלא נקראו', { n }), {
-      action: n ? { label: t('ביטול הפעולה'), run: () => changed.forEach((item) => app.state.markRead(item, !on)) } : undefined,
-    });
+    app.toast(
+      on ? t('{n} גיליונות סומנו כנקראו', { n }) : t('{n} גיליונות סומנו כלא נקראו', { n }),
+      {
+        action: n
+          ? {
+              label: t('ביטול הפעולה'),
+              run: () => changed.forEach((item) => app.state.markRead(item, !on)),
+            }
+          : undefined,
+      },
+    );
     return n;
   }
 
@@ -91,11 +105,21 @@
     for (const item of items) {
       if (seen.has(item.series)) continue;
       seen.add(item.series);
-      const rule = app.state.addRule({ action: 'hide', field: 'series', value: item.series, label: item.seriesTitle || item.title });
+      const rule = app.state.addRule({
+        action: 'hide',
+        field: 'series',
+        value: item.series,
+        label: item.seriesTitle || item.title,
+      });
       if (rule) rules.push(rule);
     }
     if (rules.length) {
-      app.toast(t('{n} סדרות הוסתרו', { n: rules.length }), { action: { label: t('ביטול הפעולה'), run: () => rules.forEach((r) => app.state.removeRule(r.id)) } });
+      app.toast(t('{n} סדרות הוסתרו', { n: rules.length }), {
+        action: {
+          label: t('ביטול הפעולה'),
+          run: () => rules.forEach((r) => app.state.removeRule(r.id)),
+        },
+      });
     }
     return rules.length;
   }
@@ -112,7 +136,10 @@
     if (!full) throw Object.assign(new Error('missing_data'), { code: 'missing_data' });
     const file = await app.files.openForReading(full);
     if (!file.token) throw Object.assign(new Error('no_token'), { code: 'failed' });
-    const result = await app.files.printToken(file.token, [item.seriesTitle || item.title, Core.weekLabel(item)].filter(Boolean).join(' · '));
+    const result = await app.files.printToken(
+      file.token,
+      [item.seriesTitle || item.title, Core.weekLabel(item)].filter(Boolean).join(' · '),
+    );
     if (result.printed) app.state.logEvent('printed', item);
     return result;
   }
@@ -138,6 +165,17 @@
     return { done: limit - from, stoppedAt: -1, reason: '' };
   }
 
-  A.Bulk = { exportLine, canPrint, printOne, printSequence, exportText, download, favorite, read, hideSeries, MAX_LINKED_EXPORT };
+  A.Bulk = {
+    exportLine,
+    canPrint,
+    printOne,
+    printSequence,
+    exportText,
+    download,
+    favorite,
+    read,
+    hideSeries,
+    MAX_LINKED_EXPORT,
+  };
   if (typeof module === 'object' && module.exports) module.exports = A.Bulk;
 })(typeof self !== 'undefined' ? self : globalThis);

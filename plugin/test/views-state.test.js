@@ -11,25 +11,45 @@ const { State } = A.State;
 const quiet = { warn() {}, error() {}, debug() {}, info() {} };
 
 function make(sdk, now) {
-  return new State(createRuntime(sdk || createFakeSdk(), { logger: quiet }), { saveDelay: 0, log: quiet, now: now || (() => 1000) });
+  return new State(createRuntime(sdk || createFakeSdk(), { logger: quiet }), {
+    saveDelay: 0,
+    log: quiet,
+    now: now || (() => 1000),
+  });
 }
 
 test('מצב לשונית: נשמר ונטען, מסננים מנוקים', async () => {
   const sdk = createFakeSdk();
   const s = make(sdk);
   await s.load();
-  s.setViewState('all', { query: 'נח', filters: { lang: 'he', hy: [5787, 'x'], junk: 1 }, sort: 'date', group: 'year', includeHidden: true });
+  s.setViewState('all', {
+    query: 'נח',
+    filters: { lang: 'he', hy: [5787, 'x'], junk: 1 },
+    sort: 'date',
+    group: 'year',
+    includeHidden: true,
+  });
   await s.flush();
   const again = make(sdk);
   await again.load();
-  assert.deepEqual(again.viewState('all'), { query: 'נח', filters: { lang: ['he'], hy: [5787] }, sort: 'date', group: 'year', includeHidden: true });
+  assert.deepEqual(again.viewState('all'), {
+    query: 'נח',
+    filters: { lang: ['he'], hy: [5787] },
+    sort: 'date',
+    group: 'year',
+    includeHidden: true,
+  });
   assert.equal(again.viewState('nope'), null);
 });
 
 test('הגדרות חיפוש שמורות: שמירה, עדכון בשם קיים, מחיקה ושחזור', async () => {
   const s = make();
   await s.load();
-  const p = s.savePreset('חסידי באידיש', { query: 'lang:yi', filters: { circle: ['חסידי'] }, sort: 'new' });
+  const p = s.savePreset('חסידי באידיש', {
+    query: 'lang:yi',
+    filters: { circle: ['חסידי'] },
+    sort: 'new',
+  });
   assert.ok(p.id);
   assert.equal(s.presets.length, 1);
   s.savePreset('חסידי באידיש', { query: 'lang:en', filters: {}, sort: 'date' });
@@ -85,17 +105,27 @@ test('ייצוא וייבוא: ההגדרות השמורות עוברות, מצ�
   other.applyImport(other.previewImport(JSON.stringify(exported)), 'merge');
   assert.equal(other.presets.length, 2, 'ייבוא חוזר אינו מכפיל');
   other.applyImport(other.previewImport(JSON.stringify(exported)), 'replace');
-  assert.deepEqual(other.presets.map((p) => p.name), ['א']);
+  assert.deepEqual(
+    other.presets.map((p) => p.name),
+    ['א'],
+  );
   assert.equal(other.viewState('all'), null);
 });
 
 test('קריאה שנכשלה של views אינה דורסת מצב אמיתי', async () => {
   const sdk = createFakeSdk();
-  sdk.storage.set('state_views', { v: 1, tabs: {}, presets: [{ id: 'p1', name: 'שמור', query: 'q', filters: {}, sort: 'date', t: 1 }], lastSeen: 5, visitBase: 5 });
+  sdk.storage.set('state_views', {
+    v: 1,
+    tabs: {},
+    presets: [{ id: 'p1', name: 'שמור', query: 'q', filters: {}, sort: 'date', t: 1 }],
+    lastSeen: 5,
+    visitBase: 5,
+  });
   const realCall = sdk.call;
   let fail = true;
   sdk.call = async (method, payload) => {
-    if (fail && method === 'storage.get' && payload.key === 'state_views') return { success: false, error: { code: 'error.internal' } };
+    if (fail && method === 'storage.get' && payload.key === 'state_views')
+      return { success: false, error: { code: 'error.internal' } };
     return realCall(method, payload);
   };
   const s = make(sdk);
@@ -103,8 +133,15 @@ test('קריאה שנכשלה של views אינה דורסת מצב אמיתי',
   assert.equal(s.readOnly, true);
   s.savePreset('חדש', { query: 'z' });
   await s.flush();
-  assert.deepEqual(sdk.storage.get('state_views').presets.map((p) => p.name), ['שמור'], 'המצב השמור לא נדרס');
+  assert.deepEqual(
+    sdk.storage.get('state_views').presets.map((p) => p.name),
+    ['שמור'],
+    'המצב השמור לא נדרס',
+  );
   fail = false;
   assert.equal(await s.retryFailed(), true);
-  assert.deepEqual(s.presets.map((p) => p.name), ['שמור']);
+  assert.deepEqual(
+    s.presets.map((p) => p.name),
+    ['שמור'],
+  );
 });

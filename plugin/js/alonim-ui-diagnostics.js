@@ -20,7 +20,12 @@
     override: N('כבוי ידנית (תאימות לאחור)'),
   });
 
-  const LEVEL_LABEL = Object.freeze({ debug: N('הכול'), info: N('מידע ומעלה'), warn: N('אזהרות ושגיאות'), error: N('שגיאות בלבד') });
+  const LEVEL_LABEL = Object.freeze({
+    debug: N('הכול'),
+    info: N('מידע ומעלה'),
+    warn: N('אזהרות ושגיאות'),
+    error: N('שגיאות בלבד'),
+  });
 
   function kv(rows) {
     return el(
@@ -35,7 +40,18 @@
     const table = el(
       'table',
       { class: 'diag-table' },
-      el('thead', {}, el('tr', {}, el('th', {}, t('יכולת')), el('th', {}, t('שיטה')), el('th', {}, t('מצב')), el('th', {}, t('סיבה')))),
+      el(
+        'thead',
+        {},
+        el(
+          'tr',
+          {},
+          el('th', {}, t('יכולת')),
+          el('th', {}, t('שיטה')),
+          el('th', {}, t('מצב')),
+          el('th', {}, t('סיבה')),
+        ),
+      ),
       el(
         'tbody',
         {},
@@ -45,8 +61,17 @@
             {},
             el('td', {}, t(c.label)),
             el('td', { dir: 'ltr' }, c.method),
-            el('td', { class: c.available ? 'is-yes' : 'is-no' }, c.available ? t('זמינה') : t('לא זמינה')),
-            el('td', {}, (SOURCE_TEXT[c.source] ? t(SOURCE_TEXT[c.source]) : c.source) + (c.detail ? ' (' + c.detail + ')' : '')),
+            el(
+              'td',
+              { class: c.available ? 'is-yes' : 'is-no' },
+              c.available ? t('זמינה') : t('לא זמינה'),
+            ),
+            el(
+              'td',
+              {},
+              (SOURCE_TEXT[c.source] ? t(SOURCE_TEXT[c.source]) : c.source) +
+                (c.detail ? ' (' + c.detail + ')' : ''),
+            ),
           ),
         ),
       ),
@@ -59,14 +84,25 @@
         [t('הרשאות'), snap.host.permissions.join(', ') || '—'],
       ]),
       el('div', { class: 'table-scroll' }, table),
-      el('p', { class: 'setting-help' }, t('היכולות החדשות (קריאה בלי הורדה, הדפסת קובץ) זמינות מאוצריא 0.9.99. כשחסרות, התוסף עובד כמו קודם: Blob לקריאה, הורדה לתיקייה, והדפסה דרך הצפיין או הקורא.')),
+      el(
+        'p',
+        { class: 'setting-help' },
+        t(
+          'היכולות החדשות (קריאה בלי הורדה, הדפסת קובץ) זמינות מאוצריא 0.9.99. כשחסרות, התוסף עובד כמו קודם: Blob לקריאה, הורדה לתיקייה, והדפסה דרך הצפיין או הקורא.',
+        ),
+      ),
       el(
         'div',
         { class: 'setting-actions' },
-        Ui.button('text', t('בדיקת יכולות מחדש'), () => {
-          app.caps.reset();
-          rerender();
-        }, { icon: 'arrow_sync_24_regular', className: 'button-small' }),
+        Ui.button(
+          'text',
+          t('בדיקת יכולות מחדש'),
+          () => {
+            app.caps.reset();
+            rerender();
+          },
+          { icon: 'arrow_sync_24_regular', className: 'button-small' },
+        ),
       ),
     ];
   }
@@ -78,10 +114,21 @@
       el('h3', { class: 'details-section' }, t('קטלוג וקבצים')),
       kv([
         [t('מצב'), d.catalog.phase + (d.catalog.error ? ' (' + d.catalog.error + ')' : '')],
-        [t('גרסת קטלוג'), d.catalog.catalogVersion + (d.catalog.generatedAt ? ' · ' + d.catalog.generatedAt : '')],
+        [
+          t('גרסת קטלוג'),
+          d.catalog.catalogVersion + (d.catalog.generatedAt ? ' · ' + d.catalog.generatedAt : ''),
+        ],
         [t('סנכרון אחרון תקין'), when(d.catalog.lastOkAt)],
-        [t('גיליונות בזיכרון'), Core.formatCount(d.catalog.issues) + ' · ' + t('קבצי שנים {a}/{b}', { a: d.catalog.shardsLoaded, b: d.catalog.shardsTotal })],
-        [t('לוח שבועות'), d.catalog.weeksRows + ' · ' + t('ארכיון: {s}', { s: d.catalog.weeksArchive })],
+        [
+          t('גיליונות בזיכרון'),
+          Core.formatCount(d.catalog.issues) +
+            ' · ' +
+            t('קבצי שנים {a}/{b}', { a: d.catalog.shardsLoaded, b: d.catalog.shardsTotal }),
+        ],
+        [
+          t('לוח שבועות'),
+          d.catalog.weeksRows + ' · ' + t('ארכיון: {s}', { s: d.catalog.weeksArchive }),
+        ],
         [t('תיקייה'), d.files.folder + ' · ' + t('{n} קבצים', { n: d.files.files })],
         [t('תור הורדות'), d.files.queued],
         [t('קבצים מרוחקים פתוחים'), d.files.remoteGrants],
@@ -95,13 +142,23 @@
   function logBlock(app) {
     const log = app.log;
     const state = { level: 'info', cat: '' };
-    const area = el('pre', { class: 'log-area', dir: 'ltr', tabindex: '0', 'aria-label': t('יומן התוסף') });
+    const area = el('pre', {
+      class: 'log-area',
+      dir: 'ltr',
+      tabindex: '0',
+      'aria-label': t('יומן התוסף'),
+    });
     const counts = el('p', { class: 'setting-help' });
     const draw = () => {
       const entries = log.filter({ level: state.level, cat: state.cat });
-      area.textContent = entries.slice(-200).map(A.Log.Log.format).join('\n') || t('אין אירועים להצגה.');
+      area.textContent =
+        entries.slice(-200).map(A.Log.Log.format).join('\n') || t('אין אירועים להצגה.');
       const c = log.counts();
-      counts.textContent = t('{n} אירועים ביומן · שגיאות {e} · אזהרות {w}', { n: log.entries.length, e: c.error, w: c.warn });
+      counts.textContent = t('{n} אירועים ביומן · שגיאות {e} · אזהרות {w}', {
+        n: log.entries.length,
+        e: c.error,
+        w: c.warn,
+      });
       area.scrollTop = area.scrollHeight;
     };
     const levelSelect = Ui.selectField(
@@ -115,7 +172,10 @@
     );
     const catSelect = Ui.selectField(
       t('קטגוריית יומן'),
-      [{ value: '', label: t('כל הקטגוריות') }, ...A.Log.CATEGORIES.map((value) => ({ value, label: value }))],
+      [
+        { value: '', label: t('כל הקטגוריות') },
+        ...A.Log.CATEGORIES.map((value) => ({ value, label: value })),
+      ],
       state.cat,
       (value) => {
         state.cat = value;
@@ -131,15 +191,27 @@
       el(
         'div',
         { class: 'setting-actions' },
-        Ui.button('tonal', t('העתקת הדיווח'), async () => {
-          const text = A.Diagnostics.report(app, { filter: { level: state.level, cat: state.cat } });
-          const ok = await A.Selection.copyToClipboard(text);
-          app.toast(ok ? t('הדיווח הועתק (בלי נתיבים)') : t('ההעתקה נכשלה'), { error: !ok });
-        }, { icon: 'copy_24_regular', className: 'button-small' }),
-        Ui.button('text', t('ניקוי היומן'), () => {
-          log.clear();
-          draw();
-        }, { icon: 'delete_24_regular', className: 'button-small' }),
+        Ui.button(
+          'tonal',
+          t('העתקת הדיווח'),
+          async () => {
+            const text = A.Diagnostics.report(app, {
+              filter: { level: state.level, cat: state.cat },
+            });
+            const ok = await A.Selection.copyToClipboard(text);
+            app.toast(ok ? t('הדיווח הועתק (בלי נתיבים)') : t('ההעתקה נכשלה'), { error: !ok });
+          },
+          { icon: 'copy_24_regular', className: 'button-small' },
+        ),
+        Ui.button(
+          'text',
+          t('ניקוי היומן'),
+          () => {
+            log.clear();
+            draw();
+          },
+          { icon: 'delete_24_regular', className: 'button-small' },
+        ),
       ),
     ];
   }
@@ -152,8 +224,28 @@
       el(
         'div',
         { class: 'setting-row' },
-        el('div', { class: 'setting-label' }, el('span', { class: 'setting-name' }, t('תאימות לאחור')), el('span', { class: 'setting-help' }, t('מתעלם מהיכולות החדשות של אוצריא. לבדיקת מסלול המארח הישן; כבוי כברירת מחדל.'))),
-        el('button', { type: 'button', class: 'switch', role: 'switch', 'aria-checked': String(legacy), 'aria-label': t('תאימות לאחור'), onclick: () => app.state.setPref('legacyHost', !legacy) }, el('span', { class: 'switch-thumb' })),
+        el(
+          'div',
+          { class: 'setting-label' },
+          el('span', { class: 'setting-name' }, t('תאימות לאחור')),
+          el(
+            'span',
+            { class: 'setting-help' },
+            t('מתעלם מהיכולות החדשות של אוצריא. לבדיקת מסלול המארח הישן; כבוי כברירת מחדל.'),
+          ),
+        ),
+        el(
+          'button',
+          {
+            type: 'button',
+            class: 'switch',
+            role: 'switch',
+            'aria-checked': String(legacy),
+            'aria-label': t('תאימות לאחור'),
+            onclick: () => app.state.setPref('legacyHost', !legacy),
+          },
+          el('span', { class: 'switch-thumb' }),
+        ),
       ),
       ...catalogBlock(app),
       ...logBlock(app),

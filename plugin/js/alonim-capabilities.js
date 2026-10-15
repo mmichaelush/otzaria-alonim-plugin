@@ -66,12 +66,14 @@
 
     /** `{ available, source: 'override'|'learned'|'version'|'unknown-version'|'old-version', detail }`. */
     status(feature) {
-      if (!FEATURES[feature]) return { available: false, source: 'unknown-feature', detail: feature };
+      if (!FEATURES[feature])
+        return { available: false, source: 'unknown-feature', detail: feature };
       if (this.override) return { available: false, source: 'override', detail: '' };
       const learned = this.learned.get(feature);
       if (learned) return { available: false, source: 'learned', detail: learned.reason };
       if (!this.hostVersion) return { available: false, source: 'unknown-version', detail: '' };
-      if (!versionAtLeast(this.hostVersion, this.minVersion)) return { available: false, source: 'old-version', detail: this.hostVersion };
+      if (!versionAtLeast(this.hostVersion, this.minVersion))
+        return { available: false, source: 'old-version', detail: this.hostVersion };
       return { available: true, source: 'version', detail: this.hostVersion };
     }
 
@@ -114,7 +116,12 @@
 
     /** שורות לטבלת האבחון: `{ feature, method, label, available, source, detail }`. */
     report() {
-      return Object.keys(FEATURES).map((feature) => ({ feature, method: FEATURES[feature].method || '—', label: FEATURES[feature].label, ...this.status(feature) }));
+      return Object.keys(FEATURES).map((feature) => ({
+        feature,
+        method: FEATURES[feature].method || '—',
+        label: FEATURES[feature].label,
+        ...this.status(feature),
+      }));
     }
   }
 
@@ -129,7 +136,14 @@
     }
   }
 
-  const api = { Capabilities, UnsupportedError, FEATURES, MIN_VERSION, versionAtLeast, parseVersion };
+  const api = {
+    Capabilities,
+    UnsupportedError,
+    FEATURES,
+    MIN_VERSION,
+    versionAtLeast,
+    parseVersion,
+  };
   A.Capabilities = api;
   if (typeof module === 'object' && module.exports) module.exports = api;
 })(typeof self !== 'undefined' ? self : globalThis);

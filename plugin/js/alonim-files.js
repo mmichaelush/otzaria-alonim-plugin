@@ -135,7 +135,9 @@
     async pickFolder() {
       let data;
       try {
-        data = await this.runtime.call('fs.pickUserFolder', { title: 'בחרו תיקייה לשמירת העלונים' });
+        data = await this.runtime.call('fs.pickUserFolder', {
+          title: 'בחרו תיקייה לשמירת העלונים',
+        });
       } catch (error) {
         if (error.code === 'error.forbidden') throw new FileError('forbidden_folder');
         if (error.isUnsupported) throw new FileError('permission');
@@ -242,7 +244,13 @@
           for (const e of list.entries || []) {
             if (e.type !== 'file') continue;
             const fragment = Core.fragmentFromFile(e.name);
-            if (fragment) found.set(fragment, { path: e.path, name: e.name, size: e.size || 0, modified: e.modified || null });
+            if (fragment)
+              found.set(fragment, {
+                path: e.path,
+                name: e.name,
+                size: e.size || 0,
+                modified: e.modified || null,
+              });
           }
         });
       } catch (error) {
@@ -314,7 +322,18 @@
       let finish;
       const job = {
         id: item.id,
-        item: { id: item.id, title: item.title, seriesTitle: item.seriesTitle, hy: item.hy, date: item.date, parasha: item.parasha, event: item.event, no: item.no, assets: item.assets, series: item.series },
+        item: {
+          id: item.id,
+          title: item.title,
+          seriesTitle: item.seriesTitle,
+          hy: item.hy,
+          date: item.date,
+          parasha: item.parasha,
+          event: item.event,
+          no: item.no,
+          assets: item.assets,
+          series: item.series,
+        },
         mode: mode === 'save' ? 'save' : 'read',
         status: 'queued',
         error: null,
@@ -356,7 +375,8 @@
 
     clearFinished() {
       for (const job of this.list()) {
-        if (job.status === 'done' || job.status === 'cancelled' || job.status === 'failed') this.jobs.delete(job.id);
+        if (job.status === 'done' || job.status === 'cancelled' || job.status === 'failed')
+          this.jobs.delete(job.id);
       }
       this.order = this.order.filter((id) => this.jobs.has(id));
       this._emit();
@@ -364,7 +384,9 @@
 
     async _pump() {
       while (this.active < CONCURRENCY) {
-        const next = this.order.map((id) => this.jobs.get(id)).find((j) => j && j.status === 'queued');
+        const next = this.order
+          .map((id) => this.jobs.get(id))
+          .find((j) => j && j.status === 'queued');
         if (!next) return;
         next.status = 'active';
         next.startedAt = this.now();
@@ -400,7 +422,8 @@
         job.result = result;
         this._end(job, 'done', null);
       } catch (error) {
-        const fe = error instanceof FileError ? error : new FileError('failed', error && error.code);
+        const fe =
+          error instanceof FileError ? error : new FileError('failed', error && error.code);
         this.log.warn('download failed ' + job.id + ' ' + fe.code, error);
         this._end(job, 'failed', { code: fe.code });
       }
@@ -430,22 +453,36 @@
         return { rel: temp, size: 0, verified: 'cache', saved: false };
       }
 
-      const { asset, reason } = pickAsset(item, job.src || this.preferredSource(item), this.hiddenSources(item));
+      const { asset, reason } = pickAsset(
+        item,
+        job.src || this.preferredSource(item),
+        this.hiddenSources(item),
+      );
       if (!asset) throw new FileError(reason === 'blocked' ? 'blocked' : 'no_direct_link');
       job.asset = asset;
       const rel = job.mode === 'save' ? permanent : temp;
       const url = Core.parseUrl(asset.url).href;
       try {
-        await this.runtime.call('network.download', { url, destPath: this.absolute(rel), resume: true });
+        await this.runtime.call('network.download', {
+          url,
+          destPath: this.absolute(rel),
+          resume: true,
+        });
       } catch (error) {
         if (error.code === 'error.forbidden') throw new FileError('blocked');
-        if (error.code === 'permission_denied' || error.code === 'error.permission_denied') throw new FileError('permission');
+        if (error.code === 'permission_denied' || error.code === 'error.permission_denied')
+          throw new FileError('permission');
         if (error.code === 'error.timeout') throw new FileError('timeout');
         throw new FileError('failed', error.code);
       }
       const verified = await this._verify(rel, asset);
       if (job.mode === 'save') {
-        this.disk.set(fragment, { path: rel, name: rel.split('/').pop(), size: verified.size, modified: new Date(this.now()).toISOString() });
+        this.disk.set(fragment, {
+          path: rel,
+          name: rel.split('/').pop(),
+          size: verified.size,
+          modified: new Date(this.now()).toISOString(),
+        });
         this._emitDisk();
       } else {
         this._pruneReadCache();
@@ -466,12 +503,20 @@
     async _moveFromReadCache(item, temp, permanent) {
       if (!(await this._exists(temp))) return null;
       try {
-        await this.runtime.call('fs.moveEntry', { from: this.absolute(temp), to: this.absolute(permanent) });
+        await this.runtime.call('fs.moveEntry', {
+          from: this.absolute(temp),
+          to: this.absolute(permanent),
+        });
       } catch (error) {
         this.log.warn('move failed', error);
         return null;
       }
-      this.disk.set(Core.idFragment(item.id), { path: permanent, name: permanent.split('/').pop(), size: 0, modified: new Date(this.now()).toISOString() });
+      this.disk.set(Core.idFragment(item.id), {
+        path: permanent,
+        name: permanent.split('/').pop(),
+        size: 0,
+        modified: new Date(this.now()).toISOString(),
+      });
       this._emitDisk();
       return { rel: permanent, size: 0, verified: 'moved', saved: true };
     }
@@ -507,12 +552,18 @@
     async _readHeader(rel) {
       if (!this.fetchImpl) return null;
       try {
-        const file = await this.runtime.call('fs.openFolderFile', { folderToken: this.folder.token, path: rel });
+        const file = await this.runtime.call('fs.openFolderFile', {
+          folderToken: this.folder.token,
+          path: rel,
+        });
         if (!file || !file.url) return null;
         const controller = typeof AbortController === 'function' ? new AbortController() : null;
         const timer = controller ? setTimeout(() => controller.abort(), 4000) : null;
         try {
-          const res = await this.fetchImpl(file.url, { headers: { Range: 'bytes=0-7' }, signal: controller && controller.signal });
+          const res = await this.fetchImpl(file.url, {
+            headers: { Range: 'bytes=0-7' },
+            signal: controller && controller.signal,
+          });
           const bytes = new Uint8Array(await res.arrayBuffer()).slice(0, 5);
           return String.fromCharCode(...bytes) === '%PDF-';
         } finally {
@@ -527,8 +578,11 @@
     async _pruneReadCache() {
       try {
         const list = await this._list(READ_DIR, ['pdf']);
-        const files = (list.entries || []).filter((e) => e.type === 'file').sort((a, b) => String(b.modified).localeCompare(String(a.modified)));
-        for (const e of files.slice(READ_KEEP)) await this.runtime.callSoft('fs.deleteFile', { path: this.absolute(e.path) });
+        const files = (list.entries || [])
+          .filter((e) => e.type === 'file')
+          .sort((a, b) => String(b.modified).localeCompare(String(a.modified)));
+        for (const e of files.slice(READ_KEEP))
+          await this.runtime.callSoft('fs.deleteFile', { path: this.absolute(e.path) });
       } catch (error) {
         // התיקייה עוד לא קיימת, או נכשל: ניקוי הוא עניין של נוחות.
       }
@@ -553,7 +607,9 @@
       try {
         const list = await this._list(READ_DIR, ['pdf']);
         for (const e of (list.entries || []).filter((x) => x.type === 'file')) {
-          const result = await this.runtime.callSoft('fs.deleteFile', { path: this.absolute(e.path) });
+          const result = await this.runtime.callSoft('fs.deleteFile', {
+            path: this.absolute(e.path),
+          });
           if (result !== null) removed++;
         }
       } catch (error) {
@@ -576,28 +632,47 @@
      */
     async openRemote(item) {
       const cached = this.remote.get(item.id);
-      if (cached && this.now() - cached.at < REMOTE_TTL_MS) return { ...cached, remote: true, saved: false };
-      const { asset, reason } = pickAsset(item, this.preferredSource(item), this.hiddenSources(item));
+      if (cached && this.now() - cached.at < REMOTE_TTL_MS)
+        return { ...cached, remote: true, saved: false };
+      const { asset, reason } = pickAsset(
+        item,
+        this.preferredSource(item),
+        this.hiddenSources(item),
+      );
       if (!asset) throw new FileError(reason === 'blocked' ? 'blocked' : 'no_direct_link');
       const url = Core.parseUrl(asset.url).href;
       let data;
       try {
-        data = await this.caps.call('fetchFile', this.runtime, { url, timeoutMs: 90000, maxBytes: MAX_INLINE_BYTES });
+        data = await this.caps.call('fetchFile', this.runtime, {
+          url,
+          timeoutMs: 90000,
+          maxBytes: MAX_INLINE_BYTES,
+        });
       } catch (error) {
         if (error && error.isUnsupported && error.name === 'UnsupportedError') throw error;
         if (error.code === 'error.forbidden') throw new FileError('blocked');
-        if (error.code === 'permission_denied' || error.code === 'error.permission_denied') throw new FileError('permission');
+        if (error.code === 'permission_denied' || error.code === 'error.permission_denied')
+          throw new FileError('permission');
         if (error.code === 'error.timeout') throw new FileError('timeout');
         if (error.code === 'error.too_large') throw new FileError('too_large');
         throw new FileError('failed', error.code);
       }
       if (!data || !data.token || !data.url) throw new FileError('failed', 'bad fetchFile result');
       // דף שגיאה (HTML) במקום PDF: מוחקים את ההענקה ולא מציגים.
-      if ((data.mime && !/pdf/i.test(String(data.mime))) || (data.size > 0 && data.size < MIN_PDF_BYTES)) {
+      if (
+        (data.mime && !/pdf/i.test(String(data.mime))) ||
+        (data.size > 0 && data.size < MIN_PDF_BYTES)
+      ) {
         this.releaseToken(data.token);
         throw new FileError('not_pdf');
       }
-      const entry = { token: data.token, url: data.url, name: data.name || 'file.pdf', size: data.size || 0, at: this.now() };
+      const entry = {
+        token: data.token,
+        url: data.url,
+        name: data.name || 'file.pdf',
+        size: data.size || 0,
+        at: this.now(),
+      };
       this.remote.set(item.id, entry);
       this._pruneRemote();
       return { ...entry, remote: true, saved: false };
@@ -663,8 +738,18 @@
         target = finished.result.rel;
       }
       try {
-        const file = await this.runtime.call('fs.openFolderFile', { folderToken: this.folder.token, path: target });
-        return { url: file.url, token: file.token, name: file.name, size: file.size, rel: target, saved: Boolean(rel) || !target.startsWith(READ_DIR + '/') };
+        const file = await this.runtime.call('fs.openFolderFile', {
+          folderToken: this.folder.token,
+          path: target,
+        });
+        return {
+          url: file.url,
+          token: file.token,
+          name: file.name,
+          size: file.size,
+          rel: target,
+          saved: Boolean(rel) || !target.startsWith(READ_DIR + '/'),
+        };
       } catch (error) {
         if (error.code === 'error.not_found') {
           this.disk.delete(this.fragmentOf(item));
@@ -682,7 +767,8 @@
     /** כתובת להצגה ב-iframe. מהמארח החדש — הכתובת ישירות; אחרת Blob (ראו README: X-Frame-Options). */
     async readBlobUrl(file) {
       const urlApi = root.URL;
-      if (!this.fetchImpl || !urlApi || typeof urlApi.createObjectURL !== 'function') throw new FileError('open_failed', 'no fetch/blob');
+      if (!this.fetchImpl || !urlApi || typeof urlApi.createObjectURL !== 'function')
+        throw new FileError('open_failed', 'no fetch/blob');
       let blob;
       try {
         const res = await this.fetchImpl(file.url);
@@ -693,11 +779,14 @@
       } catch (error) {
         throw new FileError('open_failed', error && error.message);
       }
-      return urlApi.createObjectURL(blob.type === 'application/pdf' ? blob : new root.Blob([blob], { type: 'application/pdf' }));
+      return urlApi.createObjectURL(
+        blob.type === 'application/pdf' ? blob : new root.Blob([blob], { type: 'application/pdf' }),
+      );
     }
 
     releaseBlobUrl(url) {
-      if (url && root.URL && typeof root.URL.revokeObjectURL === 'function') root.URL.revokeObjectURL(url);
+      if (url && root.URL && typeof root.URL.revokeObjectURL === 'function')
+        root.URL.revokeObjectURL(url);
     }
 
     // ---------------------------------------------------------- הדפסה
@@ -740,12 +829,21 @@
         } catch (error) {
           return { ok: false, reason: error.isUnsupported ? 'permission' : 'error' };
         }
-        if (Array.isArray(books) && books.some((b) => String(b.title || b.bookId || '').includes(fragment))) break;
+        if (
+          Array.isArray(books) &&
+          books.some((b) => String(b.title || b.bookId || '').includes(fragment))
+        )
+          break;
       }
       const book = (books || []).find((b) => String(b.title || b.bookId || '').includes(fragment));
       if (!book) return { ok: false, reason: 'not_indexed' };
       try {
-        const opened = await this.runtime.call('reader.openBook', book.bookUid ? { bookUid: book.bookUid } : { id: book.id, bookId: book.bookId, type: book.type || 'pdf' });
+        const opened = await this.runtime.call(
+          'reader.openBook',
+          book.bookUid
+            ? { bookUid: book.bookUid }
+            : { id: book.id, bookId: book.bookId, type: book.type || 'pdf' },
+        );
         return { ok: opened !== false, reason: opened === false ? 'not_indexed' : null };
       } catch (error) {
         return { ok: false, reason: error.isUnsupported ? 'permission' : 'error' };
@@ -757,7 +855,11 @@
     /** פותח את אתר המקור בדפדפן, אחרי אימות הכתובת. `false` אם אינה בטוחה. */
     async openOnSite(url, extraHosts) {
       if (!Core.isSiteUrl(url, extraHosts) && !Core.isDownloadUrl(url)) return false;
-      const ok = await this.runtime.callSoft('app.openUrl', { url: Core.parseUrl(url).href }, false);
+      const ok = await this.runtime.callSoft(
+        'app.openUrl',
+        { url: Core.parseUrl(url).href },
+        false,
+      );
       return ok !== false;
     }
   }

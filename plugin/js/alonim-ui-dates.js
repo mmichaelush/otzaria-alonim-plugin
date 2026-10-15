@@ -25,7 +25,8 @@
     const monthSelect = el('select', { class: 'select', 'aria-label': t('חודש עברי') });
     const years = [];
     for (let y = range.to; y >= range.from; y--) years.push({ value: y, label: yearLabel(y) });
-    if (!years.some((o) => o.value === state.year)) years.unshift({ value: state.year, label: yearLabel(state.year) });
+    if (!years.some((o) => o.value === state.year))
+      years.unshift({ value: state.year, label: yearLabel(state.year) });
     const yearSelect = Ui.selectField(t('שנה עברית'), years, state.year, (value) => {
       state.year = Number(value);
       draw();
@@ -39,11 +40,27 @@
 
     function draw() {
       const months = Heb.monthsOf(state.year);
-      if (!months.includes(state.month)) state.month = state.month === 'adar' ? 'adar2' : months.includes('adar') ? 'adar' : months[0];
-      Ui.fill(monthSelect, months.map((m) => el('option', { value: m, selected: m === state.month }, Heb.monthName(m, lang()))));
+      if (!months.includes(state.month))
+        state.month =
+          state.month === 'adar' ? 'adar2' : months.includes('adar') ? 'adar' : months[0];
+      Ui.fill(
+        monthSelect,
+        months.map((m) =>
+          el('option', { value: m, selected: m === state.month }, Heb.monthName(m, lang())),
+        ),
+      );
       const days = Heb.daysInMonth(state.year, state.month);
       state.day = Math.min(state.day, days);
-      Ui.fill(daySelect, Array.from({ length: days }, (_, k) => el('option', { value: k + 1, selected: k + 1 === state.day }, lang() === 'he' ? Heb.numeral(k + 1) : String(k + 1))));
+      Ui.fill(
+        daySelect,
+        Array.from({ length: days }, (_, k) =>
+          el(
+            'option',
+            { value: k + 1, selected: k + 1 === state.day },
+            lang() === 'he' ? Heb.numeral(k + 1) : String(k + 1),
+          ),
+        ),
+      );
     }
 
     monthSelect.addEventListener('change', () => {

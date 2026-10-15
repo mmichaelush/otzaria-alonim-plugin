@@ -24,13 +24,27 @@
     ['sizeMin', 'sizeMax', 'size'],
   ]);
   /** דגלי כן/לא. */
-  const FLAGS = Object.freeze(['multi', 'favorite', 'followed', 'downloaded', 'inList', 'unread', 'isNew', 'sinceVisit', 'hiddenOnly']);
+  const FLAGS = Object.freeze([
+    'multi',
+    'favorite',
+    'followed',
+    'downloaded',
+    'inList',
+    'unread',
+    'isNew',
+    'sinceVisit',
+    'hiddenOnly',
+  ]);
   const NUMERIC_LISTS = new Set(['hy']);
 
   const DATE_RE = /^\d{4}-\d{2}-\d{2}$/;
 
   function cleanList(key, value) {
-    const list = Array.isArray(value) ? value : value === undefined || value === null || value === '' || value === false ? [] : [value];
+    const list = Array.isArray(value)
+      ? value
+      : value === undefined || value === null || value === '' || value === false
+        ? []
+        : [value];
     const out = [];
     for (const raw of list) {
       const v = NUMERIC_LISTS.has(key) ? Number(raw) : String(raw);
@@ -149,12 +163,20 @@
     const f = clean(filters);
     const out = [];
     for (const key of LIST_KEYS) {
-      for (const value of f[key] || []) out.push({ id: key + ':' + value, key, value, label: label(key, value) });
+      for (const value of f[key] || [])
+        out.push({ id: key + ':' + value, key, value, label: label(key, value) });
     }
     for (const [lo, hi, kind] of RANGES) {
-      if (f[lo] || f[hi]) out.push({ id: 'range:' + kind, key: kind, value: { from: f[lo] || '', to: f[hi] || '' }, label: label(kind, { from: f[lo] || '', to: f[hi] || '' }) });
+      if (f[lo] || f[hi])
+        out.push({
+          id: 'range:' + kind,
+          key: kind,
+          value: { from: f[lo] || '', to: f[hi] || '' },
+          label: label(kind, { from: f[lo] || '', to: f[hi] || '' }),
+        });
     }
-    for (const key of FLAGS) if (f[key]) out.push({ id: 'flag:' + key, key, value: true, label: label(key, true) });
+    for (const key of FLAGS)
+      if (f[key]) out.push({ id: 'flag:' + key, key, value: true, label: label(key, true) });
     return out;
   }
 
@@ -174,7 +196,20 @@
     return true;
   }
 
-  const api = { LIST_KEYS, RANGES, FLAGS, clean, count, isEmpty, toggle, setList, setRange, remove, chips, equals };
+  const api = {
+    LIST_KEYS,
+    RANGES,
+    FLAGS,
+    clean,
+    count,
+    isEmpty,
+    toggle,
+    setList,
+    setRange,
+    remove,
+    chips,
+    equals,
+  };
   A.Filters = api;
   if (typeof module === 'object' && module.exports) module.exports = api;
 })(typeof self !== 'undefined' ? self : globalThis);

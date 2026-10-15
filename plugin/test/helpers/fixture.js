@@ -12,10 +12,39 @@ function rng(seed) {
 }
 
 const SERIES_TITLES = [
-  'אסיפת גליונות', 'עלון שבת', 'פרפראות לחכמה', 'שערי הפרשה', 'מעיין השבוע', 'אור הפרשה', 'דבר תורה',
-  'ילקוט הפרשה', 'בית מדרש', 'קול התורה', 'שיחות', 'חידושי תורה', 'The Weekly Parsha', 'Torah Insights',
+  'אסיפת גליונות',
+  'עלון שבת',
+  'פרפראות לחכמה',
+  'שערי הפרשה',
+  'מעיין השבוע',
+  'אור הפרשה',
+  'דבר תורה',
+  'ילקוט הפרשה',
+  'בית מדרש',
+  'קול התורה',
+  'שיחות',
+  'חידושי תורה',
+  'The Weekly Parsha',
+  'Torah Insights',
 ];
-const PARASHOT = ['bereshit', 'noach', 'lech-lecha', 'vayera', 'chayei-sara', 'toldot', 'vayetzei', 'vayishlach', 'vayeshev', 'miketz', 'vayigash', 'vayechi', 'shemot', 'vaera', 'bo', 'beshalach'];
+const PARASHOT = [
+  'bereshit',
+  'noach',
+  'lech-lecha',
+  'vayera',
+  'chayei-sara',
+  'toldot',
+  'vayetzei',
+  'vayishlach',
+  'vayeshev',
+  'miketz',
+  'vayigash',
+  'vayechi',
+  'shemot',
+  'vaera',
+  'bo',
+  'beshalach',
+];
 const SOURCES = ['ladaat', 'tashma', 'gilyoines', 'alonolam'];
 const LANGS = ['he', 'he', 'he', 'yi', 'en'];
 
@@ -44,7 +73,13 @@ function makeCatalog(issueCount, seriesCount, seed) {
     const parasha = PARASHOT[week % PARASHOT.length];
     const month = 1 + Math.floor(week / 4.4);
     const day = 1 + ((week * 7) % 28);
-    const date = hy - 3760 + '-' + String(Math.min(12, month)).padStart(2, '0') + '-' + String(day).padStart(2, '0');
+    const date =
+      hy -
+      3760 +
+      '-' +
+      String(Math.min(12, month)).padStart(2, '0') +
+      '-' +
+      String(day).padStart(2, '0');
     const copies = 1 + (rand() < 0.2 ? 1 : 0);
     const assets = [];
     for (let c = 0; c < copies; c++) {
@@ -69,7 +104,9 @@ function makeCatalog(issueCount, seriesCount, seed) {
       parasha: [parasha],
       lang: s.lang,
       pages: assets[0].pages,
-      added: new Date(Date.UTC(2020 + (hy - 5780), 0, 1) + Math.floor(rand() * 86400000 * 300)).toISOString(),
+      added: new Date(
+        Date.UTC(2020 + (hy - 5780), 0, 1) + Math.floor(rand() * 86400000 * 300),
+      ).toISOString(),
       assets,
     });
     s.issueCount++;

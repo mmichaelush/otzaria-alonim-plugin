@@ -208,7 +208,8 @@
   const pad = (n) => (n < 10 ? '0' + n : String(n));
 
   /** `YYYY-MM-DD` בשעון המקומי. */
-  const ymd = (date) => date.getFullYear() + '-' + pad(date.getMonth() + 1) + '-' + pad(date.getDate());
+  const ymd = (date) =>
+    date.getFullYear() + '-' + pad(date.getMonth() + 1) + '-' + pad(date.getDate());
 
   /** צהריים מקומי: בלי קפיצות של שעון קיץ. */
   function parseYmd(text) {
@@ -216,7 +217,8 @@
     return m ? new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]), 12) : null;
   }
 
-  const addDays = (date, days) => new Date(date.getFullYear(), date.getMonth(), date.getDate() + days, 12);
+  const addDays = (date, days) =>
+    new Date(date.getFullYear(), date.getMonth(), date.getDate() + days, 12);
 
   /** השבת הקרובה (היום, אם הוא שבת). */
   function upcomingShabbat(today) {
@@ -238,7 +240,8 @@
   }
 
   /** תאריך עברי בלבד: "כ״ז בחשוון תשפ״ז". */
-  const hebrewDate = (date, options) => Heb.formatHebrew(date, { lang: uiLang(), ...(options || {}) });
+  const hebrewDate = (date, options) =>
+    Heb.formatHebrew(date, { lang: uiLang(), ...(options || {}) });
 
   /** חותמת זמן (נבדק/הורד/נפתח): "כ״ז בחשוון · 7.11.2026, 14:05". */
   function formatStamp(ms) {
@@ -251,7 +254,10 @@
   /** תאריך+שעה לפי האזור (לשימושים טכניים שבהם אין צורך בתאריך עברי). */
   function formatDate(date, options) {
     try {
-      return new Intl.DateTimeFormat(I18n.locale(), options || { day: 'numeric', month: 'long', year: 'numeric' }).format(date);
+      return new Intl.DateTimeFormat(
+        I18n.locale(),
+        options || { day: 'numeric', month: 'long', year: 'numeric' },
+      ).format(date);
     } catch (error) {
       return ymd(date);
     }
@@ -295,14 +301,17 @@
   /** שם מארח ציבורי: לא IP, לא localhost, לא שם פנימי. */
   function isPublicHost(host) {
     if (!host || !/\./.test(host) || host === 'localhost') return false;
-    if (/^\d{1,3}(\.\d{1,3}){3}$/.test(host) || host.includes(':') || host.startsWith('[')) return false;
+    if (/^\d{1,3}(\.\d{1,3}){3}$/.test(host) || host.includes(':') || host.startsWith('['))
+      return false;
     return /^[a-z0-9.-]+$/i.test(host);
   }
 
   /** https בלבד, בלי פרטי התחברות, ובלי IP או localhost. */
   function isSafeHttpsUrl(text) {
     const u = parseUrl(text);
-    return Boolean(u && u.protocol === 'https:' && !u.username && !u.password && isPublicHost(u.hostname));
+    return Boolean(
+      u && u.protocol === 'https:' && !u.username && !u.password && isPublicHost(u.hostname),
+    );
   }
 
   /** האם [text] תחת אחת הקידומות ב-[prefixes] (גבול נתיב, לא רק מחרוזת). */
@@ -315,7 +324,11 @@
       if (!p) return false;
       const base = p.origin + p.pathname.replace(/\/$/, '');
       if (u.origin !== p.origin) return false;
-      return target === base || target.startsWith(base + '/') || (p.pathname === '/' && target.startsWith(base));
+      return (
+        target === base ||
+        target.startsWith(base + '/') ||
+        (p.pathname === '/' && target.startsWith(base))
+      );
     });
   }
 
@@ -374,7 +387,9 @@
       if (value === undefined || value === null) {
         const template = templates[field];
         if (typeof template !== 'string') continue;
-        value = template.split('{ext}').join(a.ext === undefined || a.ext === null ? '' : String(a.ext));
+        value = template
+          .split('{ext}')
+          .join(a.ext === undefined || a.ext === null ? '' : String(a.ext));
       }
       value = String(value);
       out[field] = encodeNonAscii(value.startsWith('https://') ? value : base + value);
@@ -386,8 +401,9 @@
 
   // תווים שאסורים בשם קובץ ב-Windows, תווי בקרה, וסימני כיוון שמבלבלים את
   // סייר הקבצים.
-  // eslint-disable-next-line no-control-regex -- תווי הבקרה הם בדיוק מה שמסננים
-  const BAD_FILE_CHARS = new RegExp('[<>:"/\\\\|?*\\u0000-\\u001F\\u200E\\u200F\\u202A-\\u202E\\u2066-\\u2069]', 'g');
+  const BAD_FILE_SOURCE =
+    '[<>:"/\\\\|?*\\u0000-\\u001F\\u200E\\u200F\\u202A-\\u202E\\u2066-\\u2069]';
+  const BAD_FILE_CHARS = new RegExp(BAD_FILE_SOURCE, 'g');
   const RESERVED = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])$/i;
 
   /**
@@ -410,7 +426,10 @@
   }
 
   /** 8 התווים האחרונים של המזהה, בתוך סוגריים בשם הקובץ: כך מזהים הורדה בדיסק. */
-  const idFragment = (id) => String(id || '').replace(/^i_/, '').slice(0, 8);
+  const idFragment = (id) =>
+    String(id || '')
+      .replace(/^i_/, '')
+      .slice(0, 8);
 
   /**
    * הנתיב היחסי של גיליון בתיקיית ההורדות: `<שנה>/<סדרה>/<קובץ>.pdf`. דטרמיניסטי,
@@ -420,7 +439,10 @@
     const year = item.hy ? String(item.hy) : 'ללא שנה';
     const series = sanitizeFileName(seriesTitle || item.title || 'עלון', 60);
     const label = weekLabel(item) || item.date || '';
-    const base = sanitizeFileName([seriesTitle || item.title, label, item.no ? '#' + item.no : ''].filter(Boolean).join(' - '), 90);
+    const base = sanitizeFileName(
+      [seriesTitle || item.title, label, item.no ? '#' + item.no : ''].filter(Boolean).join(' - '),
+      90,
+    );
     return { dir: year + '/' + series, file: base + ' [' + idFragment(item.id) + '].pdf' };
   }
 

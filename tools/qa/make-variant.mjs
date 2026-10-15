@@ -30,7 +30,7 @@ const sub = (re, to) => {
 sub(/const CATALOG_BASE = '[^']+';/, `const CATALOG_BASE = '${origin}/data/';`);
 sub(/const FILE_PREFIXES = Object\.freeze\(\[[\s\S]*?\]\);/, `const FILE_PREFIXES = Object.freeze(['${origin}/files']);`);
 sub(
-  /return Boolean\(u && u\.protocol === 'https:' && !u\.username && !u\.password && isPublicHost\(u\.hostname\)\);/,
+  /return Boolean\(\s*u\s*&&\s*u\.protocol === 'https:'\s*&&\s*!u\.username\s*&&\s*!u\.password\s*&&\s*isPublicHost\(u\.hostname\),?\s*\);/,
   `return Boolean(u && (u.origin === '${origin}' || (u.protocol === 'https:' && !u.username && !u.password && isPublicHost(u.hostname))));`,
 );
 await writeFile(corePath, core);

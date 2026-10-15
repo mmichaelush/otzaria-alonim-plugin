@@ -24,14 +24,16 @@
   /** עמודים: המקסימום בין העותקים (0 = לא ידוע). */
   proto._pagesOf = function (i) {
     let m = 0;
-    for (let k = this.astart[i]; k < this.astart[i] + this.acount[i]; k++) if (this.aPages[k] > m) m = this.aPages[k];
+    for (let k = this.astart[i]; k < this.astart[i] + this.acount[i]; k++)
+      if (this.aPages[k] > m) m = this.aPages[k];
     return m;
   };
 
   /** גודל קובץ ב-KB: המקסימום בין העותקים (0 = לא ידוע). */
   proto._kbOf = function (i) {
     let m = 0;
-    for (let k = this.astart[i]; k < this.astart[i] + this.acount[i]; k++) if (this.aKb[k] > m) m = this.aKb[k];
+    for (let k = this.astart[i]; k < this.astart[i] + this.acount[i]; k++)
+      if (this.aKb[k] > m) m = this.aKb[k];
     return m;
   };
 
@@ -77,7 +79,11 @@
       add('circle', (i) => set.has(this.seriesArr[this.sidx[i]].circle), true);
     }
     if (f.series) {
-      const set = new Set(f.series.map((id) => this.seriesIdx.get(this.resolveSeriesId(id))).filter((k) => k !== undefined));
+      const set = new Set(
+        f.series
+          .map((id) => this.seriesIdx.get(this.resolveSeriesId(id)))
+          .filter((k) => k !== undefined),
+      );
       add('series', (i) => set.has(this.sidx[i]), false);
     }
     if (f.dateFrom || f.dateTo) {
@@ -86,7 +92,8 @@
       add('date', (i) => inRange(this.dayc[i], lo, hi));
     }
     if (f.hyFrom || f.hyTo) add('years', (i) => inRange(this.hyc[i], f.hyFrom || 0, f.hyTo || 0));
-    if (f.pagesMin || f.pagesMax) add('pages', (i) => inRange(this._pagesOf(i), f.pagesMin || 0, f.pagesMax || 0));
+    if (f.pagesMin || f.pagesMax)
+      add('pages', (i) => inRange(this._pagesOf(i), f.pagesMin || 0, f.pagesMax || 0));
     if (f.sizeMin || f.sizeMax) {
       const lo = f.sizeMin ? f.sizeMin * 1024 : 0;
       const hi = f.sizeMax ? f.sizeMax * 1024 : 0;
@@ -106,10 +113,11 @@
     need('unread', (it) => !(c.isRead && c.isRead(it)));
     need('isNew', (it) => Boolean(c.isNew && c.isNew(it)));
     if (f.sinceVisit) add('sinceVisit', (i) => this.newc[i] * 1000 > (c.lastVisit || 0));
-    if (state.length) add('state', (i) => {
-      const it = this.item(i);
-      return state.every((fn) => fn(it));
-    });
+    if (state.length)
+      add('state', (i) => {
+        const it = this.item(i);
+        return state.every((fn) => fn(it));
+      });
     return groups;
   };
 
@@ -129,7 +137,13 @@
             hit = true;
             if (scores && !term.field) {
               const ns = this.seriesArr[this.sidx[i]]._ntitle;
-              score += ns.startsWith(term.norm) ? 4 : (' ' + ns + ' ').includes(' ' + term.norm + ' ') ? 3 : (' ' + ns).includes(' ' + term.norm) ? 2 : 1;
+              score += ns.startsWith(term.norm)
+                ? 4
+                : (' ' + ns + ' ').includes(' ' + term.norm + ' ')
+                  ? 3
+                  : (' ' + ns).includes(' ' + term.norm)
+                    ? 2
+                    : 1;
             }
           }
         }
@@ -176,7 +190,8 @@
     }
     const groups = [...map].map(([key, list]) => ({ key, idx: list }));
     // "ללא" = אין תאריך / שנה / חוג. מפתח סדרה 0 הוא סדרה אמיתית (המקום הראשון).
-    const empty = (g) => ((kind === 'week' || kind === 'year') && g.key === 0) || (kind === 'circle' && g.key === '');
+    const empty = (g) =>
+      ((kind === 'week' || kind === 'year') && g.key === 0) || (kind === 'circle' && g.key === '');
     const rank = (g) => (kind === 'lang' ? Core.LANG_CODES.indexOf(this.langs.get(g.key)) : 0);
     groups.sort((a, b) => {
       if (empty(a) !== empty(b)) return empty(a) ? 1 : -1;
@@ -194,7 +209,8 @@
 
   Index.GROUPS = GROUPS;
 
-  const visibleFor = (index, i, f, o) => (f.hiddenOnly ? index.vis[i] !== 1 : o.includeHidden || index.vis[i] === 1);
+  const visibleFor = (index, i, f, o) =>
+    f.hiddenOnly ? index.vis[i] !== 1 : o.includeHidden || index.vis[i] === 1;
 
   /**
    * מריץ שאילתה. [filters]: ראו `Filters.clean` (רשימות = "או", בין מסננים "וגם").
@@ -205,7 +221,8 @@
    */
   proto.search = function (query, filters, ctx, options) {
     const started = typeof performance !== 'undefined' ? performance.now() : Date.now();
-    const q = typeof query === 'string' ? Index.parseQuery(query) : query || { clauses: [], tokens: [] };
+    const q =
+      typeof query === 'string' ? Index.parseQuery(query) : query || { clauses: [], tokens: [] };
     const f = Filters.clean(filters);
     const c = ctx || {};
     const o = options || {};
@@ -216,7 +233,8 @@
     const out = [];
     let hidden = 0;
     // מסנני מצב אחרונים: ההסתרה נספרת לפני שהם נבדקים (כמו תמיד).
-    const stateGroup = groups.length && groups[groups.length - 1].key === 'state' ? groups.pop() : null;
+    const stateGroup =
+      groups.length && groups[groups.length - 1].key === 'state' ? groups.pop() : null;
     const tests = groups.map((g) => g.test);
     for (let k = 0; k < order.length; k++) {
       const i = order[k];
@@ -246,7 +264,8 @@
 
   /** האם הגיליון [i] עובר את כל הקבוצות (למי שבודק גיליון בודד). */
   proto.matches = function (i, query, filters, ctx, options) {
-    const q = typeof query === 'string' ? Index.parseQuery(query) : query || { clauses: [], tokens: [] };
+    const q =
+      typeof query === 'string' ? Index.parseQuery(query) : query || { clauses: [], tokens: [] };
     const f = Filters.clean(filters);
     const groups = this._compile(q, f, ctx || {}, null);
     return visibleFor(this, i, f, options || {}) && groups.every((g) => g.test(i));
@@ -259,11 +278,20 @@
    * מעבר אחד על האינדקס.
    */
   proto.facetCounts = function (query, filters, ctx, options) {
-    const q = typeof query === 'string' ? Index.parseQuery(query) : query || { clauses: [], tokens: [] };
+    const q =
+      typeof query === 'string' ? Index.parseQuery(query) : query || { clauses: [], tokens: [] };
     const f = Filters.clean(filters);
     const o = options || {};
     const groups = this._compile(q, f, ctx || {}, null);
-    const out = { total: 0, parasha: new Map(), event: new Map(), hy: new Map(), lang: new Map(), source: new Map(), circle: new Map() };
+    const out = {
+      total: 0,
+      parasha: new Map(),
+      event: new Map(),
+      hy: new Map(),
+      lang: new Map(),
+      source: new Map(),
+      circle: new Map(),
+    };
     const bump = (map, key) => map.set(key, (map.get(key) || 0) + 1);
     const sourceOf = (i) => {
       const mask = this.maskc[i];
@@ -302,5 +330,4 @@
     }
     return out;
   };
-
 })(typeof self !== 'undefined' ? self : globalThis);

@@ -104,7 +104,9 @@
       out.scale = p.scale >= 0.7 && p.scale <= 2 ? p.scale : 1;
       out.lang = ['auto', 'he', 'en'].includes(p.lang) ? p.lang : 'auto';
       out.view = p.view === 'list' ? 'list' : 'cards';
-      out.sort = ['relevance', 'new', 'date', 'alpha', 'size'].includes(p.sort) ? p.sort : 'relevance';
+      out.sort = ['relevance', 'new', 'date', 'alpha', 'size'].includes(p.sort)
+        ? p.sort
+        : 'relevance';
       out.thumbs = p.thumbs === true;
       out.diaspora = p.diaspora === true;
       out.autoDownload = p.autoDownload === true;
@@ -117,7 +119,11 @@
       out.startTab = ['week', 'all', 'series', 'mine'].includes(p.startTab) ? p.startTab : 'week';
       out.folder =
         isObject(p.folder) && typeof p.folder.token === 'string' && p.folder.token
-          ? { token: str(p.folder.token, 200), name: str(p.folder.name, 200), path: str(p.folder.path, 600) }
+          ? {
+              token: str(p.folder.token, 200),
+              name: str(p.folder.name, 200),
+              path: str(p.folder.path, 600),
+            }
           : null;
       return out;
     },
@@ -159,8 +165,17 @@
       for (const l of raw.items.slice(0, MAX_LISTS)) {
         if (!isObject(l) || typeof l.id !== 'string' || seen.has(l.id)) continue;
         seen.add(l.id);
-        const entries = (Array.isArray(l.entries) ? l.entries : []).slice(0, MAX_LIST_ENTRIES).map(cleanSnap).filter(Boolean);
-        out.items.push({ id: str(l.id, 40), name: str(l.name, 80) || '—', kind: l.kind === 'shabbat' ? 'shabbat' : 'list', created: num(l.created, 0), entries });
+        const entries = (Array.isArray(l.entries) ? l.entries : [])
+          .slice(0, MAX_LIST_ENTRIES)
+          .map(cleanSnap)
+          .filter(Boolean);
+        out.items.push({
+          id: str(l.id, 40),
+          name: str(l.name, 80) || '—',
+          kind: l.kind === 'shabbat' ? 'shabbat' : 'list',
+          created: num(l.created, 0),
+          entries,
+        });
       }
       return out;
     },
@@ -174,7 +189,9 @@
           query: str(tabs.all.query, 300),
           filters: A.Filters.clean(tabs.all.filters),
           sort: sorts.includes(tabs.all.sort) ? tabs.all.sort : 'relevance',
-          group: ['week', 'series', 'year', 'circle', 'lang'].includes(tabs.all.group) ? tabs.all.group : '',
+          group: ['week', 'series', 'year', 'circle', 'lang'].includes(tabs.all.group)
+            ? tabs.all.group
+            : '',
           includeHidden: tabs.all.includeHidden === true,
         };
       }
@@ -209,7 +226,8 @@
       if (!isObject(raw)) return out;
       for (const e of (Array.isArray(raw.events) ? raw.events : []).slice(0, MAX_HISTORY)) {
         const snap = cleanSnap(e);
-        if (snap && HISTORY_KINDS.includes(e.k)) out.events.push({ ...snap, k: e.k, t: num(e.t, 0) });
+        if (snap && HISTORY_KINDS.includes(e.k))
+          out.events.push({ ...snap, k: e.k, t: num(e.t, 0) });
       }
       const seen = new Set();
       for (const s of (Array.isArray(raw.searches) ? raw.searches : []).slice(0, MAX_SEARCHES)) {
@@ -218,7 +236,8 @@
         out.searches.push({ q: str(s.q, 300), t: num(s.t, 0) });
       }
       for (const s of (Array.isArray(raw.series) ? raw.series : []).slice(0, MAX_SERIES_VIEWS)) {
-        if (isObject(s) && typeof s.id === 'string' && s.id) out.series.push({ id: str(s.id, 40), t: num(s.t, 0) });
+        if (isObject(s) && typeof s.id === 'string' && s.id)
+          out.series.push({ id: str(s.id, 40), t: num(s.t, 0) });
       }
       return out;
     },
@@ -363,7 +382,8 @@
     toggleFavorite(item) {
       const items = this.data.favorites.items;
       if (Object.hasOwn(items, item.id)) delete items[item.id];
-      else if (Object.keys(items).length < MAX_FAVORITES) items[item.id] = { ...snapOf(item), t: this.now() };
+      else if (Object.keys(items).length < MAX_FAVORITES)
+        items[item.id] = { ...snapOf(item), t: this.now() };
       this._touch('favorites');
       return this.isFavorite(item.id);
     }
@@ -505,7 +525,9 @@
         const entry = d.favorites.items[id];
         delete d.favorites.items[id];
         const existing = d.favorites.items[to];
-        d.favorites.items[to] = existing ? { ...entry, ...existing, id: to, t: Math.max(entry.t || 0, existing.t || 0) } : { ...entry, id: to };
+        d.favorites.items[to] = existing
+          ? { ...entry, ...existing, id: to, t: Math.max(entry.t || 0, existing.t || 0) }
+          : { ...entry, id: to };
         moved++;
         touched.add('favorites');
       }
@@ -610,7 +632,10 @@
     }
 
     restoreEvents(events) {
-      this.data.history.events = (Array.isArray(events) ? events : []).concat(this.data.history.events).sort((a, b) => b.t - a.t).slice(0, MAX_HISTORY);
+      this.data.history.events = (Array.isArray(events) ? events : [])
+        .concat(this.data.history.events)
+        .sort((a, b) => b.t - a.t)
+        .slice(0, MAX_HISTORY);
       this._touch('history');
     }
 
@@ -684,12 +709,21 @@
       const list = this.data.views.presets;
       const existing = list.find((p) => p.name === clean.name);
       if (existing) {
-        Object.assign(existing, { query: clean.query, filters: clean.filters, sort: clean.sort, t: this.now() });
+        Object.assign(existing, {
+          query: clean.query,
+          filters: clean.filters,
+          sort: clean.sort,
+          t: this.now(),
+        });
         this._touch('views');
         return existing;
       }
       if (list.length >= MAX_PRESETS) return null;
-      const preset = { ...clean, id: 'p' + this.now().toString(36) + Math.floor(Math.random() * 1e4).toString(36), t: this.now() };
+      const preset = {
+        ...clean,
+        id: 'p' + this.now().toString(36) + Math.floor(Math.random() * 1e4).toString(36),
+        t: this.now(),
+      };
       list.push(preset);
       this._touch('views');
       return preset;
@@ -703,7 +737,12 @@
     }
 
     restorePreset(preset) {
-      if (!preset || this.data.views.presets.some((p) => p.id === preset.id) || this.data.views.presets.length >= MAX_PRESETS) return;
+      if (
+        !preset ||
+        this.data.views.presets.some((p) => p.id === preset.id) ||
+        this.data.views.presets.length >= MAX_PRESETS
+      )
+        return;
       this.data.views.presets.push(preset);
       this._touch('views');
     }
@@ -715,7 +754,8 @@
     beginVisit() {
       const v = this.data.views;
       const now = this.now();
-      if (!v.visitBase || (v.lastSeen && now - v.lastSeen > VISIT_GAP_MS)) v.visitBase = v.lastSeen || now;
+      if (!v.visitBase || (v.lastSeen && now - v.lastSeen > VISIT_GAP_MS))
+        v.visitBase = v.lastSeen || now;
       v.lastSeen = now;
       this._touch('views');
     }
@@ -812,7 +852,9 @@
     addRule(raw) {
       const rule = Rules.cleanRule({ ...raw, id: raw.id || Rules.newId(), at: this.now() });
       if (!rule || this.data.rules.rules.length >= Rules.MAX_RULES) return null;
-      this.data.rules.rules = this.data.rules.rules.filter((r) => !(r.field === rule.field && r.value === rule.value && r.action === rule.action));
+      this.data.rules.rules = this.data.rules.rules.filter(
+        (r) => !(r.field === rule.field && r.value === rule.value && r.action === rule.action),
+      );
       this.data.rules.rules.push(rule);
       this._touch('rules');
       return rule;
@@ -891,15 +933,22 @@
       const s = preview.sections;
       const replace = mode === 'replace';
       const d = this.data;
-      if (s.prefs) d.prefs = { ...s.prefs, folder: d.prefs.folder, welcomeSeen: d.prefs.welcomeSeen };
-      if (s.favorites) d.favorites.items = replace ? s.favorites.items : { ...d.favorites.items, ...s.favorites.items };
+      if (s.prefs)
+        d.prefs = { ...s.prefs, folder: d.prefs.folder, welcomeSeen: d.prefs.welcomeSeen };
+      if (s.favorites)
+        d.favorites.items = replace
+          ? s.favorites.items
+          : { ...d.favorites.items, ...s.favorites.items };
       if (s.read) d.read.items = replace ? s.read.items : { ...d.read.items, ...s.read.items };
-      if (s.series) d.series.items = replace ? s.series.items : { ...d.series.items, ...s.series.items };
+      if (s.series)
+        d.series.items = replace ? s.series.items : { ...d.series.items, ...s.series.items };
       if (s.rules) {
         if (replace) d.rules = s.rules;
         else {
           const have = new Set(d.rules.rules.map((r) => r.field + '|' + r.action + '|' + r.value));
-          for (const r of s.rules.rules) if (!have.has(r.field + '|' + r.action + '|' + r.value)) d.rules.rules.push({ ...r, id: Rules.newId() });
+          for (const r of s.rules.rules)
+            if (!have.has(r.field + '|' + r.action + '|' + r.value))
+              d.rules.rules.push({ ...r, id: Rules.newId() });
           d.rules.rules = d.rules.rules.slice(0, Rules.MAX_RULES);
           d.rules.mode = s.rules.mode;
         }
@@ -908,13 +957,23 @@
         if (replace) d.lists = s.lists;
         else {
           const names = new Set(d.lists.items.map((l) => l.id));
-          for (const l of s.lists.items) if (!names.has(l.id) && d.lists.items.length < MAX_LISTS) d.lists.items.push(l);
+          for (const l of s.lists.items)
+            if (!names.has(l.id) && d.lists.items.length < MAX_LISTS) d.lists.items.push(l);
         }
       }
       if (s.views) {
         const have = new Set(d.views.presets.map((p) => p.name));
-        const incoming = replace ? s.views.presets : s.views.presets.filter((p) => !have.has(p.name));
-        d.views.presets = (replace ? [] : d.views.presets).concat(incoming.map((p) => ({ ...p, id: 'p' + this.now().toString(36) + Math.floor(Math.random() * 1e6).toString(36) }))).slice(0, MAX_PRESETS);
+        const incoming = replace
+          ? s.views.presets
+          : s.views.presets.filter((p) => !have.has(p.name));
+        d.views.presets = (replace ? [] : d.views.presets)
+          .concat(
+            incoming.map((p) => ({
+              ...p,
+              id: 'p' + this.now().toString(36) + Math.floor(Math.random() * 1e6).toString(36),
+            })),
+          )
+          .slice(0, MAX_PRESETS);
       }
       const touched = Object.keys(s);
       this._touch(...touched);

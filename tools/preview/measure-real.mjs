@@ -7,7 +7,19 @@ import { join } from 'node:path';
 
 const require = createRequire(import.meta.url);
 globalThis.Alonim = {};
-for (const f of ['i18n', 'hebcal', 'core', 'normalize', 'log', 'weeks', 'rules', 'filters', 'index', 'index-search']) require('../../plugin/js/alonim-' + f + '.js');
+for (const f of [
+  'i18n',
+  'hebcal',
+  'core',
+  'normalize',
+  'log',
+  'weeks',
+  'rules',
+  'filters',
+  'index',
+  'index-search',
+])
+  require('../../plugin/js/alonim-' + f + '.js');
 const { CatalogIndex } = globalThis.Alonim.Index;
 
 const arg = process.argv[2];
@@ -32,7 +44,10 @@ if (arg === '--synthetic' || !arg || !existsSync(join(arg, 'series.json'))) {
   ({ series, shards } = synthetic());
 } else {
   series = JSON.parse(readFileSync(join(arg, 'series.json'), 'utf8'));
-  shards = readdirSync(join(arg, 'issues')).map((f) => ({ id: f.replace('.json', ''), list: JSON.parse(readFileSync(join(arg, 'issues', f), 'utf8')) }));
+  shards = readdirSync(join(arg, 'issues')).map((f) => ({
+    id: f.replace('.json', ''),
+    list: JSON.parse(readFileSync(join(arg, 'issues', f), 'utf8')),
+  }));
 }
 const idx = new CatalogIndex({ source: (id) => id });
 idx.setSeries(series);
@@ -43,9 +58,18 @@ for (const s of shards) s.list = null;
 shards.length = 0;
 series = null;
 const after = heap();
-console.log(`issues ${idx.size}, build ${Math.round(build)}ms (incremental per-shard), heap +${mb(after - base)}`);
+console.log(
+  `issues ${idx.size}, build ${Math.round(build)}ms (incremental per-shard), heap +${mb(after - base)}`,
+);
 const timings = {};
-for (const q of ['נח', 'אסיפת גליונות נח', 'year:5786 parasha:noach', 'שבת OR נח -עלון', 'torah', '']) {
+for (const q of [
+  'נח',
+  'אסיפת גליונות נח',
+  'year:5786 parasha:noach',
+  'שבת OR נח -עלון',
+  'torah',
+  '',
+]) {
   idx.search(q, {}, {}, {});
   const s = performance.now();
   let r;

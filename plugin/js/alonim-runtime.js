@@ -58,10 +58,17 @@
     if (error instanceof NetError) return error;
     const message = String((error && (error.hostMessage || error.message)) || error || '');
     const code = error && error.code;
-    if (code === CODES.forbidden || /forbidden|allowlist|רשימת ההיתר|לא מורשית|אינה מורשית|חסומ/i.test(message)) {
+    if (
+      code === CODES.forbidden ||
+      /forbidden|allowlist|רשימת ההיתר|לא מורשית|אינה מורשית|חסומ/i.test(message)
+    ) {
       return new NetError('forbidden', message);
     }
-    if (code === CODES.permissionDenied || code === 'error.permission_denied' || /permission|הרשא/i.test(message)) {
+    if (
+      code === CODES.permissionDenied ||
+      code === 'error.permission_denied' ||
+      /permission|הרשא/i.test(message)
+    ) {
       return new NetError('permission', message);
     }
     if (code === CODES.timeout || /timeout|timed out|זמן/i.test(message)) {
@@ -90,7 +97,8 @@
     const opts = options || {};
     const now = opts.now || (() => Date.now());
     const sleep = opts.sleep || defaultSleep;
-    const logger = opts.logger || (root.Alonim && root.Alonim.Log && root.Alonim.Log.shared) || console;
+    const logger =
+      opts.logger || (root.Alonim && root.Alonim.Log && root.Alonim.Log.shared) || console;
     const debug = (message, detail) => {
       if (typeof logger.debug === 'function') logger.debug(message, detail);
     };
@@ -102,7 +110,10 @@
     function takeToken() {
       const time = now();
       // שעון שחוזר אחורה (NTP) היה נועל את כל הקריאות לזמן רב.
-      tokens = Math.min(BUCKET_SIZE, tokens + Math.max(0, Math.floor((time - refilledAt) / REFILL_MS)));
+      tokens = Math.min(
+        BUCKET_SIZE,
+        tokens + Math.max(0, Math.floor((time - refilledAt) / REFILL_MS)),
+      );
       refilledAt = time;
       if (tokens <= 0) return false;
       tokens -= 1;
@@ -156,7 +167,8 @@
       try {
         return await call(method, payload);
       } catch (error) {
-        if (!(error instanceof SdkError && error.isUnsupported)) logger.warn(method + ' failed', error);
+        if (!(error instanceof SdkError && error.isUnsupported))
+          logger.warn(method + ' failed', error);
         return fallback === undefined ? null : fallback;
       }
     }
@@ -183,10 +195,14 @@
         // קריאה שנדחתה לפני שהחלה (שגיאת פרמטרים, הרשאה) מגיעה כהבטחה.
         if (chunks && typeof chunks.then === 'function') {
           const response = await chunks;
-          if (response && response.success === false) throw new SdkError('network.fetchStream', response);
+          if (response && response.success === false)
+            throw new SdkError('network.fetchStream', response);
           chunks = response;
         }
-        if (o.signal) o.signal.addEventListener('abort', () => chunks.return && chunks.return(), { once: true });
+        if (o.signal)
+          o.signal.addEventListener('abort', () => chunks.return && chunks.return(), {
+            once: true,
+          });
         let size = 0;
         for await (const chunk of chunks) {
           if (chunk.type === 'response') {
@@ -207,7 +223,11 @@
       }
       if (status === null) throw new NetError('network', 'no response');
       if (status >= 400) {
-        throw new NetError(status === 403 || status === 401 ? 'blocked' : 'http', 'HTTP ' + status, status);
+        throw new NetError(
+          status === 403 || status === 401 ? 'blocked' : 'http',
+          'HTTP ' + status,
+          status,
+        );
       }
       return { status, text };
     }

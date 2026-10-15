@@ -17,13 +17,36 @@ const quiet = { warn() {}, error() {}, debug() {}, info() {} };
 const noSleep = async () => {};
 
 const ARCHIVE = [
-  { date: '2020-10-17', hy: 5781, hebrew: 'כ״ט בתשרי תשפ״א', parasha: ['noach'], parashaIL: ['noach'], label: 'נח', event: null },
-  { date: '2020-10-24', hy: 5781, hebrew: 'ו׳ בחשוון תשפ״א', parasha: ['lech-lecha'], parashaIL: ['lech-lecha'], label: 'לך לך', event: null },
+  {
+    date: '2020-10-17',
+    hy: 5781,
+    hebrew: 'כ״ט בתשרי תשפ״א',
+    parasha: ['noach'],
+    parashaIL: ['noach'],
+    label: 'נח',
+    event: null,
+  },
+  {
+    date: '2020-10-24',
+    hy: 5781,
+    hebrew: 'ו׳ בחשוון תשפ״א',
+    parasha: ['lech-lecha'],
+    parashaIL: ['lech-lecha'],
+    label: 'לך לך',
+    event: null,
+  },
 ];
 
 function setup(extra) {
   const { series, issues } = makeCatalog(200, 8, 3);
-  const { files, manifest } = buildFiles({ series, issues, weeks: [{ date: '2026-10-17', hy: 5787, parasha: ['noach'], label: 'נח' }], weeksArchive: ARCHIVE, sources: DEFAULT_SOURCES, recentCount: 20 });
+  const { files, manifest } = buildFiles({
+    series,
+    issues,
+    weeks: [{ date: '2026-10-17', hy: 5787, parasha: ['noach'], label: 'נח' }],
+    weeksArchive: ARCHIVE,
+    sources: DEFAULT_SOURCES,
+    recentCount: 20,
+  });
   const sdk = createFakeSdk({ catalog: files, ...(extra || {}) });
   const runtime = createRuntime(sdk, { logger: quiet, sleep: noSleep });
   const catalog = new Catalog(runtime, { log: quiet, sleep: noSleep, online: () => true });
@@ -58,13 +81,30 @@ test('לוח ארכיון: ביקור הבא טוען אותו מהמטמון, �
   const events = [];
   next.onData((e) => events.push(e));
   await next.loadCache();
-  assert.ok(events.some((e) => e.kind === 'weeksArchive' && e.cached), 'מהמטמון בלי רשת');
+  assert.ok(
+    events.some((e) => e.kind === 'weeksArchive' && e.cached),
+    'מהמטמון בלי רשת',
+  );
   // שינוי בארכיון בשרת: נמשך בסנכרון, כי המשתמש כבר ביקש אותו
-  const changed = ARCHIVE.concat([{ date: '2020-10-31', hy: 5781, hebrew: 'י״ג בחשוון תשפ״א', parasha: ['vayera'], parashaIL: ['vayera'], label: 'וירא', event: null }]);
+  const changed = ARCHIVE.concat([
+    {
+      date: '2020-10-31',
+      hy: 5781,
+      hebrew: 'י״ג בחשוון תשפ״א',
+      parasha: ['vayera'],
+      parashaIL: ['vayera'],
+      label: 'וירא',
+      event: null,
+    },
+  ]);
   const text = JSON.stringify(changed);
   first.files['weeks-archive.json'] = text;
   const manifest = JSON.parse(first.files['manifest.json']);
-  manifest.files.weeksArchive = { ...manifest.files.weeksArchive, sha256: require('./helpers/catalog-files').sha(text), bytes: Buffer.byteLength(text) };
+  manifest.files.weeksArchive = {
+    ...manifest.files.weeksArchive,
+    sha256: require('./helpers/catalog-files').sha(text),
+    bytes: Buffer.byteLength(text),
+  };
   first.files['manifest.json'] = JSON.stringify(manifest);
   await next.sync();
   assert.equal(events.filter((e) => e.kind === 'weeksArchive').pop().data.length, 3);
@@ -95,12 +135,28 @@ test('index.setWeeksArchive: הארכיון מצטרף ללוח, ושורות נ
     ],
     'x',
   );
-  assert.deepEqual(index.allWeeks().map((r) => r.date), ['2019-10-26', '2020-10-17', '2026-10-17'], 'בלי ארכיון: שתי שורות נגזרות');
-  assert.ok(index.allWeeks().slice(0, 2).every((r) => r.derived));
+  assert.deepEqual(
+    index.allWeeks().map((r) => r.date),
+    ['2019-10-26', '2020-10-17', '2026-10-17'],
+    'בלי ארכיון: שתי שורות נגזרות',
+  );
+  assert.ok(
+    index
+      .allWeeks()
+      .slice(0, 2)
+      .every((r) => r.derived),
+  );
   index.setWeeksArchive(ARCHIVE);
   const all = index.allWeeks();
-  assert.deepEqual(all.map((r) => r.date), ['2019-10-26', '2020-10-17', '2020-10-24', '2026-10-17']);
+  assert.deepEqual(
+    all.map((r) => r.date),
+    ['2019-10-26', '2020-10-17', '2020-10-24', '2026-10-17'],
+  );
   assert.equal(all.find((r) => r.date === '2020-10-17').derived, undefined, 'מהארכיון, לא נגזרת');
-  assert.equal(all.find((r) => r.date === '2019-10-26').derived, true, 'לפני תחילת הארכיון: עדיין נגזרת');
+  assert.equal(
+    all.find((r) => r.date === '2019-10-26').derived,
+    true,
+    'לפני תחילת הארכיון: עדיין נגזרת',
+  );
   assert.equal(index.forWeek(all.find((r) => r.date === '2020-10-17')).length, 1);
 });

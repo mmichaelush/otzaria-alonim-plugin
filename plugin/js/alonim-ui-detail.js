@@ -13,7 +13,13 @@
   const t = (text, vars) => I18n.t(text, vars);
 
   const N = (s) => s;
-  const STATUS_TEXT = Object.freeze({ ok: N('תקין'), degraded: N('חלקי'), blocked: N('חסום'), down: N('לא זמין'), disabled: N('כבוי') });
+  const STATUS_TEXT = Object.freeze({
+    ok: N('תקין'),
+    degraded: N('חלקי'),
+    blocked: N('חסום'),
+    down: N('לא זמין'),
+    disabled: N('כבוי'),
+  });
 
   const statusText = (status) => (STATUS_TEXT[status] ? t(STATUS_TEXT[status]) : status);
 
@@ -26,10 +32,23 @@
 
   /** שורת גיליון קצרה (שבוע, שנה) שפותחת את הפרטים שלו. */
   function relatedRow(app, other, ctx, getDialog) {
-    const meta = [Core.weekLabel(other), other.hy ? Core.hyLetters(other.hy) : '', other.no ? t('גיליון {no}', { no: other.no }) : ''].filter(Boolean).join(' · ');
+    const meta = [
+      Core.weekLabel(other),
+      other.hy ? Core.hyLetters(other.hy) : '',
+      other.no ? t('גיליון {no}', { no: other.no }) : '',
+    ]
+      .filter(Boolean)
+      .join(' · ');
     return el(
       'button',
-      { type: 'button', class: 'compact-row', onclick: () => { getDialog().close(); showDetails(app, other, ctx); } },
+      {
+        type: 'button',
+        class: 'compact-row',
+        onclick: () => {
+          getDialog().close();
+          showDetails(app, other, ctx);
+        },
+      },
       el('span', { class: 'compact-title', dir: 'auto' }, other.seriesTitle || other.title),
       el('span', { class: 'compact-meta', dir: 'auto' }, meta),
     );
@@ -44,13 +63,25 @@
     const list = index.issuesOfSeries(item.series);
     const at = list.findIndex((i) => index.ids[i] === item.id);
     const pick = (i) => (i >= 0 && i < list.length ? index.item(list[i]) : null);
-    const sameParasha = item.parasha && item.parasha.length
-      ? list.filter((i) => index.ids[i] !== item.id && index.item(i).hy !== item.hy && index.item(i).parasha.includes(item.parasha[0])).slice(0, 6).map((i) => index.item(i))
-      : [];
+    const sameParasha =
+      item.parasha && item.parasha.length
+        ? list
+            .filter(
+              (i) =>
+                index.ids[i] !== item.id &&
+                index.item(i).hy !== item.hy &&
+                index.item(i).parasha.includes(item.parasha[0]),
+            )
+            .slice(0, 6)
+            .map((i) => index.item(i))
+        : [];
     return {
       newer: at > 0 ? pick(at - 1) : null,
       older: at >= 0 ? pick(at + 1) : null,
-      recent: list.filter((i) => index.ids[i] !== item.id).slice(0, 5).map((i) => index.item(i)),
+      recent: list
+        .filter((i) => index.ids[i] !== item.id)
+        .slice(0, 5)
+        .map((i) => index.item(i)),
       sameParasha,
       total: list.length,
     };
@@ -81,8 +112,16 @@
     const assetRows = view.assets.map((asset) => {
       const info = app.sourceInfo(asset.src);
       const downloadable = Boolean(hydrated && asset.url && Core.isDownloadUrl(asset.url));
-      const limited = hydrated ? !asset.url || info.mode === 'link' || info.status === 'blocked' : Boolean(asset.noUrl) || info.mode === 'link';
-      const facts = [asset.pages ? t('{n} עמ׳', { n: asset.pages }) : '', Core.formatBytes(asset.bytes), asset.downloads ? t('{n} הורדות', { n: Core.formatCount(asset.downloads) }) : ''].filter(Boolean).join(' · ');
+      const limited = hydrated
+        ? !asset.url || info.mode === 'link' || info.status === 'blocked'
+        : Boolean(asset.noUrl) || info.mode === 'link';
+      const facts = [
+        asset.pages ? t('{n} עמ׳', { n: asset.pages }) : '',
+        Core.formatBytes(asset.bytes),
+        asset.downloads ? t('{n} הורדות', { n: Core.formatCount(asset.downloads) }) : '',
+      ]
+        .filter(Boolean)
+        .join(' · ');
       return el(
         'li',
         { class: 'asset-row' + (preferred === asset.src ? ' is-preferred' : '') },
@@ -95,21 +134,54 @@
           limited ? Ui.chip(t('קישור לאתר בלבד'), { kind: 'warn', icon: 'open_24_regular' }) : null,
           el('span', { class: 'asset-facts' }, facts),
           limited && info.note ? el('p', { class: 'asset-note', dir: 'auto' }, info.note) : null,
-          hydrated && !downloadable && asset.url && !limited ? el('p', { class: 'asset-note' }, t('כתובת הקובץ טרם אושרה באוצריא: אפשר לפתוח באתר המקור.')) : null,
+          hydrated && !downloadable && asset.url && !limited
+            ? el(
+                'p',
+                { class: 'asset-note' },
+                t('כתובת הקובץ טרם אושרה באוצריא: אפשר לפתוח באתר המקור.'),
+              )
+            : null,
           !hydrated ? el('p', { class: 'asset-note' }, t('פרטי הכתובות אינם זמינים כרגע.')) : null,
         ),
         el(
           'div',
           { class: 'asset-actions' },
-          downloadable ? Ui.button('tonal', t('הורדה מהמקור הזה'), () => { dlg.close(); app.download(item, asset.src); }, { icon: 'arrow_download_24_regular', className: 'button-small' }) : null,
-          view.assets.length > 1 && preferred !== asset.src ? Ui.button('text', t('הפוך למועדף'), () => { app.state.setSeries(item.series, { src: asset.src }); dlg.close(); showDetails(app, item, ctx); }, { className: 'button-small' }) : null,
-          Ui.button('text', t('באתר המקור'), () => app.openSite(asset), { icon: 'open_24_regular', className: 'button-small' }),
+          downloadable
+            ? Ui.button(
+                'tonal',
+                t('הורדה מהמקור הזה'),
+                () => {
+                  dlg.close();
+                  app.download(item, asset.src);
+                },
+                { icon: 'arrow_download_24_regular', className: 'button-small' },
+              )
+            : null,
+          view.assets.length > 1 && preferred !== asset.src
+            ? Ui.button(
+                'text',
+                t('הפוך למועדף'),
+                () => {
+                  app.state.setSeries(item.series, { src: asset.src });
+                  dlg.close();
+                  showDetails(app, item, ctx);
+                },
+                { className: 'button-small' },
+              )
+            : null,
+          Ui.button('text', t('באתר המקור'), () => app.openSite(asset), {
+            icon: 'open_24_regular',
+            className: 'button-small',
+          }),
         ),
       );
     });
 
     // תמונה ממוזערת: רק אם המשתמש הפעיל, ורק מכתובת מותרת (פונה לאתר המקור).
-    const cover = hydrated && app.state.prefs.thumbs && app.online !== false ? ((view.assets.find((a) => a.thumb && Core.isDownloadUrl(a.thumb)) || {}).thumb || '') : '';
+    const cover =
+      hydrated && app.state.prefs.thumbs && app.online !== false
+        ? (view.assets.find((a) => a.thumb && Core.isDownloadUrl(a.thumb)) || {}).thumb || ''
+        : '';
     const facts = el(
       'dl',
       { class: 'facts' },
@@ -124,9 +196,15 @@
       fact(t('עמודים'), item.pages ? String(item.pages) : ''),
     );
 
-    const reasonLine = decision.rule || (state.hidden ? true : false)
-      ? el('p', { class: 'reason-line' }, icon(state.hidden ? 'eye_off_24_regular' : 'info_24_regular'), Rules.reasonText(decision, app.ruleNames(), app.state.rules.mode))
-      : null;
+    const reasonLine =
+      decision.rule || (state.hidden ? true : false)
+        ? el(
+            'p',
+            { class: 'reason-line' },
+            icon(state.hidden ? 'eye_off_24_regular' : 'info_24_regular'),
+            Rules.reasonText(decision, app.ruleNames(), app.state.rules.mode),
+          )
+        : null;
 
     const related = relatedIssues(app, item);
     const siteAsset = hydrated ? app.pickSiteAsset(view) : null;
@@ -137,54 +215,250 @@
       body: el(
         'div',
         { class: 'details' },
-        cover ? el('img', { class: 'details-cover', src: cover, alt: '', referrerpolicy: 'no-referrer', loading: 'lazy' }) : null,
+        cover
+          ? el('img', {
+              class: 'details-cover',
+              src: cover,
+              alt: '',
+              referrerpolicy: 'no-referrer',
+              loading: 'lazy',
+            })
+          : null,
         el('p', { class: 'details-meta', dir: 'auto' }, meta),
-        el('p', { class: 'credit-line', dir: 'auto' }, t('העלון באדיבות {names}. הזכויות שמורות למחברים ולמפרסמים.', { names: app.creditNames(view) }), ' ', Ui.button('text', t('לאתר המקור'), () => app.openSiteFor(item), { icon: 'open_24_regular', className: 'button-small' })),
-        el('div', { class: 'details-chips' }, [state.isNew ? Ui.chip(t('חדש'), { kind: 'new' }) : null, state.downloaded ? Ui.chip(t('הורד'), { kind: 'done', icon: 'checkmark_24_regular' }) : null, state.hidden ? Ui.chip(t('מוסתר'), { kind: 'hidden', icon: 'eye_off_24_regular' }) : null]),
-        reasonLine,
-        el('div', { class: 'details-primary' },
-          Ui.button('filled', t('קריאה'), () => { dlg.close(); app.openIssue(item, ctx); }, { icon: 'book_open_24_regular', key: 'read' }),
-          Ui.button('tonal', state.downloaded ? t('הורד') : t('הורדה'), () => { dlg.close(); app.download(item); }, { icon: state.downloaded ? 'checkmark_circle_24_filled' : 'arrow_download_24_regular', disabled: state.downloaded }),
-          Ui.button('tonal', t('הדפסה'), () => { dlg.close(); app.print(item, ctx); }, { icon: 'document_pdf_24_regular' }),
+        el(
+          'p',
+          { class: 'credit-line', dir: 'auto' },
+          t('העלון באדיבות {names}. הזכויות שמורות למחברים ולמפרסמים.', {
+            names: app.creditNames(view),
+          }),
+          ' ',
+          Ui.button('text', t('לאתר המקור'), () => app.openSiteFor(item), {
+            icon: 'open_24_regular',
+            className: 'button-small',
+          }),
         ),
-        el('h3', { class: 'details-section' }, t('העותקים הזמינים'), el('span', { class: 'section-count' }, String(view.assets.length))),
-        view.assets.length ? el('ul', { class: 'asset-list' }, assetRows) : el('p', { class: 'asset-note' }, t('אין עותקים בקטלוג לגיליון הזה.')),
-        view.assets.length > 1 ? el('p', { class: 'asset-note' }, t('יש עותקים נוספים. ההורדה והקריאה משתמשות במקור המועדף של הסדרה, ואם אין — בעותק הראשון.')) : null,
+        el('div', { class: 'details-chips' }, [
+          state.isNew ? Ui.chip(t('חדש'), { kind: 'new' }) : null,
+          state.downloaded
+            ? Ui.chip(t('הורד'), { kind: 'done', icon: 'checkmark_24_regular' })
+            : null,
+          state.hidden ? Ui.chip(t('מוסתר'), { kind: 'hidden', icon: 'eye_off_24_regular' }) : null,
+        ]),
+        reasonLine,
+        el(
+          'div',
+          { class: 'details-primary' },
+          Ui.button(
+            'filled',
+            t('קריאה'),
+            () => {
+              dlg.close();
+              app.openIssue(item, ctx);
+            },
+            { icon: 'book_open_24_regular', key: 'read' },
+          ),
+          Ui.button(
+            'tonal',
+            state.downloaded ? t('הורד') : t('הורדה'),
+            () => {
+              dlg.close();
+              app.download(item);
+            },
+            {
+              icon: state.downloaded ? 'checkmark_circle_24_filled' : 'arrow_download_24_regular',
+              disabled: state.downloaded,
+            },
+          ),
+          Ui.button(
+            'tonal',
+            t('הדפסה'),
+            () => {
+              dlg.close();
+              app.print(item, ctx);
+            },
+            { icon: 'document_pdf_24_regular' },
+          ),
+        ),
+        el(
+          'h3',
+          { class: 'details-section' },
+          t('העותקים הזמינים'),
+          el('span', { class: 'section-count' }, String(view.assets.length)),
+        ),
+        view.assets.length
+          ? el('ul', { class: 'asset-list' }, assetRows)
+          : el('p', { class: 'asset-note' }, t('אין עותקים בקטלוג לגיליון הזה.')),
+        view.assets.length > 1
+          ? el(
+              'p',
+              { class: 'asset-note' },
+              t(
+                'יש עותקים נוספים. ההורדה והקריאה משתמשות במקור המועדף של הסדרה, ואם אין — בעותק הראשון.',
+              ),
+            )
+          : null,
         facts,
         el(
           'div',
           { class: 'details-more' },
-          Ui.button('text', state.favorite ? t('הסר ממועדפים') : t('הוסף למועדפים'), () => { app.toggleFavorite(item); dlg.close(); }, { icon: state.favorite ? 'star_24_filled' : 'star_24_regular', className: 'button-small' }),
-          Ui.button('text', state.read ? t('סמן כלא נקרא') : t('סמן כנקרא'), () => { app.toggleRead(item); dlg.close(); }, { icon: 'checkmark_24_regular', className: 'button-small' }),
-          Ui.button('text', t('הוסף לאוסף…'), () => { dlg.close(); app.addToListDialog(item); }, { icon: 'bookmark_multiple_24_regular', className: 'button-small' }),
-          Ui.button('text', state.followed ? t('הפסק לעקוב אחרי הסדרה') : t('עקוב אחרי הסדרה'), () => { app.toggleFollow(item.series); dlg.close(); }, { icon: 'alert_24_regular', className: 'button-small' }),
-          Ui.button('text', t('לדף הסדרה'), () => { dlg.close(); app.openSeries(item.series); }, { icon: 'text_bullet_list_24_regular', className: 'button-small' }),
-          Ui.button('text', t('הסתר סדרה זו'), () => { dlg.close(); app.hideSeries(item); }, { icon: 'eye_off_24_regular', className: 'button-small' }),
+          Ui.button(
+            'text',
+            state.favorite ? t('הסר ממועדפים') : t('הוסף למועדפים'),
+            () => {
+              app.toggleFavorite(item);
+              dlg.close();
+            },
+            {
+              icon: state.favorite ? 'star_24_filled' : 'star_24_regular',
+              className: 'button-small',
+            },
+          ),
+          Ui.button(
+            'text',
+            state.read ? t('סמן כלא נקרא') : t('סמן כנקרא'),
+            () => {
+              app.toggleRead(item);
+              dlg.close();
+            },
+            { icon: 'checkmark_24_regular', className: 'button-small' },
+          ),
+          Ui.button(
+            'text',
+            t('הוסף לאוסף…'),
+            () => {
+              dlg.close();
+              app.addToListDialog(item);
+            },
+            { icon: 'bookmark_multiple_24_regular', className: 'button-small' },
+          ),
+          Ui.button(
+            'text',
+            state.followed ? t('הפסק לעקוב אחרי הסדרה') : t('עקוב אחרי הסדרה'),
+            () => {
+              app.toggleFollow(item.series);
+              dlg.close();
+            },
+            { icon: 'alert_24_regular', className: 'button-small' },
+          ),
+          Ui.button(
+            'text',
+            t('לדף הסדרה'),
+            () => {
+              dlg.close();
+              app.openSeries(item.series);
+            },
+            { icon: 'text_bullet_list_24_regular', className: 'button-small' },
+          ),
+          Ui.button(
+            'text',
+            t('הסתר סדרה זו'),
+            () => {
+              dlg.close();
+              app.hideSeries(item);
+            },
+            { icon: 'eye_off_24_regular', className: 'button-small' },
+          ),
         ),
         el(
           'div',
           { class: 'details-more' },
-          Ui.button('text', t('העתקת השם'), () => copyWithToast(app, A.Bulk.exportLine(item, ''), t('השם הועתק')), { icon: 'copy_24_regular', className: 'button-small' }),
-          Ui.button('text', t('העתקת קישור לאתר המקור'), () => copyWithToast(app, siteLink, t('הקישור הועתק')), { icon: 'copy_24_regular', className: 'button-small', disabled: !siteLink }),
-          related.older ? Ui.button('text', t('הקודם בסדרה'), () => { dlg.close(); showDetails(app, related.older, ctx); }, { icon: document.documentElement.dir === 'ltr' ? 'chevron_left_24_regular' : 'chevron_right_24_regular', className: 'button-small' }) : null,
-          related.newer ? Ui.button('text', t('הבא בסדרה'), () => { dlg.close(); showDetails(app, related.newer, ctx); }, { icon: document.documentElement.dir === 'ltr' ? 'chevron_right_24_regular' : 'chevron_left_24_regular', className: 'button-small' }) : null,
+          Ui.button(
+            'text',
+            t('העתקת השם'),
+            () => copyWithToast(app, A.Bulk.exportLine(item, ''), t('השם הועתק')),
+            { icon: 'copy_24_regular', className: 'button-small' },
+          ),
+          Ui.button(
+            'text',
+            t('העתקת קישור לאתר המקור'),
+            () => copyWithToast(app, siteLink, t('הקישור הועתק')),
+            { icon: 'copy_24_regular', className: 'button-small', disabled: !siteLink },
+          ),
+          related.older
+            ? Ui.button(
+                'text',
+                t('הקודם בסדרה'),
+                () => {
+                  dlg.close();
+                  showDetails(app, related.older, ctx);
+                },
+                {
+                  icon:
+                    document.documentElement.dir === 'ltr'
+                      ? 'chevron_left_24_regular'
+                      : 'chevron_right_24_regular',
+                  className: 'button-small',
+                },
+              )
+            : null,
+          related.newer
+            ? Ui.button(
+                'text',
+                t('הבא בסדרה'),
+                () => {
+                  dlg.close();
+                  showDetails(app, related.newer, ctx);
+                },
+                {
+                  icon:
+                    document.documentElement.dir === 'ltr'
+                      ? 'chevron_right_24_regular'
+                      : 'chevron_left_24_regular',
+                  className: 'button-small',
+                },
+              )
+            : null,
         ),
         related.sameParasha.length
           ? el(
               'section',
               { class: 'details-related' },
-              el('h3', { class: 'details-section' }, t('אותה פרשה בשנים אחרות'), el('span', { class: 'section-count' }, String(related.sameParasha.length))),
-              el('div', { class: 'compact-list' }, related.sameParasha.map((o) => relatedRow(app, o, ctx, () => dlg))),
-              Ui.button('text', t('כל העלונים של הפרשה'), () => { dlg.close(); app.go('all', { query: '', filters: { parasha: [item.parasha[0]] } }); }, { icon: 'library_24_regular', className: 'button-small' }),
+              el(
+                'h3',
+                { class: 'details-section' },
+                t('אותה פרשה בשנים אחרות'),
+                el('span', { class: 'section-count' }, String(related.sameParasha.length)),
+              ),
+              el(
+                'div',
+                { class: 'compact-list' },
+                related.sameParasha.map((o) => relatedRow(app, o, ctx, () => dlg)),
+              ),
+              Ui.button(
+                'text',
+                t('כל העלונים של הפרשה'),
+                () => {
+                  dlg.close();
+                  app.go('all', { query: '', filters: { parasha: [item.parasha[0]] } });
+                },
+                { icon: 'library_24_regular', className: 'button-small' },
+              ),
             )
           : null,
         related.recent.length
           ? el(
               'section',
               { class: 'details-related' },
-              el('h3', { class: 'details-section' }, t('עוד גיליונות בסדרה'), el('span', { class: 'section-count' }, Core.formatCount(related.total))),
-              el('div', { class: 'compact-list' }, related.recent.map((o) => relatedRow(app, o, ctx, () => dlg))),
-              Ui.button('text', t('כל גיליונות הסדרה'), () => { dlg.close(); app.openSeries(item.series); }, { icon: 'text_bullet_list_24_regular', className: 'button-small' }),
+              el(
+                'h3',
+                { class: 'details-section' },
+                t('עוד גיליונות בסדרה'),
+                el('span', { class: 'section-count' }, Core.formatCount(related.total)),
+              ),
+              el(
+                'div',
+                { class: 'compact-list' },
+                related.recent.map((o) => relatedRow(app, o, ctx, () => dlg)),
+              ),
+              Ui.button(
+                'text',
+                t('כל גיליונות הסדרה'),
+                () => {
+                  dlg.close();
+                  app.openSeries(item.series);
+                },
+                { icon: 'text_bullet_list_24_regular', className: 'button-small' },
+              ),
             )
           : null,
       ),
@@ -204,18 +478,56 @@
     const draw = () => {
       const rows = lists.map((l) => {
         const has = items.every((item) => l.entries.some((e) => e.id === item.id));
-        return el('button', { type: 'button', class: 'choice-row', onclick: () => { if (has) items.forEach((item) => app.state.removeFromList(l.id, item.id)); else items.forEach((item) => app.quickAddToList(l.id, item, items.length > 1)); if (items.length > 1 && !has) app.toast(t('{n} גיליונות נוספו לאוסף', { n: items.length })); dlg.close(); } }, icon(has ? 'checkmark_circle_24_filled' : 'circle_24_regular'), el('span', { class: 'choice-text', dir: 'auto' }, l.kind === 'shabbat' ? t('אוסף שבת') : l.name), el('span', { class: 'section-count' }, String(l.entries.length)));
+        return el(
+          'button',
+          {
+            type: 'button',
+            class: 'choice-row',
+            onclick: () => {
+              if (has) items.forEach((item) => app.state.removeFromList(l.id, item.id));
+              else items.forEach((item) => app.quickAddToList(l.id, item, items.length > 1));
+              if (items.length > 1 && !has)
+                app.toast(t('{n} גיליונות נוספו לאוסף', { n: items.length }));
+              dlg.close();
+            },
+          },
+          icon(has ? 'checkmark_circle_24_filled' : 'circle_24_regular'),
+          el(
+            'span',
+            { class: 'choice-text', dir: 'auto' },
+            l.kind === 'shabbat' ? t('אוסף שבת') : l.name,
+          ),
+          el('span', { class: 'section-count' }, String(l.entries.length)),
+        );
       });
-      const input = el('input', { class: 'input', type: 'text', placeholder: t('שם לרשימה חדשה'), maxlength: '80', 'aria-label': t('שם לרשימה חדשה'), dir: 'auto' });
-      const form = el('form', { class: 'new-list', onsubmit: (e) => {
-        e.preventDefault();
-        const name = input.value.trim();
-        if (!name) return;
-        const list = app.state.createList(name);
-        if (list) items.forEach((item) => app.quickAddToList(list.id, item, items.length > 1));
-        if (list && items.length > 1) app.toast(t('{n} גיליונות נוספו לאוסף', { n: items.length }));
-        dlg.close();
-      } }, input, Ui.button('filled', t('יצירה והוספה'), () => form.requestSubmit(), { className: 'button-small' }));
+      const input = el('input', {
+        class: 'input',
+        type: 'text',
+        placeholder: t('שם לרשימה חדשה'),
+        maxlength: '80',
+        'aria-label': t('שם לרשימה חדשה'),
+        dir: 'auto',
+      });
+      const form = el(
+        'form',
+        {
+          class: 'new-list',
+          onsubmit: (e) => {
+            e.preventDefault();
+            const name = input.value.trim();
+            if (!name) return;
+            const list = app.state.createList(name);
+            if (list) items.forEach((item) => app.quickAddToList(list.id, item, items.length > 1));
+            if (list && items.length > 1)
+              app.toast(t('{n} גיליונות נוספו לאוסף', { n: items.length }));
+            dlg.close();
+          },
+        },
+        input,
+        Ui.button('filled', t('יצירה והוספה'), () => form.requestSubmit(), {
+          className: 'button-small',
+        }),
+      );
       body.replaceChildren(...rows, form);
     };
     if (!lists.some((l) => l.kind === 'shabbat')) app.state.createList(t('אוסף שבת'), 'shabbat');
@@ -230,15 +542,62 @@
     const dlg = Ui.dialog({
       title: t('ההורדה לא הושלמה'),
       size: 'small',
-      body: el('div', { class: 'failure' }, el('p', { class: 'dialog-text', dir: 'auto' }, title), el('p', { class: 'dialog-text' }, app.fileErrorText(code)), el('p', { class: 'failure-code' }, t('קוד: {code}', { code }))),
+      body: el(
+        'div',
+        { class: 'failure' },
+        el('p', { class: 'dialog-text', dir: 'auto' }, title),
+        el('p', { class: 'dialog-text' }, app.fileErrorText(code)),
+        el('p', { class: 'failure-code' }, t('קוד: {code}', { code })),
+      ),
       actions,
     });
-    const siteable = ['blocked', 'no_direct_link', 'failed', 'timeout', 'not_pdf', 'truncated'].includes(code);
+    const siteable = [
+      'blocked',
+      'no_direct_link',
+      'failed',
+      'timeout',
+      'not_pdf',
+      'truncated',
+    ].includes(code);
     actions.push(Ui.button('text', t('סגירה'), () => dlg.close()));
-    if (siteable) actions.push(Ui.button('tonal', t('פתח באתר המקור'), () => { dlg.close(); app.openSiteFor(item); }, { icon: 'open_24_regular' }));
-    if (code === 'no_folder' || code === 'permission') actions.push(Ui.button('filled', t('בחירת תיקייה'), () => { dlg.close(); app.emit('need-folder', {}); }, { icon: 'folder_open_24_regular' }));
+    if (siteable)
+      actions.push(
+        Ui.button(
+          'tonal',
+          t('פתח באתר המקור'),
+          () => {
+            dlg.close();
+            app.openSiteFor(item);
+          },
+          { icon: 'open_24_regular' },
+        ),
+      );
+    if (code === 'no_folder' || code === 'permission')
+      actions.push(
+        Ui.button(
+          'filled',
+          t('בחירת תיקייה'),
+          () => {
+            dlg.close();
+            app.emit('need-folder', {});
+          },
+          { icon: 'folder_open_24_regular' },
+        ),
+      );
     if (!['blocked', 'no_direct_link', 'no_folder', 'permission'].includes(code)) {
-      actions.push(Ui.button('filled', t('ניסיון חוזר'), () => { dlg.close(); const job = app.files.jobFor(item); if (job) app.files.retry(job.id); else app.download(item); }, { icon: 'arrow_clockwise_24_regular' }));
+      actions.push(
+        Ui.button(
+          'filled',
+          t('ניסיון חוזר'),
+          () => {
+            dlg.close();
+            const job = app.files.jobFor(item);
+            if (job) app.files.retry(job.id);
+            else app.download(item);
+          },
+          { icon: 'arrow_clockwise_24_regular' },
+        ),
+      );
     }
     const host = dlg.el.querySelector('.dialog-actions');
     if (!host) dlg.el.appendChild(el('footer', { class: 'dialog-actions' }, actions));
@@ -253,7 +612,13 @@
    * מוצלחת, כך ש"הורדה" שהתחילה בלי תיקייה ממשיכה לבד.
    */
   function needFolder(app, then) {
-    const msg = el('p', { class: 'dialog-text' }, t('הגיליונות נשמרים בתיקייה אחת שתבחרו, לפי שנה וסדרה. אוצריא תבקש אישור לגישה קבועה אליה. מומלץ ליצור תיקייה ייעודית, למשל "עלוני שבת" תחת "מסמכים".'));
+    const msg = el(
+      'p',
+      { class: 'dialog-text' },
+      t(
+        'הגיליונות נשמרים בתיקייה אחת שתבחרו, לפי שנה וסדרה. אוצריא תבקש אישור לגישה קבועה אליה. מומלץ ליצור תיקייה ייעודית, למשל "עלוני שבת" תחת "מסמכים".',
+      ),
+    );
     const err = el('p', { class: 'dialog-error', role: 'alert', hidden: true });
     const dlg = Ui.dialog({
       title: t('בחירת תיקיית עלונים'),
@@ -261,19 +626,30 @@
       body: el('div', {}, msg, err),
       actions: [
         Ui.button('text', t('ביטול'), () => dlg.close('cancel')),
-        Ui.button('filled', t('בחירת תיקייה'), async () => {
-          try {
-            const result = await app.files.pickFolder();
-            if (result.cancelled) return;
-            dlg.close('ok');
-            app.toast(t('התיקייה נבחרה: {name}', { name: result.folder.name }));
-            app.files.scan();
-            if (then) then();
-          } catch (error) {
-            err.hidden = false;
-            err.textContent = app.fileErrorText(error.code === 'permission' ? 'permission' : error.code === 'forbidden_folder' ? 'forbidden_folder' : 'pick_failed');
-          }
-        }, { icon: 'folder_open_24_regular', key: 'pick' }),
+        Ui.button(
+          'filled',
+          t('בחירת תיקייה'),
+          async () => {
+            try {
+              const result = await app.files.pickFolder();
+              if (result.cancelled) return;
+              dlg.close('ok');
+              app.toast(t('התיקייה נבחרה: {name}', { name: result.folder.name }));
+              app.files.scan();
+              if (then) then();
+            } catch (error) {
+              err.hidden = false;
+              err.textContent = app.fileErrorText(
+                error.code === 'permission'
+                  ? 'permission'
+                  : error.code === 'forbidden_folder'
+                    ? 'forbidden_folder'
+                    : 'pick_failed',
+              );
+            }
+          },
+          { icon: 'folder_open_24_regular', key: 'pick' },
+        ),
       ],
       focus: '[data-key="pick"]',
     });
@@ -299,13 +675,25 @@
     const dlg = Ui.dialog({
       title: t('קיצורי מקלדת'),
       size: 'small',
-      body: el('dl', { class: 'facts shortcuts' }, SHORTCUTS.map(([key, label]) => [el('dt', {}, el('kbd', {}, key)), el('dd', {}, t(label))])),
+      body: el(
+        'dl',
+        { class: 'facts shortcuts' },
+        SHORTCUTS.map(([key, label]) => [el('dt', {}, el('kbd', {}, key)), el('dd', {}, t(label))]),
+      ),
       actions: [Ui.button('filled', t('סגירה'), () => dlg.close(), { key: 'close' })],
       focus: '[data-key="close"]',
     });
     return dlg;
   }
 
-  A.Dialogs = { showDetails, addToList, downloadFailed, needFolder, shortcuts, statusText, SHORTCUTS };
+  A.Dialogs = {
+    showDetails,
+    addToList,
+    downloadFailed,
+    needFolder,
+    shortcuts,
+    statusText,
+    SHORTCUTS,
+  };
   if (typeof module === 'object' && module.exports) module.exports = A.Dialogs;
 })(typeof self !== 'undefined' ? self : globalThis);

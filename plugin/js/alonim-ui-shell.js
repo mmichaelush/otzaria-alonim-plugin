@@ -11,7 +11,13 @@
   const { el, icon } = Ui;
   const t = (text, vars) => I18n.t(text, vars);
 
-  const SCREENS = () => ({ week: A.WeekScreen, all: A.AllScreen, series: A.SeriesScreen, mine: A.MineScreen, settings: A.SettingsScreen });
+  const SCREENS = () => ({
+    week: A.WeekScreen,
+    all: A.AllScreen,
+    series: A.SeriesScreen,
+    mine: A.MineScreen,
+    settings: A.SettingsScreen,
+  });
 
   /** "לפני 5 דקות". */
   function ago(ms, now) {
@@ -72,19 +78,29 @@
       }
     });
     // חלונות אסינכרוניים: כשל בהבטחה אינו נבלע ("לא נפתח" בלי הסבר).
-    const guardAsync = (fn) => (payload) => Promise.resolve().then(() => fn(payload)).catch((error) => this.reportFailure('dialog_failed', error));
-    this.on('details', guardAsync(({ item, ctx }) => A.Dialogs.showDetails(this, item, ctx)));
+    const guardAsync = (fn) => (payload) =>
+      Promise.resolve()
+        .then(() => fn(payload))
+        .catch((error) => this.reportFailure('dialog_failed', error));
+    this.on(
+      'details',
+      guardAsync(({ item, ctx }) => A.Dialogs.showDetails(this, item, ctx)),
+    );
     this.on('add-to-list', (item) => A.Dialogs.addToList(this, item));
     this.on('download-failed', ({ item, code }) => A.Dialogs.downloadFailed(this, item, code));
     this.on('need-folder', ({ then }) => A.Dialogs.needFolder(this, then));
     this.on('shortcuts', () => A.Dialogs.shortcuts());
     this.on('viewer', () => this.updateStatus());
 
-    for (const Screen of Object.values(SCREENS())) A.Boundary.protect(Screen, (screen, method, error) => this.screenFailed(screen, method, error));
+    for (const Screen of Object.values(SCREENS()))
+      A.Boundary.protect(Screen, (screen, method, error) =>
+        this.screenFailed(screen, method, error),
+      );
     this.renderRoute();
     this.updateStatus();
     // הפעלה ראשונה: אחרי שהמסך הראשון צויר.
-    if (!this.state.prefs.welcomeSeen) setTimeout(() => !this.state.prefs.welcomeSeen && A.HelpUi.firstRun(this), 700);
+    if (!this.state.prefs.welcomeSeen)
+      setTimeout(() => !this.state.prefs.welcomeSeen && A.HelpUi.firstRun(this), 700);
   };
 
   /** כשל שאינו של מסך (חלון, פעולה): נרשם ביומן, והמשתמש רואה הודעה עם הקוד. */
@@ -98,8 +114,14 @@
    * במקום דף ריק. הלשוניות והפס העליון ממשיכים לעבוד.
    */
   App.prototype.screenFailed = function screenFailed(screen, method, error) {
-    this.log.scoped('ui').error('screen ' + method + ' failed', Object.assign(new Error(error && error.message), { code: 'screen_failed' }));
-    if (error && error.stack) this.log.scoped('ui').debug(String(error.stack).split('\n').slice(0, 4).join(' | '));
+    this.log
+      .scoped('ui')
+      .error(
+        'screen ' + method + ' failed',
+        Object.assign(new Error(error && error.message), { code: 'screen_failed' }),
+      );
+    if (error && error.stack)
+      this.log.scoped('ui').debug(String(error.stack).split('\n').slice(0, 4).join(' | '));
     const host = (screen && screen.host) || this.column;
     if (!host) return;
     try {
@@ -111,14 +133,29 @@
             icon: 'warning_24_regular',
             error: true,
             title: t('משהו השתבש במסך הזה'),
-            text: [A.Errors.text('screen_failed'), t('שאר התוסף ממשיך לעבוד. אפשר לנסות שוב, או להעתיק את הפרטים לדיווח.')],
+            text: [
+              A.Errors.text('screen_failed'),
+              t('שאר התוסף ממשיך לעבוד. אפשר לנסות שוב, או להעתיק את הפרטים לדיווח.'),
+            ],
             note: t('קוד: {code}', { code: 'screen_failed' }) + ' · ' + method,
             actions: [
-              Ui.button('filled', t('נסה שוב'), () => this.renderRoute(), { icon: 'arrow_clockwise_24_regular', key: 'retry' }),
-              Ui.button('tonal', t('העתקת פרטים לדיווח'), async () => {
-                const ok = await A.Selection.copyToClipboard(A.Diagnostics.report(this, { filter: { level: 'warn' } }));
-                this.toast(ok ? t('הדיווח הועתק (בלי נתיבים)') : t('ההעתקה נכשלה'), { error: !ok });
-              }, { icon: 'copy_24_regular' }),
+              Ui.button('filled', t('נסה שוב'), () => this.renderRoute(), {
+                icon: 'arrow_clockwise_24_regular',
+                key: 'retry',
+              }),
+              Ui.button(
+                'tonal',
+                t('העתקת פרטים לדיווח'),
+                async () => {
+                  const ok = await A.Selection.copyToClipboard(
+                    A.Diagnostics.report(this, { filter: { level: 'warn' } }),
+                  );
+                  this.toast(ok ? t('הדיווח הועתק (בלי נתיבים)') : t('ההעתקה נכשלה'), {
+                    error: !ok,
+                  });
+                },
+                { icon: 'copy_24_regular' },
+              ),
               Ui.button('text', t('לשבוע'), () => this.go('week')),
             ],
           }),
@@ -139,8 +176,18 @@
   };
 
   App.prototype.buildTopActions = function buildTopActions() {
-    this.syncButton = Ui.iconButton('arrow_sync_24_regular', t('סנכרון'), () => this.catalog.sync(), { className: 'topbar-button' });
-    const search = Ui.iconButton('search_24_regular', t('חיפוש (Ctrl+/)'), () => this.focusSearch(), { className: 'topbar-button' });
+    this.syncButton = Ui.iconButton(
+      'arrow_sync_24_regular',
+      t('סנכרון'),
+      () => this.catalog.sync(),
+      { className: 'topbar-button' },
+    );
+    const search = Ui.iconButton(
+      'search_24_regular',
+      t('חיפוש (Ctrl+/)'),
+      () => this.focusSearch(),
+      { className: 'topbar-button' },
+    );
     this.actionsNode.replaceChildren(search, this.syncButton);
   };
 
@@ -150,7 +197,17 @@
       this.tabButtons = TABS.map((tab) =>
         el(
           'button',
-          { type: 'button', class: 'main-tab', role: 'tab', id: 'main-tab-' + tab.id, 'aria-controls': 'main-panel', 'aria-label': t(tab.label), title: t(tab.label), onclick: () => this.go(tab.id), dataset: { tab: tab.id } },
+          {
+            type: 'button',
+            class: 'main-tab',
+            role: 'tab',
+            id: 'main-tab-' + tab.id,
+            'aria-controls': 'main-panel',
+            'aria-label': t(tab.label),
+            title: t(tab.label),
+            onclick: () => this.go(tab.id),
+            dataset: { tab: tab.id },
+          },
           icon(tab.icon),
           el('span', { class: 'main-tab-label', 'aria-hidden': 'true' }, t(tab.label)),
           el('span', { class: 'main-tab-short', 'aria-hidden': 'true' }, t(tab.short || tab.label)),
@@ -203,9 +260,14 @@
     } else if (this.online === false || s.phase === 'offline') {
       text = t('ללא חיבור · הנתונים השמורים');
     } else if (s.phase === 'error' || s.phase === 'partial') {
-      text = s.error === 'forbidden' ? t('הקטלוג חסום · הנתונים השמורים') : t('הסנכרון נכשל · הנתונים השמורים');
+      text =
+        s.error === 'forbidden'
+          ? t('הקטלוג חסום · הנתונים השמורים')
+          : t('הסנכרון נכשל · הנתונים השמורים');
     } else if (this.index.size) {
-      text = t('{n} גיליונות', { n: Core.formatCount(this.index.size) }) + (s.lastOkAt ? ' · ' + t('עודכן {when}', { when: ago(s.lastOkAt, now) }) : '');
+      text =
+        t('{n} גיליונות', { n: Core.formatCount(this.index.size) }) +
+        (s.lastOkAt ? ' · ' + t('עודכן {when}', { when: ago(s.lastOkAt, now) }) : '');
     }
     this.subtitleNode.textContent = text;
     this.syncButton.classList.toggle('is-spinning', busy);
@@ -217,7 +279,9 @@
       this.syncBar.hidden = !busy;
       this.syncBar.classList.toggle('is-indeterminate', s.phase !== 'downloading' || !s.total);
       const bar = this.syncBar.firstElementChild;
-      if (bar) bar.style.width = s.phase === 'downloading' && s.total ? Math.round((s.done / s.total) * 100) + '%' : '';
+      if (bar)
+        bar.style.width =
+          s.phase === 'downloading' && s.total ? Math.round((s.done / s.total) * 100) + '%' : '';
     }
   };
 })(typeof self !== 'undefined' ? self : globalThis);

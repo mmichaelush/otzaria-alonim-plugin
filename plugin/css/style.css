@@ -41,7 +41,7 @@
   --color-shadow: #000000;
   --color-scrim: #000000;
 
-  --font-ui: 'Rubik', system-ui, sans-serif;
+  --font-ui: "Rubik", system-ui, sans-serif;
   --ui-scale: 1;
   --font-size-base: calc(15px * var(--ui-scale));
 
@@ -63,13 +63,17 @@
   --motion-fade: 200ms linear;
 
   /* רקע הלשונית: רקע מסכי הלוח של אוצריא; כרטיסים: AppSurfaces.card. */
-  --page-surface: color-mix(in srgb, var(--color-surface-container-highest) 47.5%, var(--color-surface));
+  --page-surface: color-mix(
+    in srgb,
+    var(--color-surface-container-highest) 47.5%,
+    var(--color-surface)
+  );
   --card-surface: var(--color-surface);
   --hover-overlay: color-mix(in srgb, var(--color-primary) 8%, transparent);
   --focus-ring: var(--color-primary);
 }
 
-:root[data-mode='dark'] {
+:root[data-mode="dark"] {
   color-scheme: dark;
   --page-surface: var(--color-surface-container-lowest);
   --card-surface: var(--color-surface-container);
@@ -244,7 +248,7 @@ kbd {
   }
 }
 
-[dir='ltr'] .sync-bar.is-indeterminate .sync-bar-fill {
+[dir="ltr"] .sync-bar.is-indeterminate .sync-bar-fill {
   animation-name: bar-slide-ltr;
 }
 
@@ -311,7 +315,7 @@ kbd {
   background: var(--hover-overlay);
 }
 
-.main-tab[aria-selected='true'] {
+.main-tab[aria-selected="true"] {
   font-weight: 600;
   color: var(--color-on-secondary-container);
   background: var(--color-secondary-container);
@@ -377,18 +381,18 @@ kbd {
   }
 
   /* M3 NavigationBar: הגלולה מאחורי האייקון, לא כל התא. */
-  .main-tab[aria-selected='true'],
+  .main-tab[aria-selected="true"],
   .main-tab:hover {
     color: var(--color-on-surface);
     background: transparent;
   }
 
-  .main-tab[aria-selected='true'] .icon {
+  .main-tab[aria-selected="true"] .icon {
     color: var(--color-on-secondary-container);
     background: var(--color-secondary-container);
   }
 
-  .main-tab:hover:not([aria-selected='true']) .icon {
+  .main-tab:hover:not([aria-selected="true"]) .icon {
     background: var(--hover-overlay);
   }
 
@@ -462,8 +466,8 @@ kbd {
   min-height: 0;
 }
 
-.app-shell[data-mode='viewer'] .main-tabs,
-.app-shell[data-mode='viewer'] .app-content {
+.app-shell[data-mode="viewer"] .main-tabs,
+.app-shell[data-mode="viewer"] .app-content {
   display: none;
 }
 
@@ -509,7 +513,7 @@ kbd {
 .button::after {
   position: absolute;
   inset: 0;
-  content: '';
+  content: "";
   background: currentColor;
   opacity: 0;
   transition: opacity var(--motion);
@@ -563,7 +567,7 @@ kbd {
   border: 1px solid var(--color-outline-variant);
 }
 
-.button-outlined[aria-pressed='true'] {
+.button-outlined[aria-pressed="true"] {
   color: var(--color-on-secondary-container);
   background: var(--color-secondary-container);
   border-color: transparent;
@@ -600,7 +604,7 @@ kbd {
 .icon-button::after {
   position: absolute;
   inset: 0;
-  content: '';
+  content: "";
   background: var(--color-primary);
   opacity: 0;
   transition: opacity var(--motion);
@@ -623,7 +627,7 @@ kbd {
   opacity: 0;
 }
 
-.icon-button[aria-pressed='true'] {
+.icon-button[aria-pressed="true"] {
   color: var(--color-on-secondary-container);
   background: var(--color-secondary-container);
 }
@@ -633,7 +637,7 @@ kbd {
   height: 1.45em;
 }
 
-.star-button[aria-pressed='true'] {
+.star-button[aria-pressed="true"] {
   color: var(--color-primary);
   background: transparent;
 }
@@ -843,7 +847,7 @@ kbd {
     box-shadow var(--motion);
 }
 
-[dir='ltr'] .search-bar {
+[dir="ltr"] .search-bar {
   padding: 0 var(--space-4) 0 var(--space-2);
 }
 
@@ -879,7 +883,7 @@ kbd {
   direction: rtl;
 }
 
-[dir='ltr'] .search-input:placeholder-shown {
+[dir="ltr"] .search-input:placeholder-shown {
   direction: ltr;
 }
 
@@ -999,8 +1003,8 @@ kbd {
   background: var(--hover-overlay);
 }
 
-.segment-text[aria-pressed='true'],
-.segment-text[aria-selected='true'] {
+.segment-text[aria-pressed="true"],
+.segment-text[aria-selected="true"] {
   color: var(--color-on-secondary-container);
   background: var(--color-secondary-container);
 }
@@ -1238,7 +1242,7 @@ kbd {
   mask-image: linear-gradient(to left, transparent 0, black 1.4em);
 }
 
-[dir='ltr'] .chip-row {
+[dir="ltr"] .chip-row {
   -webkit-mask-image: linear-gradient(to right, transparent 0, black 1.4em);
   mask-image: linear-gradient(to right, transparent 0, black 1.4em);
 }
@@ -1373,11 +1377,11 @@ kbd {
 }
 
 /* כותרות בכיוון מעורב (עברית/אנגלית) מיושרות לכיוון הממשק, לא לכיוון הטקסט. */
-:where([dir='rtl'] [dir='auto']) {
+:where([dir="rtl"] [dir="auto"]) {
   text-align: right;
 }
 
-:where([dir='ltr'] [dir='auto']) {
+:where([dir="ltr"] [dir="auto"]) {
   text-align: left;
 }
 
@@ -1556,7 +1560,7 @@ kbd {
 .week-row.is-holiday .week-row-title::before {
   margin-inline-end: 0.3em;
   color: var(--color-tertiary);
-  content: '●';
+  content: "●";
 }
 
 .week-row-main {
@@ -1757,7 +1761,7 @@ kbd {
   margin-inline-start: auto;
   font-size: 0.8em;
   color: var(--color-on-surface-variant);
-  content: '▾';
+  content: "▾";
   transition: transform var(--motion);
 }
 
@@ -2308,7 +2312,7 @@ kbd {
   animation: toast-in 220ms cubic-bezier(0.2, 0, 0, 1);
 }
 
-[dir='rtl'] .toast {
+[dir="rtl"] .toast {
   padding: var(--space-2) var(--space-4) var(--space-2) var(--space-2);
 }
 
@@ -2435,7 +2439,7 @@ kbd {
   padding: var(--space-3) var(--space-3) var(--space-2) var(--space-4);
 }
 
-[dir='rtl'] .dialog-head {
+[dir="rtl"] .dialog-head {
   padding: var(--space-3) var(--space-4) var(--space-2) var(--space-3);
 }
 
@@ -2846,7 +2850,7 @@ kbd {
     border-color var(--motion);
 }
 
-[dir='rtl'] .series-row {
+[dir="rtl"] .series-row {
   padding: 0 var(--space-2) 0 var(--space-3);
 }
 
@@ -3099,12 +3103,12 @@ kbd {
     background var(--motion);
 }
 
-.switch[aria-checked='true'] {
+.switch[aria-checked="true"] {
   background: var(--color-primary);
   border-color: var(--color-primary);
 }
 
-.switch[aria-checked='true'] .switch-thumb {
+.switch[aria-checked="true"] .switch-thumb {
   inset-inline-start: 1.5em;
   width: 1.3em;
   height: 1.3em;

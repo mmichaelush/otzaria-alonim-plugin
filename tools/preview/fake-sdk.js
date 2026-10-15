@@ -10,21 +10,31 @@
 (function (root) {
   'use strict';
 
-  const enc = (s) => (typeof TextEncoder === 'function' ? new TextEncoder().encode(s) : Buffer.from(s));
+  const enc = (s) =>
+    typeof TextEncoder === 'function' ? new TextEncoder().encode(s) : Buffer.from(s);
 
   /** PDF מינימלי תקין, מרופד לפחות ל-2KB (התוסף דוחה קובץ קטן מ-1KB). */
   function minimalPdf(label) {
-    const body = '%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj\n' +
+    const body =
+      '%PDF-1.4\n1 0 obj<</Type/Catalog/Pages 2 0 R>>endobj\n2 0 obj<</Type/Pages/Kids[3 0 R]/Count 1>>endobj\n' +
       '3 0 obj<</Type/Page/Parent 2 0 R/MediaBox[0 0 300 200]/Contents 4 0 R/Resources<</Font<</F1 5 0 R>>>>>>endobj\n' +
-      '4 0 obj<</Length 60>>stream\nBT /F1 18 Tf 20 100 Td (' + String(label || 'Alonim').replace(/[()\\]/g, '') + ') Tj ET\nendstream endobj\n' +
+      '4 0 obj<</Length 60>>stream\nBT /F1 18 Tf 20 100 Td (' +
+      String(label || 'Alonim').replace(/[()\\]/g, '') +
+      ') Tj ET\nendstream endobj\n' +
       '5 0 obj<</Type/Font/Subtype/Type1/BaseFont/Helvetica>>endobj\n';
-    return body + '%' + 'x'.repeat(Math.max(0, 2200 - body.length)) + '\ntrailer<</Root 1 0 R/Size 6>>\n%%EOF\n';
+    return (
+      body +
+      '%' +
+      'x'.repeat(Math.max(0, 2200 - body.length)) +
+      '\ntrailer<</Root 1 0 R/Size 6>>\n%%EOF\n'
+    );
   }
 
   /** כתובת שאפשר לעשות לה fetch (כמו שרת הקבצים של אוצריא), בלי שרת. */
   function dataUrl(content) {
     const text = typeof content === 'string' ? content : '';
-    const b64 = typeof Buffer === 'function' ? Buffer.from(text, 'latin1').toString('base64') : btoa(text);
+    const b64 =
+      typeof Buffer === 'function' ? Buffer.from(text, 'latin1').toString('base64') : btoa(text);
     return 'data:application/pdf;base64,' + b64;
   }
 
@@ -35,7 +45,8 @@
     const sleep = o.sleep || ((ms) => new Promise((r) => setTimeout(r, ms)));
     /** נתיב יחסי לבסיס הקטלוג → טקסט. */
     const catalog = o.catalog || {};
-    const base = o.base || 'https://raw.githubusercontent.com/mmichaelush/otzaria-alonim-plugin/data/';
+    const base =
+      o.base || 'https://raw.githubusercontent.com/mmichaelush/otzaria-alonim-plugin/data/';
 
     const sdk = {
       calls: [],
@@ -95,12 +106,21 @@
         const rest = path.slice(prefix.length);
         const name = rest.split('/')[0];
         if (rest.includes('/')) {
-          if (!seen.has(name)) seen.set(name, { name, abs: prefix + name, type: 'dir', size: 0, modified: null });
+          if (!seen.has(name))
+            seen.set(name, { name, abs: prefix + name, type: 'dir', size: 0, modified: null });
         } else {
-          seen.set(name, { name, abs: path, type: entry.type, size: entry.size, modified: entry.modified });
+          seen.set(name, {
+            name,
+            abs: path,
+            type: entry.type,
+            size: entry.size,
+            modified: entry.modified,
+          });
         }
       }
-      return [...seen.values()].sort((a, b) => (a.type === b.type ? a.name.localeCompare(b.name) : a.type === 'dir' ? -1 : 1));
+      return [...seen.values()].sort((a, b) =>
+        a.type === b.type ? a.name.localeCompare(b.name) : a.type === 'dir' ? -1 : 1,
+      );
     }
 
     function inApproved(abs) {
@@ -121,18 +141,33 @@
         const size = enc(p.content).length;
         if (size > 10 * 1024 * 1024) return err('error.too_large');
         const prev = sdk.privateFs.get(p.path);
-        if (used() - (prev ? prev.size : 0) + size > sdk.quota) return err('error.too_large', 'quota');
+        if (used() - (prev ? prev.size : 0) + size > sdk.quota)
+          return err('error.too_large', 'quota');
         sdk.privateFs.set(p.path, { content: p.content, size });
         return { path: p.path, size, usedBytes: used(), quotaBytes: sdk.quota };
       },
       'fs.readFile': (p) => {
         const f = sdk.privateFs.get(p.path);
-        return f ? { path: p.path, encoding: 'utf8', size: f.size, content: f.content } : err('error.not_found');
+        return f
+          ? { path: p.path, encoding: 'utf8', size: f.size, content: f.content }
+          : err('error.not_found');
       },
-      'fs.listDir': (p) => ({ entries: [...sdk.privateFs.keys()].filter((k) => !p.path || k.startsWith(p.path + '/')).map((k) => ({ path: k, name: k.split('/').pop(), type: 'file', size: sdk.privateFs.get(k).size })), usedBytes: used(), quotaBytes: sdk.quota }),
+      'fs.listDir': (p) => ({
+        entries: [...sdk.privateFs.keys()]
+          .filter((k) => !p.path || k.startsWith(p.path + '/'))
+          .map((k) => ({
+            path: k,
+            name: k.split('/').pop(),
+            type: 'file',
+            size: sdk.privateFs.get(k).size,
+          })),
+        usedBytes: used(),
+        quotaBytes: sdk.quota,
+      }),
       'fs.deleteEntry': (p) => {
         let n = 0;
-        for (const k of [...sdk.privateFs.keys()]) if (k === p.path || k.startsWith(p.path + '/')) (sdk.privateFs.delete(k), n++);
+        for (const k of [...sdk.privateFs.keys()])
+          if (k === p.path || k.startsWith(p.path + '/')) (sdk.privateFs.delete(k), n++);
         return n > 0;
       },
       'fs.stat': (p) => (sdk.privateFs.has(p.path) ? { exists: true } : { exists: false }),
@@ -152,10 +187,27 @@
         if (/\.\./.test(p.path || '')) return err('error.forbidden');
         const exts = (p.extensions || []).map((e) => e.replace(/^\./, '').toLowerCase());
         const entries = children(abs)
-          .filter((e) => e.type === 'dir' || !exts.length || exts.includes(e.name.split('.').pop().toLowerCase()))
+          .filter(
+            (e) =>
+              e.type === 'dir' ||
+              !exts.length ||
+              exts.includes(e.name.split('.').pop().toLowerCase()),
+          )
           .filter((e) => !e.name.startsWith('.'))
-          .map((e) => ({ name: e.name, path: (p.path ? p.path + '/' : '') + e.name, type: e.type, size: e.size, modified: e.modified }));
-        return { folderToken: p.folderToken, name: f.name, path: p.path || '', entries, truncated: false };
+          .map((e) => ({
+            name: e.name,
+            path: (p.path ? p.path + '/' : '') + e.name,
+            type: e.type,
+            size: e.size,
+            modified: e.modified,
+          }));
+        return {
+          folderToken: p.folderToken,
+          name: f.name,
+          path: p.path || '',
+          entries,
+          truncated: false,
+        };
       },
       'fs.openFolderFile': (p) => {
         const f = folderFor(p.folderToken);
@@ -165,7 +217,14 @@
         if (!file) return err('error.not_found');
         const token = 'file-' + p.path.length + '-' + file.size;
         sdk.fileTokens.set(token, file.content);
-        return { cancelled: false, token, url: o.fileUrl ? o.fileUrl(abs, file) : dataUrl(file.content), name: p.path.split('/').pop(), size: file.size, access: 'read' };
+        return {
+          cancelled: false,
+          token,
+          url: o.fileUrl ? o.fileUrl(abs, file) : dataUrl(file.content),
+          name: p.path.split('/').pop(),
+          size: file.size,
+          access: 'read',
+        };
       },
       'fs.deleteFile': (p) => {
         if (!inApproved(p.path)) return err('error.forbidden');
@@ -186,14 +245,23 @@
       'network.download': async (p) => {
         sdk.downloads.push(p);
         if (o.downloadDelay) await sleep(o.downloadDelay);
-        if (scenario === 'download-blocked' || scenario === 'blocked') return err('error.forbidden', 'URL not in allowlist');
-        if (!inApproved(p.destPath)) return err('error.forbidden', 'destPath outside approved folder');
+        if (scenario === 'download-blocked' || scenario === 'blocked')
+          return err('error.forbidden', 'URL not in allowlist');
+        if (!inApproved(p.destPath))
+          return err('error.forbidden', 'destPath outside approved folder');
         const html = scenario === 'download-html';
-        let content = html ? '<html>' + 'x'.repeat(2000) + '</html>' : minimalPdf(p.destPath.split('/').pop());
+        let content = html
+          ? '<html>' + 'x'.repeat(2000) + '</html>'
+          : minimalPdf(p.destPath.split('/').pop());
         // גודל כמו בקטלוג (כדי שבדיקת "ההורדה נקטעה" תעבור על קובץ תקין).
         const wanted = o.sizeFor ? o.sizeFor(p.url) : 0;
         if (wanted > content.length) content = content + '%'.padEnd(wanted - content.length, 'x');
-        sdk.userFs.set(p.destPath, { type: 'file', size: content.length, modified: new Date(now()).toISOString(), content });
+        sdk.userFs.set(p.destPath, {
+          type: 'file',
+          size: content.length,
+          modified: new Date(now()).toISOString(),
+          content,
+        });
         return { path: p.destPath.replace(/\//g, '\\'), filename: p.destPath.split('/').pop() };
       },
 
@@ -203,15 +271,34 @@
         : async (p) => {
             sdk.fetchedFiles.push(p);
             if (o.downloadDelay) await sleep(o.downloadDelay);
-            if (scenario === 'fetchfile-blocked' || scenario === 'blocked' || scenario === 'download-blocked') return err('error.forbidden', 'URL not in allowlist');
-            if (!/^https:\/\/(ladaat\.co|tashma\.co\.il|gilyoines\.com|alonolam\.com)\//.test(String(p.url))) return err('error.forbidden', 'URL not in allowlist');
+            if (
+              scenario === 'fetchfile-blocked' ||
+              scenario === 'blocked' ||
+              scenario === 'download-blocked'
+            )
+              return err('error.forbidden', 'URL not in allowlist');
+            if (
+              !/^https:\/\/(ladaat\.co|tashma\.co\.il|gilyoines\.com|alonolam\.com)\//.test(
+                String(p.url),
+              )
+            )
+              return err('error.forbidden', 'URL not in allowlist');
             const html = scenario === 'fetchfile-html';
-            let content = html ? '<html>' + 'x'.repeat(2000) + '</html>' : minimalPdf(String(p.url).split('/').pop());
+            let content = html
+              ? '<html>' + 'x'.repeat(2000) + '</html>'
+              : minimalPdf(String(p.url).split('/').pop());
             const wanted = o.sizeFor ? o.sizeFor(p.url) : 0;
-            if (!html && wanted > content.length) content = content + '%'.padEnd(wanted - content.length, 'x');
+            if (!html && wanted > content.length)
+              content = content + '%'.padEnd(wanted - content.length, 'x');
             const token = 'remote-' + sdk.fetchedFiles.length;
             sdk.fileTokens.set(token, content);
-            return { token, url: dataUrl(content), name: String(p.url).split('/').pop() || 'file.pdf', size: content.length, mime: html ? 'text/html' : 'application/pdf' };
+            return {
+              token,
+              url: dataUrl(content),
+              name: String(p.url).split('/').pop() || 'file.pdf',
+              size: content.length,
+              mime: html ? 'text/html' : 'application/pdf',
+            };
           },
       'ui.printFile': legacyHost
         ? undefined
@@ -231,15 +318,30 @@
         sdk.openedUrls.push(p.url);
         return true;
       },
-      'app.getConnectivity': () => ({ isOfflineMode: scenario === 'offline', hasNetwork: scenario !== 'offline', isOnline: scenario !== 'offline' }),
+      'app.getConnectivity': () => ({
+        isOfflineMode: scenario === 'offline',
+        hasNetwork: scenario !== 'offline',
+        isOnline: scenario !== 'offline',
+      }),
 
-      'library.refreshUserBooks': () => (scenario === 'reader-permission' ? err('permission_denied') : { addedBooks: 1, updatedBooks: 0, errors: [] }),
+      'library.refreshUserBooks': () =>
+        scenario === 'reader-permission'
+          ? err('permission_denied')
+          : { addedBooks: 1, updatedBooks: 0, errors: [] },
       'library.findBooks': (p) => {
         if (scenario === 'reader-permission') return err('permission_denied');
         const hits = [];
         for (const path of sdk.userFs.keys()) {
-          const name = path.split('/').pop().replace(/\.pdf$/i, '');
-          if (path.endsWith('.pdf') && !path.includes('/_קריאה/') && name.includes(String(p.query).replace(/[[\]]/g, ''))) hits.push({ bookId: name, title: name, bookUid: 'uid:' + hits.length, type: 'pdf' });
+          const name = path
+            .split('/')
+            .pop()
+            .replace(/\.pdf$/i, '');
+          if (
+            path.endsWith('.pdf') &&
+            !path.includes('/_קריאה/') &&
+            name.includes(String(p.query).replace(/[[\]]/g, ''))
+          )
+            hits.push({ bookId: name, title: name, bookUid: 'uid:' + hits.length, type: 'pdf' });
         }
         return hits;
       },
@@ -258,13 +360,16 @@
         sdk.rateLimited++;
         return err('error.rate_limited');
       }
-      if (scenario === 'rate-limit' && sdk.calls.length % 7 === 0 && !o.noInjectedLimit) return err('error.rate_limited');
+      if (scenario === 'rate-limit' && sdk.calls.length % 7 === 0 && !o.noInjectedLimit)
+        return err('error.rate_limited');
       const fn = methods[method];
       if (!fn) return err('error.unknown_method');
       let result = fn(payload || {});
       if (result && typeof result.then === 'function') result = await result;
-      if (result && typeof result === 'object' && result.success === false && result.error) return result;
-      if (result && typeof result === 'object' && result.success === true && 'data' in result) return result;
+      if (result && typeof result === 'object' && result.success === false && result.error)
+        return result;
+      if (result && typeof result === 'object' && result.success === true && 'data' in result)
+        return result;
       return ok(result);
     };
 
@@ -281,14 +386,16 @@
         if (scenario === 'blocked') throw new Error('הכתובת אינה ברשימת ההיתר של אוצריא');
         const path = String(params.url).slice(base.length).split('?')[0];
         let text = catalog[path];
-        if (path === 'manifest.json' && scenario === 'bad-schema') text = JSON.stringify({ schema: 99 });
+        if (path === 'manifest.json' && scenario === 'bad-schema')
+          text = JSON.stringify({ schema: 99 });
         if (text === undefined) {
           yield { type: 'response', sequence: 0, status: 404, ok: false, headers: {} };
           return;
         }
         yield { type: 'response', sequence: 0, status: 200, ok: true, headers: {} };
         const size = 64 * 1024;
-        for (let i = 0, n = 1; i < text.length; i += size, n++) yield { type: 'data', sequence: n, body: text.slice(i, i + size) };
+        for (let i = 0, n = 1; i < text.length; i += size, n++)
+          yield { type: 'data', sequence: n, body: text.slice(i, i + size) };
       })();
       let closed = false;
       return {
@@ -314,7 +421,12 @@
     /** שם קובץ בתיקיית המשתמש, לבדיקות. */
     sdk.putFile = (rel, content) => {
       const text = content === undefined ? minimalPdf(rel) : content;
-      sdk.userFs.set(folderRoot + '/' + rel, { type: 'file', size: text.length, modified: new Date(now()).toISOString(), content: text });
+      sdk.userFs.set(folderRoot + '/' + rel, {
+        type: 'file',
+        size: text.length,
+        modified: new Date(now()).toISOString(),
+        content: text,
+      });
     };
     sdk.methods = methods;
     return sdk;

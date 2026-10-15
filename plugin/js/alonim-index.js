@@ -47,7 +47,12 @@
         raw.push({ or: true });
         continue;
       }
-      raw.push({ field: useField, body, neg: m[1] === '-', phrase: quoted !== undefined && /\s/.test(quoted.trim()) });
+      raw.push({
+        field: useField,
+        body,
+        neg: m[1] === '-',
+        phrase: quoted !== undefined && /\s/.test(quoted.trim()),
+      });
     }
     const clauses = [];
     const tokens = [];
@@ -59,7 +64,8 @@
       }
       const term = makeTerm(part);
       if (!term) continue;
-      if (!term.neg && (!term.field || term.field === 'series')) for (const w of term.norm.split(' ')) if (w) tokens.push(w);
+      if (!term.neg && (!term.field || term.field === 'series'))
+        for (const w of term.norm.split(' ')) if (w) tokens.push(w);
       if (pendingOr && clauses.length) clauses[clauses.length - 1].alts.push(term);
       else clauses.push({ alts: [term] });
       pendingOr = false;
@@ -70,7 +76,15 @@
   function makeTerm(part) {
     const body = String(part.body || '').trim();
     if (!body) return null;
-    const term = { field: part.field, neg: part.neg, norm: skey(body), needle: '', phrase: part.phrase, from: 0, to: 0 };
+    const term = {
+      field: part.field,
+      neg: part.neg,
+      norm: skey(body),
+      needle: '',
+      phrase: part.phrase,
+      from: 0,
+      to: 0,
+    };
     if (part.field === 'year') {
       // שנה, או טווח "5785-5787" / "תשפ״ה-תשפ״ז" (מספרים או אותיות, בכל שילוב).
       const ends = body.split(/\s*(?:-|\.\.|–|־)\s*/);
@@ -212,7 +226,18 @@
       let k = this.seriesIdx.get(id);
       if (k === undefined) {
         k = this.seriesArr.length;
-        this.seriesArr.push({ id, title: '', _norm: '', _ntitle: '', _skey: '', _nc: '', circle: '', lang: '', _lang: 0, placeholder: true });
+        this.seriesArr.push({
+          id,
+          title: '',
+          _norm: '',
+          _ntitle: '',
+          _skey: '',
+          _nc: '',
+          circle: '',
+          lang: '',
+          _lang: 0,
+          placeholder: true,
+        });
         this.seriesIdx.set(id, k);
       }
       return k;
@@ -245,7 +270,9 @@
     }
 
     setWeeks(list) {
-      this.weeks = (Array.isArray(list) ? list : []).filter((w) => w && w.date).sort((a, b) => (a.date < b.date ? -1 : 1));
+      this.weeks = (Array.isArray(list) ? list : [])
+        .filter((w) => w && w.date)
+        .sort((a, b) => (a.date < b.date ? -1 : 1));
       this._derived = null;
       this._calendar = null;
       this.version++;
@@ -253,7 +280,9 @@
 
     /** שורות לוח של שנים ישנות (`weeks-archive.json`); מצטרפות ללוח הרגיל. */
     setWeeksArchive(list) {
-      this.weeksOld = (Array.isArray(list) ? list : []).filter((w) => w && w.date).sort((a, b) => (a.date < b.date ? -1 : 1));
+      this.weeksOld = (Array.isArray(list) ? list : [])
+        .filter((w) => w && w.date)
+        .sort((a, b) => (a.date < b.date ? -1 : 1));
       this._derived = null;
       this._calendar = null;
       this.version++;
@@ -263,7 +292,9 @@
     calendar() {
       if (!this.weeksOld.length) return this.weeks;
       if (!this._calendar || this._calendarVersion !== this.version) {
-        this._calendar = this.weeksOld.concat(this.weeks).sort((a, b) => (a.date < b.date ? -1 : 1));
+        this._calendar = this.weeksOld
+          .concat(this.weeks)
+          .sort((a, b) => (a.date < b.date ? -1 : 1));
         this._calendarVersion = this.version;
       }
       return this._calendar;
@@ -282,7 +313,11 @@
     setSources(list) {
       this.sourceTemplate = new Map();
       for (const x of Array.isArray(list) ? list : []) {
-        if (x && x.id) this.sourceTemplate.set(x.id, Boolean(x.urlTemplates && typeof x.urlTemplates.url === 'string'));
+        if (x && x.id)
+          this.sourceTemplate.set(
+            x.id,
+            Boolean(x.urlTemplates && typeof x.urlTemplates.url === 'string'),
+          );
       }
       this._mat.clear();
       this.version++;
@@ -312,8 +347,12 @@
 
     _parashaHay(p1, p2, ev) {
       return this._part('p' + p1 + '/' + p2 + '/' + ev, () => {
-        const names = [p1, p2].filter(Boolean).map((p) => (Core.PARASHOT[this.parashot.get(p)] || '') + ' ' + this.parashot.get(p));
-        const event = ev ? (Core.EVENTS[this.events.get(ev)] || '') + ' ' + this.events.get(ev) : '';
+        const names = [p1, p2]
+          .filter(Boolean)
+          .map((p) => (Core.PARASHOT[this.parashot.get(p)] || '') + ' ' + this.parashot.get(p));
+        const event = ev
+          ? (Core.EVENTS[this.events.get(ev)] || '') + ' ' + this.events.get(ev)
+          : '';
         return ' ' + skey(names.join(' ') + ' ' + event) + ' ';
       });
     }
@@ -340,17 +379,29 @@
     }
 
     _yearHay(hy) {
-      return this._part('y' + hy, () => (hy ? ' ' + hy + ' ' + skey(Core.hyLetters(hy)) + ' ' + (hy % 1000) + ' ' : ' '));
+      return this._part('y' + hy, () =>
+        hy ? ' ' + hy + ' ' + skey(Core.hyLetters(hy)) + ' ' + (hy % 1000) + ' ' : ' ',
+      );
     }
 
     _langHay(lang) {
-      return this._part('l' + lang, () => ' ' + this.langs.get(lang) + ' ' + skey(Core.LANG_NAMES[this.langs.get(lang)] || '') + ' ');
+      return this._part(
+        'l' + lang,
+        () =>
+          ' ' +
+          this.langs.get(lang) +
+          ' ' +
+          skey(Core.LANG_NAMES[this.langs.get(lang)] || '') +
+          ' ',
+      );
     }
 
     _srcHay(mask) {
       return this._part('s' + mask, () => {
         let text = '';
-        for (const [id, bit] of this.sourceBits) if (mask & (1 << bit)) text += ' ' + id + ' ' + (this.names.source ? this.names.source(id) || '' : '');
+        for (const [id, bit] of this.sourceBits)
+          if (mask & (1 << bit))
+            text += ' ' + id + ' ' + (this.names.source ? this.names.source(id) || '' : '');
         return ' ' + skey(text) + ' ';
       });
     }
@@ -415,7 +466,8 @@
         this.dayc[i] = dayOf(raw.date);
         this.addedc[i] = raw.added ? Math.floor((Date.parse(raw.added) || 0) / 1000) : 0;
         this.archc[i] = raw.archive === true ? 1 : 0;
-        if (Array.isArray(raw.previousIds) && raw.previousIds.length) this._addAliases(raw.id, raw.previousIds);
+        if (Array.isArray(raw.previousIds) && raw.previousIds.length)
+          this._addAliases(raw.id, raw.previousIds);
         this.newc[i] = this.archc[i] ? 0 : this.addedc[i];
         this.noc[i] = raw.no || 0;
         this.p1[i] = this.parashot.id(parasha[0]);
@@ -456,7 +508,8 @@
       this._facets = null;
       this._fragMap = null;
       this.version++;
-      this.lastBuildMs = (typeof performance !== 'undefined' ? performance.now() : Date.now()) - started;
+      this.lastBuildMs =
+        (typeof performance !== 'undefined' ? performance.now() : Date.now()) - started;
       return added;
     }
 
@@ -464,7 +517,8 @@
     _addAliases(id, olds) {
       let known = this.issuePrev.get(id);
       for (const old of olds) {
-        if (typeof old !== 'string' || !old || old === id || this.issueAlias.get(old) === id) continue;
+        if (typeof old !== 'string' || !old || old === id || this.issueAlias.get(old) === id)
+          continue;
         this.issueAlias.set(old, id);
         if (!known) this.issuePrev.set(id, (known = []));
         known.push(old);
@@ -475,7 +529,8 @@
     /** המזהה הנוכחי של גיליון שמזהה ישן (עד כמה צעדים); מזהה לא מוכר חוזר כמות שהוא. */
     resolveIssueId(id) {
       let current = id;
-      for (let step = 0; step < 5 && this.issueAlias.has(current); step++) current = this.issueAlias.get(current);
+      for (let step = 0; step < 5 && this.issueAlias.has(current); step++)
+        current = this.issueAlias.get(current);
       return current;
     }
 
@@ -545,7 +600,17 @@
     }
 
     _scratch() {
-      return { id: '', series: '', lang: '', title: '', srcs: [], _ns: '', _nall: undefined, _nc: '', _i: 0 };
+      return {
+        id: '',
+        series: '',
+        lang: '',
+        title: '',
+        srcs: [],
+        _ns: '',
+        _nall: undefined,
+        _nc: '',
+        _i: 0,
+      };
     }
 
     _fill(v, i) {
@@ -587,7 +652,12 @@
 
     decision(item) {
       const i = item._i !== undefined && item._i >= 0 ? item._i : this.idToI.get(item.id);
-      if (i === undefined) return this._compiled.decide({ ...item, srcs: (item.assets || []).map((a) => a.src), seriesTitle: item.seriesTitle });
+      if (i === undefined)
+        return this._compiled.decide({
+          ...item,
+          srcs: (item.assets || []).map((a) => a.src),
+          seriesTitle: item.seriesTitle,
+        });
       return this._compiled.decide(this._fill(this._scratch(), i));
     }
 
@@ -637,7 +707,8 @@
       if (key === 'size') {
         const maxKb = (i) => {
           let m = 0;
-          for (let k = this.astart[i]; k < this.astart[i] + this.acount[i]; k++) if (this.aKb[k] > m) m = this.aKb[k];
+          for (let k = this.astart[i]; k < this.astart[i] + this.acount[i]; k++)
+            if (this.aKb[k] > m) m = this.aKb[k];
           return m;
         };
         return (a, b) => maxKb(b) - maxKb(a) || byDate(a, b);
@@ -683,7 +754,8 @@
         let a = 0;
         let b = 0;
         let k = 0;
-        while (a < order.length && b < extra.length) merged[k++] = cmp(order[a], extra[b]) <= 0 ? order[a++] : extra[b++];
+        while (a < order.length && b < extra.length)
+          merged[k++] = cmp(order[a], extra[b]) <= 0 ? order[a++] : extra[b++];
         while (a < order.length) merged[k++] = order[a++];
         while (b < extra.length) merged[k++] = extra[b++];
         this._orders.set(key, merged);
@@ -725,7 +797,13 @@
       const s = this.seriesArr[this.sidx[i]];
       const assets = [];
       for (let k = this.astart[i]; k < this.astart[i] + this.acount[i]; k++) {
-        assets.push({ src: this.sourceNames[this.aSrc[k]], bytes: this.aKb[k] * 1024, pages: this.aPages[k] || undefined, downloads: this.aDl[k] || undefined, noUrl: this.aNoUrl[k] === 1 && !this.sourceTemplate.get(this.sourceNames[this.aSrc[k]]) });
+        assets.push({
+          src: this.sourceNames[this.aSrc[k]],
+          bytes: this.aKb[k] * 1024,
+          pages: this.aPages[k] || undefined,
+          downloads: this.aDl[k] || undefined,
+          noUrl: this.aNoUrl[k] === 1 && !this.sourceTemplate.get(this.sourceNames[this.aSrc[k]]),
+        });
       }
       const title = this.titlec[i] ? this.titles[this.titlec[i]] : s.title;
       const parasha = [this.p1[i], this.p2[i]].filter(Boolean).map((p) => this.parashot.get(p));
@@ -777,7 +855,8 @@
         // קובץ שהורד לפני ששם הגיליון השתנה: הקידומת הישנה מובילה לגיליון הנוכחי.
         for (const [old, id] of this.issueAlias) {
           const i = this.idToI.get(this.resolveIssueId(id));
-          if (i !== undefined && !this._fragMap.has(Core.idFragment(old))) this._fragMap.set(Core.idFragment(old), i);
+          if (i !== undefined && !this._fragMap.has(Core.idFragment(old)))
+            this._fragMap.set(Core.idFragment(old), i);
         }
       }
       const i = this._fragMap.get(fragment);
@@ -786,7 +865,9 @@
 
     /** גיליונות הסדרה, מהחדש לישן (לפי תאריך, אחר כך זמן הוספה). */
     issuesOfSeries(seriesId, includeHidden) {
-      const list = (this.bySeries.get(this.resolveSeriesId(seriesId)) || []).filter((i) => includeHidden || this.vis[i] === 1);
+      const list = (this.bySeries.get(this.resolveSeriesId(seriesId)) || []).filter(
+        (i) => includeHidden || this.vis[i] === 1,
+      );
       const day = this.dayc;
       const added = this.addedc;
       return list.sort((a, b) => day[b] - day[a] || added[b] - added[a] || a - b);
@@ -815,11 +896,21 @@
       for (const [day, list] of this.byDay) {
         if (day >= first && day <= last) continue;
         const i = list[0];
-        const parasha = [this.parashot.get(this.p1[i]), this.parashot.get(this.p2[i])].filter(Boolean);
+        const parasha = [this.parashot.get(this.p1[i]), this.parashot.get(this.p2[i])].filter(
+          Boolean,
+        );
         const event = this.events.get(this.evc[i]) || null;
         const dow = new Date(day * DAY_MS).getUTCDay();
         if (dow !== 6 && !event) continue; // יום חול בלי אירוע: אינו שבוע
-        rows.push({ date: dateOfDay(day), hy: this.hyc[i] || 0, parasha, parashaIL: parasha, event, shabbat: dow === 6, derived: true });
+        rows.push({
+          date: dateOfDay(day),
+          hy: this.hyc[i] || 0,
+          parasha,
+          parashaIL: parasha,
+          event,
+          shabbat: dow === 6,
+          derived: true,
+        });
       }
       this._derived = rows.sort((a, b) => (a.date < b.date ? -1 : 1));
       this._derivedVersion = this.version;
@@ -830,7 +921,9 @@
     allWeeks() {
       const derived = this.derivedWeeks();
       const calendar = this.calendar();
-      return derived.length ? calendar.concat(derived).sort((a, b) => (a.date < b.date ? -1 : 1)) : calendar;
+      return derived.length
+        ? calendar.concat(derived).sort((a, b) => (a.date < b.date ? -1 : 1))
+        : calendar;
     }
 
     weekFor(dateText) {
@@ -842,7 +935,9 @@
     /** כל הסדרות, מסודרות א-ב (עברית קודם), עם `_norm` לחיפוש. */
     seriesList() {
       const rank = (s) => (/^[֐-׿]/.test(s._ntitle) ? 0 : 1);
-      return [...this.seriesById.values()].sort((a, b) => rank(a) - rank(b) || (a._ntitle < b._ntitle ? -1 : a._ntitle > b._ntitle ? 1 : 0));
+      return [...this.seriesById.values()].sort(
+        (a, b) => rank(a) - rank(b) || (a._ntitle < b._ntitle ? -1 : a._ntitle > b._ntitle ? 1 : 0),
+      );
     }
 
     /** סדרות לפי טקסט ומסננים: `{ circle, lang }`. */
@@ -855,7 +950,9 @@
         if (f.lang && s.lang !== f.lang) return false;
         if (predicate && !predicate(s)) return false;
         const hay = ' ' + s._norm + ' ';
-        return terms.every((term) => (term.neg ? !hay.includes(' ' + term.norm) : hay.includes(' ' + term.norm)));
+        return terms.every((term) =>
+          term.neg ? !hay.includes(' ' + term.norm) : hay.includes(' ' + term.norm),
+        );
       });
     }
 

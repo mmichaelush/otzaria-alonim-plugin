@@ -8,7 +8,18 @@
   const A = (root.Alonim = root.Alonim || {});
 
   /** השיטות של מסך שנעטפות. כל מה שלא קיים במחלקה מדולג. */
-  const GUARDED = Object.freeze(['mount', 'render', 'refresh', 'layout', 'run', 'schedule', 'renderPage', 'layoutPage', 'runList', 'renderHead']);
+  const GUARDED = Object.freeze([
+    'mount',
+    'render',
+    'refresh',
+    'layout',
+    'run',
+    'schedule',
+    'renderPage',
+    'layoutPage',
+    'runList',
+    'renderHead',
+  ]);
 
   const guarded = new WeakSet();
 
@@ -26,7 +37,8 @@
         try {
           const result = original.apply(this, args);
           // שיטה אסינכרונית: כשל בהבטחה נתפס כמו כשל סינכרוני.
-          if (result && typeof result.catch === 'function') return result.catch((error) => onError(this, name, error));
+          if (result && typeof result.catch === 'function')
+            return result.catch((error) => onError(this, name, error));
           return result;
         } catch (error) {
           onError(this, name, error);

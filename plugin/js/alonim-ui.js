@@ -27,7 +27,11 @@
   function append(node, children) {
     for (const child of children.flat(Infinity)) {
       if (child === null || child === undefined || child === false) continue;
-      node.appendChild(typeof child === 'string' || typeof child === 'number' ? document.createTextNode(String(child)) : child);
+      node.appendChild(
+        typeof child === 'string' || typeof child === 'number'
+          ? document.createTextNode(String(child))
+          : child,
+      );
     }
     return node;
   }
@@ -40,7 +44,11 @@
     const nodes = [];
     for (const child of children.flat(Infinity)) {
       if (child === null || child === undefined || child === false) continue;
-      nodes.push(typeof child === 'string' || typeof child === 'number' ? document.createTextNode(String(child)) : child);
+      nodes.push(
+        typeof child === 'string' || typeof child === 'number'
+          ? document.createTextNode(String(child))
+          : child,
+      );
     }
     node.replaceChildren(...nodes);
     return node;
@@ -61,7 +69,11 @@
         'aria-pressed': o.pressed === undefined ? null : String(Boolean(o.pressed)),
         dataset: o.key ? { key: o.key } : undefined,
       },
-      o.busy ? el('span', { class: 'spinner', 'aria-hidden': 'true' }) : o.icon ? icon(o.icon) : null,
+      o.busy
+        ? el('span', { class: 'spinner', 'aria-hidden': 'true' })
+        : o.icon
+          ? icon(o.icon)
+          : null,
       o.busy && o.busyLabel ? o.busyLabel : label,
     );
   }
@@ -120,8 +132,14 @@
   function selectField(label, options, value, onChange, className) {
     return el(
       'select',
-      { class: 'select ' + (className || ''), 'aria-label': label, onchange: (e) => onChange(e.target.value) },
-      options.map((o) => el('option', { value: o.value, selected: String(o.value) === String(value) }, o.label)),
+      {
+        class: 'select ' + (className || ''),
+        'aria-label': label,
+        onchange: (e) => onChange(e.target.value),
+      },
+      options.map((o) =>
+        el('option', { value: o.value, selected: String(o.value) === String(value) }, o.label),
+      ),
     );
   }
 
@@ -148,15 +166,27 @@
       { class: 'state-card' + (o.error ? ' is-error' : '') + (o.compact ? ' is-compact' : '') },
       el('div', { class: 'state-icon' }, icon(o.icon || 'info_24_regular', 'icon-lg')),
       el('h2', { class: 'state-title' }, o.title),
-      ...(Array.isArray(o.text) ? o.text : [o.text]).filter(Boolean).map((line) => el('p', { class: 'state-text' }, line)),
-      o.steps && o.steps.length ? el('ol', { class: 'state-steps' }, o.steps.map((s) => el('li', {}, s))) : null,
+      ...(Array.isArray(o.text) ? o.text : [o.text])
+        .filter(Boolean)
+        .map((line) => el('p', { class: 'state-text' }, line)),
+      o.steps && o.steps.length
+        ? el(
+            'ol',
+            { class: 'state-steps' },
+            o.steps.map((s) => el('li', {}, s)),
+          )
+        : null,
       o.actions && o.actions.length ? el('div', { class: 'state-actions' }, o.actions) : null,
       o.note ? el('p', { class: 'state-note' }, o.note) : null,
     );
   }
 
   /** מחלקות יציבות של כפתור (בלי מצב), כדי למצוא אותו אחרי בנייה מחדש. */
-  const stableClass = (node) => String(node.className).split(/\s+/).filter((c) => c && !c.startsWith('is-')).join(' ');
+  const stableClass = (node) =>
+    String(node.className)
+      .split(/\s+/)
+      .filter((c) => c && !c.startsWith('is-'))
+      .join(' ');
 
   /**
    * מריץ [fn] שבונה מחדש את תוכן [container], ומחזיר את המיקוד לאלמנט המקביל
@@ -167,17 +197,29 @@
     let key = null;
     if (active && active !== document.body && container.contains(active)) {
       const card = active.closest('[data-id]');
-      key = { id: card ? card.dataset.id : null, label: active.getAttribute('aria-label') || '', cls: stableClass(active), tag: active.tagName, isCard: active === card };
+      key = {
+        id: card ? card.dataset.id : null,
+        label: active.getAttribute('aria-label') || '',
+        cls: stableClass(active),
+        tag: active.tagName,
+        isCard: active === card,
+      };
     }
     fn();
     if (!key) return;
-    const scopes = key.id ? [...container.querySelectorAll('[data-id]')].filter((n) => n.dataset.id === key.id) : [container];
+    const scopes = key.id
+      ? [...container.querySelectorAll('[data-id]')].filter((n) => n.dataset.id === key.id)
+      : [container];
     for (const scope of scopes) {
       if (key.isCard) {
         scope.focus({ preventScroll: true });
         return;
       }
-      const match = [...scope.querySelectorAll(key.tag.toLowerCase())].find((n) => n.getAttribute('aria-label') === key.label) || [...scope.querySelectorAll(key.tag.toLowerCase())].find((n) => stableClass(n) === key.cls);
+      const match =
+        [...scope.querySelectorAll(key.tag.toLowerCase())].find(
+          (n) => n.getAttribute('aria-label') === key.label,
+        ) ||
+        [...scope.querySelectorAll(key.tag.toLowerCase())].find((n) => stableClass(n) === key.cls);
       if (match && !match.disabled) {
         match.focus({ preventScroll: true });
         return;
@@ -189,12 +231,26 @@
   function progress(percent, label, max, now) {
     const bar = el('div', { class: 'progress-bar' });
     bar.style.width = Math.max(0, Math.min(100, percent)) + '%';
-    return el('div', { class: 'progress', role: 'progressbar', 'aria-valuemin': '0', 'aria-valuemax': String(max === undefined ? 100 : max), 'aria-valuenow': String(now === undefined ? Math.round(percent) : now), 'aria-label': label }, bar);
+    return el(
+      'div',
+      {
+        class: 'progress',
+        role: 'progressbar',
+        'aria-valuemin': '0',
+        'aria-valuemax': String(max === undefined ? 100 : max),
+        'aria-valuenow': String(now === undefined ? Math.round(percent) : now),
+        'aria-label': label,
+      },
+      bar,
+    );
   }
 
   /** שלד טעינה: כרטיסים אפורים מהבהבים בזמן סנכרון ראשון. */
   function skeleton(count, mode) {
-    const wrap = el('div', { class: 'skeleton-list' + (mode === 'row' ? ' is-rows' : ''), 'aria-hidden': 'true' });
+    const wrap = el('div', {
+      class: 'skeleton-list' + (mode === 'row' ? ' is-rows' : ''),
+      'aria-hidden': 'true',
+    });
     for (let i = 0; i < count; i++) {
       wrap.appendChild(
         el(
@@ -229,9 +285,22 @@
         icon(o.error ? 'warning_24_regular' : 'checkmark_circle_24_regular'),
         el('span', { class: 'toast-text' }, message),
         o.action
-          ? el('button', { type: 'button', class: 'toast-action', onclick: () => { this.dismiss(); o.action.run(); } }, o.action.label)
+          ? el(
+              'button',
+              {
+                type: 'button',
+                class: 'toast-action',
+                onclick: () => {
+                  this.dismiss();
+                  o.action.run();
+                },
+              },
+              o.action.label,
+            )
           : null,
-        iconButton('dismiss_24_regular', t('סגירה'), () => this.dismiss(), { className: 'toast-close' }),
+        iconButton('dismiss_24_regular', t('סגירה'), () => this.dismiss(), {
+          className: 'toast-close',
+        }),
       );
       this.host.appendChild(node);
       this.current = node;
@@ -275,7 +344,8 @@
 
   // ---------------------------------------------------------- דיאלוג
 
-  const FOCUSABLE = 'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
+  const FOCUSABLE =
+    'a[href], button:not([disabled]), input:not([disabled]), select:not([disabled]), textarea:not([disabled]), [tabindex]:not([tabindex="-1"])';
 
   /** מחסנית הדיאלוגים הפתוחים: Esc סוגר את העליון. */
   const openDialogs = [];
@@ -289,12 +359,24 @@
     const opener = document.activeElement;
     const shell = document.querySelector('.app-shell');
     const titleId = 'dlg-' + Math.random().toString(36).slice(2, 8);
-    const closeButton = iconButton('dismiss_24_regular', t('סגירה'), () => api.close(), { className: 'dialog-close' });
+    const closeButton = iconButton('dismiss_24_regular', t('סגירה'), () => api.close(), {
+      className: 'dialog-close',
+    });
     const body = el('div', { class: 'dialog-body' }, o.body);
     const panel = el(
       'section',
-      { class: 'dialog' + (o.size ? ' is-' + o.size : ''), role: o.alert ? 'alertdialog' : 'dialog', 'aria-modal': 'true', 'aria-labelledby': titleId },
-      el('header', { class: 'dialog-head' }, el('h2', { class: 'dialog-title', id: titleId, dir: 'auto' }, o.title), closeButton),
+      {
+        class: 'dialog' + (o.size ? ' is-' + o.size : ''),
+        role: o.alert ? 'alertdialog' : 'dialog',
+        'aria-modal': 'true',
+        'aria-labelledby': titleId,
+      },
+      el(
+        'header',
+        { class: 'dialog-head' },
+        el('h2', { class: 'dialog-title', id: titleId, dir: 'auto' }, o.title),
+        closeButton,
+      ),
       body,
       o.actions && o.actions.length ? el('footer', { class: 'dialog-actions' }, o.actions) : null,
     );
@@ -313,7 +395,8 @@
         layer.classList.add('is-leaving');
         setTimeout(() => layer.remove(), 160);
         if (!openDialogs.length && shell) shell.inert = false;
-        if (opener && typeof opener.focus === 'function' && document.contains(opener)) opener.focus();
+        if (opener && typeof opener.focus === 'function' && document.contains(opener))
+          opener.focus();
         if (o.onClose) o.onClose(reason);
       },
     };
@@ -342,7 +425,10 @@
     if (shell) shell.inert = true;
     openDialogs.push(api);
     requestAnimationFrame(() => {
-      const target = (o.focus && panel.querySelector(o.focus)) || panel.querySelector('[data-autofocus]') || panel.querySelector(FOCUSABLE);
+      const target =
+        (o.focus && panel.querySelector(o.focus)) ||
+        panel.querySelector('[data-autofocus]') ||
+        panel.querySelector(FOCUSABLE);
       if (target) target.focus();
     });
     return api;
@@ -359,10 +445,15 @@
       body: el('p', { class: 'dialog-text' }, text),
       actions: [
         button('text', t('ביטול'), () => dlg.close('cancel')),
-        button(danger ? 'danger' : 'filled', confirmLabel || t('אישור'), () => {
-          dlg.close('confirm');
-          onConfirm();
-        }, { className: '', key: 'confirm' }),
+        button(
+          danger ? 'danger' : 'filled',
+          confirmLabel || t('אישור'),
+          () => {
+            dlg.close('confirm');
+            onConfirm();
+          },
+          { className: '', key: 'confirm' },
+        ),
       ],
     });
     return dlg;
@@ -413,7 +504,8 @@
     let left = rtl ? rect.right - width : rect.left;
     left = Math.max(8, Math.min(left, window.innerWidth - width - 8));
     let top = rect.bottom + 4;
-    if (top + list.offsetHeight > window.innerHeight - 8) top = Math.max(8, rect.top - list.offsetHeight - 4);
+    if (top + list.offsetHeight > window.innerHeight - 8)
+      top = Math.max(8, rect.top - list.offsetHeight - 4);
     list.style.left = left + 'px';
     list.style.top = top + 'px';
     anchor.setAttribute('aria-expanded', 'true');
@@ -467,7 +559,12 @@
     constructor(options) {
       const o = options || {};
       this.maxItems = o.maxItems || 60;
-      this.root = el('div', { class: 'vlist ' + (o.className || ''), role: 'list', 'aria-label': o.label || null, tabindex: '-1' });
+      this.root = el('div', {
+        class: 'vlist ' + (o.className || ''),
+        role: 'list',
+        'aria-label': o.label || null,
+        tabindex: '-1',
+      });
       this.inner = el('div', { class: 'vlist-inner' });
       this.root.appendChild(this.inner);
       this.rows = new Map();
@@ -517,7 +614,8 @@
     _layout() {
       if (typeof this.heightEm === 'function') {
         this.offsets = new Float64Array(this.count + 1);
-        for (let r = 0; r < this.count; r++) this.offsets[r + 1] = this.offsets[r] + this.heightEm(r) * this.emPx;
+        for (let r = 0; r < this.count; r++)
+          this.offsets[r + 1] = this.offsets[r] + this.heightEm(r) * this.emPx;
         this.inner.style.height = this.offsets[this.count] + 'px';
       } else {
         this.offsets = null;
@@ -535,7 +633,8 @@
     }
 
     _rowAt(y) {
-      if (!this.offsets) return Math.min(this.count - 1, Math.max(0, Math.floor(y / (this.rowPx || 1))));
+      if (!this.offsets)
+        return Math.min(this.count - 1, Math.max(0, Math.floor(y / (this.rowPx || 1))));
       let lo = 0;
       let hi = this.count - 1;
       while (lo < hi) {
@@ -568,7 +667,10 @@
       const last = this._rowAt(viewTop + viewHeight);
       const visibleItems = (last - first + 1) * this.itemsPerRow;
       // רזרבה מעל ומתחת לגלילה חלקה, בלי לחרוג מתקרת הפריטים.
-      const spareRows = Math.max(0, Math.min(2, Math.floor((this.maxItems - visibleItems) / (2 * this.itemsPerRow))));
+      const spareRows = Math.max(
+        0,
+        Math.min(2, Math.floor((this.maxItems - visibleItems) / (2 * this.itemsPerRow))),
+      );
       const from = Math.max(0, first - spareRows);
       const to = Math.min(this.count - 1, last + spareRows);
       for (const [r, node] of this.rows) {
@@ -602,7 +704,8 @@
       const top = this._top(row);
       const bottom = top + this._heightOf(row);
       if (top < this.root.scrollTop) this.root.scrollTop = top;
-      else if (bottom > this.root.scrollTop + this.root.clientHeight) this.root.scrollTop = bottom - this.root.clientHeight;
+      else if (bottom > this.root.scrollTop + this.root.clientHeight)
+        this.root.scrollTop = bottom - this.root.clientHeight;
       this.update();
     }
 

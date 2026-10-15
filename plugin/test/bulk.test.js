@@ -23,7 +23,10 @@ const item = (n, over) => ({
 });
 
 async function fakeApp(extra) {
-  const state = new State(A.Runtime.createRuntime(createFakeSdk(), { logger: quiet }), { saveDelay: 0, log: quiet });
+  const state = new State(A.Runtime.createRuntime(createFakeSdk(), { logger: quiet }), {
+    saveDelay: 0,
+    log: quiet,
+  });
   await state.load();
   const toasts = [];
   const events = [];
@@ -102,7 +105,11 @@ test('favorite ו-read: משנים רק את מה שצריך וסופרים נכ
   assert.equal(app.state.isRead('i_1'), false);
   assert.equal(app.state.isRead('i_3'), false);
   assert.equal(app.state.isRead('i_2'), true, 'מה שלא שונה בפעולה נשאר');
-  assert.deepEqual([...new Set(app.state.historyEvents('read').map((e) => e.id))].sort(), ['i_1', 'i_2', 'i_3']);
+  assert.deepEqual([...new Set(app.state.historyEvents('read').map((e) => e.id))].sort(), [
+    'i_1',
+    'i_2',
+    'i_3',
+  ]);
 });
 
 test('hideSeries: כלל אחד לכל סדרה, וביטול אחד מסיר את כולם', async () => {

@@ -66,12 +66,14 @@ export class Page {
       } else if (msg.method === 'Runtime.consoleAPICalled') {
         const text = msg.params.args.map((a) => a.value ?? a.description ?? '').join(' ');
         this.logs.push(msg.params.type + ': ' + text);
-        if (msg.params.type === 'error' && !/^\[alonim\] /.test(text)) this.errors.push('console.error: ' + text);
+        if (msg.params.type === 'error' && !/^\[alonim\] /.test(text))
+          this.errors.push('console.error: ' + text);
         else if (/^\[alonim\] (event|listener) .* failed/.test(text)) this.errors.push(text);
       } else if (msg.method === 'Log.entryAdded' && msg.params.entry.level === 'error') {
         const e = msg.params.entry;
         // 404 של favicon וכו' אינם שגיאת קוד.
-        if (!/favicon/.test(e.url || '')) this.errors.push('log.error: ' + e.text + ' ' + (e.url || ''));
+        if (!/favicon/.test(e.url || ''))
+          this.errors.push('log.error: ' + e.text + ' ' + (e.url || ''));
       }
     });
   }
@@ -89,7 +91,12 @@ export class Page {
   }
 
   setViewport(width, height, scale) {
-    return this.send('Emulation.setDeviceMetricsOverride', { width, height, deviceScaleFactor: scale || 1, mobile: false });
+    return this.send('Emulation.setDeviceMetricsOverride', {
+      width,
+      height,
+      deviceScaleFactor: scale || 1,
+      mobile: false,
+    });
   }
 
   async goto(url, readyExpr) {
@@ -101,8 +108,15 @@ export class Page {
   }
 
   async eval(expression) {
-    const res = await this.send('Runtime.evaluate', { expression, awaitPromise: true, returnByValue: true });
-    if (res.exceptionDetails) throw new Error('eval: ' + (res.exceptionDetails.exception?.description || res.exceptionDetails.text));
+    const res = await this.send('Runtime.evaluate', {
+      expression,
+      awaitPromise: true,
+      returnByValue: true,
+    });
+    if (res.exceptionDetails)
+      throw new Error(
+        'eval: ' + (res.exceptionDetails.exception?.description || res.exceptionDetails.text),
+      );
     return res.result.value;
   }
 
@@ -127,15 +141,39 @@ export class Page {
 
   async screenshot(file, options) {
     const o = options || {};
-    const res = await this.send('Page.captureScreenshot', { format: 'png', ...(o.clip ? { clip: o.clip } : {}) });
+    const res = await this.send('Page.captureScreenshot', {
+      format: 'png',
+      ...(o.clip ? { clip: o.clip } : {}),
+    });
     writeFileSync(file, Buffer.from(res.data, 'base64'));
   }
 
   async key(key, modifiers, physical) {
-    const map = { Enter: 13, Escape: 27, ArrowDown: 40, ArrowUp: 38, ArrowLeft: 37, ArrowRight: 39, Tab: 9, Home: 36, End: 35, PageDown: 34, PageUp: 33 };
+    const map = {
+      Enter: 13,
+      Escape: 27,
+      ArrowDown: 40,
+      ArrowUp: 38,
+      ArrowLeft: 37,
+      ArrowRight: 39,
+      Tab: 9,
+      Home: 36,
+      End: 35,
+      PageDown: 34,
+      PageUp: 33,
+    };
     const code = map[key] || key.toUpperCase().charCodeAt(0);
-    const base = { key, code: physical || (key.length === 1 ? 'Key' + key.toUpperCase() : key), windowsVirtualKeyCode: code, modifiers: modifiers || 0 };
-    await this.send('Input.dispatchKeyEvent', { type: 'keyDown', ...base, text: key.length === 1 ? key : undefined });
+    const base = {
+      key,
+      code: physical || (key.length === 1 ? 'Key' + key.toUpperCase() : key),
+      windowsVirtualKeyCode: code,
+      modifiers: modifiers || 0,
+    };
+    await this.send('Input.dispatchKeyEvent', {
+      type: 'keyDown',
+      ...base,
+      text: key.length === 1 ? key : undefined,
+    });
     await this.send('Input.dispatchKeyEvent', { type: 'keyUp', ...base });
   }
 
@@ -144,10 +182,18 @@ export class Page {
   }
 
   async click(selector) {
-    const box = await this.eval(`(() => { const e = document.querySelector(${JSON.stringify(selector)}); if (!e) return null; e.scrollIntoView({block:'center'}); const r = e.getBoundingClientRect(); return {x: r.x + r.width/2, y: r.y + r.height/2}; })()`);
+    const box = await this.eval(
+      `(() => { const e = document.querySelector(${JSON.stringify(selector)}); if (!e) return null; e.scrollIntoView({block:'center'}); const r = e.getBoundingClientRect(); return {x: r.x + r.width/2, y: r.y + r.height/2}; })()`,
+    );
     if (!box) throw new Error('no element: ' + selector);
     for (const type of ['mouseMoved', 'mousePressed', 'mouseReleased']) {
-      await this.send('Input.dispatchMouseEvent', { type, x: box.x, y: box.y, button: 'left', clickCount: 1 });
+      await this.send('Input.dispatchMouseEvent', {
+        type,
+        x: box.x,
+        y: box.y,
+        button: 'left',
+        clickCount: 1,
+      });
     }
   }
 }
@@ -157,7 +203,24 @@ export class Browser {
     const exe = findBrowser();
     if (!exe) throw new Error('לא נמצא Edge או Chrome');
     const dir = mkdtempSync(join(tmpdir(), 'alonim-cdp-'));
-    const proc = spawn(exe, ['--headless=new', '--disable-gpu', '--disable-extensions', '--no-first-run', '--allow-file-access-from-files', '--hide-scrollbars', '--disable-background-timer-throttling', '--disable-renderer-backgrounding', '--disable-backgrounding-occluded-windows', '--remote-debugging-port=0', '--user-data-dir=' + dir, 'about:blank'], { stdio: ['ignore', 'ignore', 'pipe'] });
+    const proc = spawn(
+      exe,
+      [
+        '--headless=new',
+        '--disable-gpu',
+        '--disable-extensions',
+        '--no-first-run',
+        '--allow-file-access-from-files',
+        '--hide-scrollbars',
+        '--disable-background-timer-throttling',
+        '--disable-renderer-backgrounding',
+        '--disable-backgrounding-occluded-windows',
+        '--remote-debugging-port=0',
+        '--user-data-dir=' + dir,
+        'about:blank',
+      ],
+      { stdio: ['ignore', 'ignore', 'pipe'] },
+    );
     const url = await new Promise((resolve, reject) => {
       let buf = '';
       const timer = setTimeout(() => reject(new Error('browser did not start')), 15000);
@@ -184,7 +247,10 @@ export class Browser {
 
   async newPage(width, height, scale) {
     const { targetId } = await this.conn.send('Target.createTarget', { url: 'about:blank' });
-    const { sessionId } = await this.conn.send('Target.attachToTarget', { targetId, flatten: true });
+    const { sessionId } = await this.conn.send('Target.attachToTarget', {
+      targetId,
+      flatten: true,
+    });
     const page = new Page(this.conn, sessionId);
     page.targetId = targetId;
     await page.init(width || 1000, height || 720, scale || 1);

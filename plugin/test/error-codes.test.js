@@ -9,7 +9,9 @@ const { loadPlugin } = require('./helpers/load');
 const A = loadPlugin();
 const { Errors, Boundary } = A;
 const dir = path.join(__dirname, '..', 'js');
-const sources = fs.readdirSync(dir).map((name) => ({ name, code: fs.readFileSync(path.join(dir, name), 'utf8') }));
+const sources = fs
+  .readdirSync(dir)
+  .map((name) => ({ name, code: fs.readFileSync(path.join(dir, name), 'utf8') }));
 
 /** קודי שגיאה שהקוד יוצר: FileError('x'), NetError('x'), `code: 'x'` ב-throw/Object.assign. */
 function usedCodes() {
@@ -17,7 +19,10 @@ function usedCodes() {
   const add = (code, where) => used.set(code, (used.get(code) || []).concat(where));
   for (const { name, code } of sources) {
     for (const m of code.matchAll(/(?:FileError|NetError)\('([a-z_]+)'/g)) add(m[1], name);
-    for (const m of code.matchAll(/Object\.assign\(new Error\([^)]*\),\s*\{\s*code:\s*'([a-z_]+)'/g)) add(m[1], name);
+    for (const m of code.matchAll(
+      /Object\.assign\(new Error\([^)]*\),\s*\{\s*code:\s*'([a-z_]+)'/g,
+    ))
+      add(m[1], name);
     for (const m of code.matchAll(/_fail\(\{\s*code:\s*'([a-z_]+)'/g)) add(m[1], name);
   }
   return used;
@@ -37,7 +42,11 @@ test('רישום הקודים: כל קוד שהקוד יוצר רשום, עם ת
 test('רישום הקודים: אין קוד רשום שאיש אינו משתמש בו (חוץ מקודי ממשק וחיבורים)', () => {
   const used = usedCodes();
   const allCode = sources.map((s) => s.code).join('\n');
-  const unused = Object.keys(Errors.CODES).filter((code) => !used.has(code) && !new RegExp("['\"]" + code + "['\"]").test(allCode.replace(/\/\/.*$/gm, '')));
+  const unused = Object.keys(Errors.CODES).filter(
+    (code) =>
+      !used.has(code) &&
+      !new RegExp('[\'"]' + code + '[\'"]').test(allCode.replace(/\/\/.*$/gm, '')),
+  );
   assert.deepEqual(unused, []);
 });
 

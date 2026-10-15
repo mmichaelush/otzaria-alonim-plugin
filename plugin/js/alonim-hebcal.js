@@ -67,7 +67,9 @@
     if (!s || !/^[א-ת]+$/.test(s)) return null;
     const finals = { ך: 20, ם: 40, ן: 50, ף: 80, ץ: 90 };
     const alphabet = 'אבגדהוזחטיכלמנסעפצקרשת';
-    const values = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 200, 300, 400];
+    const values = [
+      1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 200, 300, 400,
+    ];
     let n = 0;
     for (const ch of s) {
       const v = finals[ch] || values[alphabet.indexOf(ch)];
@@ -127,7 +129,20 @@
   /** מזהי החודשים של שנה, לפי סדר השנה (מתשרי), כולל אדר א׳ וב׳ בשנה מעוברת. */
   function monthsOf(year) {
     const adar = isLeap(year) ? ['adar1', 'adar2'] : ['adar'];
-    return ['tishri', 'cheshvan', 'kislev', 'tevet', 'shevat', ...adar, 'nisan', 'iyar', 'sivan', 'tamuz', 'av', 'elul'];
+    return [
+      'tishri',
+      'cheshvan',
+      'kislev',
+      'tevet',
+      'shevat',
+      ...adar,
+      'nisan',
+      'iyar',
+      'sivan',
+      'tamuz',
+      'av',
+      'elul',
+    ];
   }
 
   function daysInMonth(year, month) {
@@ -138,7 +153,8 @@
   }
 
   /** מספר יום מ-1970 של תאריך לועזי מקומי (בלי קפיצות שעון קיץ). */
-  const dayNumber = (date) => Math.round(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()) / DAY);
+  const dayNumber = (date) =>
+    Math.round(Date.UTC(date.getFullYear(), date.getMonth(), date.getDate()) / DAY);
 
   /** `Date` מקומי בצהריים של מספר יום מ-1970. */
   function dateOfDayNumber(day) {
@@ -175,7 +191,20 @@
   // ----------------------------------------------------------- עיצוב
 
   const WEEKDAYS = ['ראשון', 'שני', 'שלישי', 'רביעי', 'חמישי', 'שישי', 'שבת'];
-  const GREGORIAN_MONTHS = ['ינואר', 'פברואר', 'מרץ', 'אפריל', 'מאי', 'יוני', 'יולי', 'אוגוסט', 'ספטמבר', 'אוקטובר', 'נובמבר', 'דצמבר'];
+  const GREGORIAN_MONTHS = [
+    'ינואר',
+    'פברואר',
+    'מרץ',
+    'אפריל',
+    'מאי',
+    'יוני',
+    'יולי',
+    'אוגוסט',
+    'ספטמבר',
+    'אוקטובר',
+    'נובמבר',
+    'דצמבר',
+  ];
 
   const isHebrewUi = (lang) => !lang || lang === 'he';
 
@@ -190,7 +219,9 @@
     const name = WEEKDAYS[date.getDay()];
     if (isHebrewUi(lang)) return date.getDay() === 6 ? name : 'יום ' + name;
     try {
-      return new Intl.DateTimeFormat(I18n && I18n.locale ? I18n.locale() : 'en', { weekday: 'long' }).format(date);
+      return new Intl.DateTimeFormat(I18n && I18n.locale ? I18n.locale() : 'en', {
+        weekday: 'long',
+      }).format(date);
     } catch (error) {
       return name;
     }
@@ -217,10 +248,15 @@
     const m = date.getMonth();
     const y = date.getFullYear();
     if (o.short) return d + '.' + (m + 1) + (o.year === false ? '' : '.' + y);
-    if (isHebrewUi(o.lang)) return d + ' ב' + GREGORIAN_MONTHS[m] + (o.year === false ? '' : ' ' + y);
+    if (isHebrewUi(o.lang))
+      return d + ' ב' + GREGORIAN_MONTHS[m] + (o.year === false ? '' : ' ' + y);
     try {
       const locale = I18n && I18n.locale ? I18n.locale() : 'en';
-      return new Intl.DateTimeFormat(locale, { day: 'numeric', month: 'long', year: o.year === false ? undefined : 'numeric' }).format(date);
+      return new Intl.DateTimeFormat(locale, {
+        day: 'numeric',
+        month: 'long',
+        year: o.year === false ? undefined : 'numeric',
+      }).format(date);
     } catch (error) {
       return y + '-' + String(m + 1).padStart(2, '0') + '-' + String(d).padStart(2, '0');
     }
@@ -235,7 +271,12 @@
     const o = options || {};
     if (!(date instanceof Date) || Number.isNaN(date.getTime())) return '';
     // טקסט עברי מוכן (מ-weeks.json) גובר על החישוב; בשפות אחרות מחשבים.
-    const hebrew = o.hebrew === false ? '' : o.hebrewText && isHebrewUi(o.lang) ? o.hebrewText : formatHebrew(date, o);
+    const hebrew =
+      o.hebrew === false
+        ? ''
+        : o.hebrewText && isHebrewUi(o.lang)
+          ? o.hebrewText
+          : formatHebrew(date, o);
     const gregorian = o.gregorian === false ? '' : formatGregorian(date, o);
     const day = o.weekday ? weekdayName(date, o.lang) : '';
     const body = [hebrew, gregorian].filter(Boolean).join(' · ');

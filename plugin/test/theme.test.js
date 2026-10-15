@@ -23,7 +23,16 @@ function fakeDocument() {
 test('applyTheme: כל תפקיד צבע הופך למשתנה CSS, והמצב נרשם', () => {
   const doc = fakeDocument();
   const ok = Theme.applyTheme(
-    { mode: 'dark', colorScheme: { primary: '#112233', onSurfaceVariant: '#445566', surfaceContainerHighest: '#778899', ignored: '' }, typography: { uiFontFamily: "Ru'bik" } },
+    {
+      mode: 'dark',
+      colorScheme: {
+        primary: '#112233',
+        onSurfaceVariant: '#445566',
+        surfaceContainerHighest: '#778899',
+        ignored: '',
+      },
+      typography: { uiFontFamily: "Ru'bik" },
+    },
     doc,
   );
   assert.equal(ok, true);
@@ -32,7 +41,11 @@ test('applyTheme: כל תפקיד צבע הופך למשתנה CSS, והמצב �
   assert.equal(doc.props.get('--color-surface-container-highest'), '#778899');
   assert.equal(doc.props.has('--color-ignored'), false);
   assert.equal(doc.documentElement.dataset.mode, 'dark');
-  assert.equal(doc.props.get('--font-ui'), "'Rubik', system-ui, sans-serif", 'מרכאה בשם גופן מוסרת');
+  assert.equal(
+    doc.props.get('--font-ui'),
+    "'Rubik', system-ui, sans-serif",
+    'מרכאה בשם גופן מוסרת',
+  );
 });
 
 test('applyTheme: ערכה חסרה אינה משנה דבר', () => {

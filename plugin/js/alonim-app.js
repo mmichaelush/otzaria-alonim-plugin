@@ -28,7 +28,18 @@
   ]);
 
   /** אירועי ציור: כשלם מטופל בגבול השגיאות של המסך, לא בהודעה. */
-  const RENDER_EVENTS = Object.freeze(['data', 'state', 'files', 'disk', 'sync', 'prefs', 'route', 'selection', 'focus-search', 'escape']);
+  const RENDER_EVENTS = Object.freeze([
+    'data',
+    'state',
+    'files',
+    'disk',
+    'sync',
+    'prefs',
+    'route',
+    'selection',
+    'focus-search',
+    'escape',
+  ]);
   const NEW_DAYS = 7;
   const DAY_MS = 86400000;
 
@@ -54,12 +65,16 @@
       this.caps = new A.Capabilities.Capabilities({ log: this.log.scoped('host') });
       this.state = new A.State.State(this.runtime, { log: this.log.scoped('state') });
       this.index = new A.Index.CatalogIndex({ source: (id) => this.sourceInfo(id).name });
-      this.catalog = new A.Catalog.Catalog(this.runtime, { log: this.log.scoped('catalog'), online: () => this.online });
+      this.catalog = new A.Catalog.Catalog(this.runtime, {
+        log: this.log.scoped('catalog'),
+        online: () => this.online,
+      });
       this.files = new A.Files.Files(this.runtime, {
         log: this.log.scoped('files'),
         getFolder: () => this.state.prefs.folder,
         setFolder: (folder) => this.state.setPref('folder', folder),
-        hiddenSources: (item) => (this.index.decision(this.index.get(item.id) || item).hiddenSources || []),
+        hiddenSources: (item) =>
+          this.index.decision(this.index.get(item.id) || item).hiddenSources || [],
         preferredSource: (item) => this.state.preferredSource(item.series),
         previousIds: (id) => this.index.previousIdsOf(id),
         caps: this.caps,
@@ -72,7 +87,15 @@
         viewerMode: '',
         weekDate: '',
         weekMore: 12,
-        all: { query: '', filters: {}, sort: 'relevance', group: '', includeHidden: false, builder: false, scroll: 0 },
+        all: {
+          query: '',
+          filters: {},
+          sort: 'relevance',
+          group: '',
+          includeHidden: false,
+          builder: false,
+          scroll: 0,
+        },
         seriesList: { query: '', circle: '', lang: '', mode: 'all', scroll: 0 },
         seriesPage: { query: '', scroll: 0 },
         mine: { tab: 'favorites', list: '' },
@@ -100,7 +123,8 @@
         } catch (error) {
           this.log.scoped('ui').error('listener ' + name + ' failed', error);
           // אירוע של חלון או פעולה (לא ציור מסך): המשתמש צריך לדעת שמשהו לא נפתח.
-          if (!RENDER_EVENTS.includes(name)) this.toast(A.Errors.text('dialog_failed'), { error: true });
+          if (!RENDER_EVENTS.includes(name))
+            this.toast(A.Errors.text('dialog_failed'), { error: true });
         }
       }
     }
@@ -170,7 +194,14 @@
       const all = this.state.viewState('all');
       this.view.all.sort = this.state.prefs.sort;
       this.view.route.tab = this.state.prefs.startTab;
-      if (all) Object.assign(this.view.all, { query: all.query, filters: all.filters, sort: all.sort, group: all.group, includeHidden: all.includeHidden });
+      if (all)
+        Object.assign(this.view.all, {
+          query: all.query,
+          filters: all.filters,
+          sort: all.sort,
+          group: all.group,
+          includeHidden: all.includeHidden,
+        });
       const series = this.state.viewState('seriesList');
       if (series) Object.assign(this.view.seriesList, series);
     }
@@ -188,7 +219,9 @@
       });
       this.coldLoading = null;
       this.emit('sync');
-      this.toast(ok ? t('שנים ישנות נטענו') : t('חלק מהשנים הישנות לא נטענו. אפשר לנסות שוב.'), { error: !ok });
+      this.toast(ok ? t('שנים ישנות נטענו') : t('חלק מהשנים הישנות לא נטענו. אפשר לנסות שוב.'), {
+        error: !ok,
+      });
     }
 
     suspend() {
@@ -246,10 +279,13 @@
       }
       // כמה שרדים ברצף = ציור אחד, לא אחד לכל שרד.
       clearTimeout(this.dataTimer);
-      this.dataTimer = setTimeout(() => {
-        this.emit('data', event.kind);
-        this.maybeAutoDownload();
-      }, event.cached === false && event.kind !== 'recent' ? 400 : 60);
+      this.dataTimer = setTimeout(
+        () => {
+          this.emit('data', event.kind);
+          this.maybeAutoDownload();
+        },
+        event.cached === false && event.kind !== 'recent' ? 400 : 60,
+      );
     }
 
     // ------------------------------------------------------- מקורות
@@ -258,14 +294,34 @@
       const manifestSource = this.catalog.sources.find((s) => s.id === id);
       const fallback = DEFAULT_SOURCES[id];
       if (manifestSource) {
-        return { id, name: manifestSource.name || id, mode: manifestSource.mode || 'catalog', status: manifestSource.status || 'ok', note: manifestSource.note || '', url: manifestSource.url || '', checkedAt: manifestSource.checkedAt, lastOkAt: manifestSource.lastOkAt, issueCount: manifestSource.issueCount };
+        return {
+          id,
+          name: manifestSource.name || id,
+          mode: manifestSource.mode || 'catalog',
+          status: manifestSource.status || 'ok',
+          note: manifestSource.note || '',
+          url: manifestSource.url || '',
+          checkedAt: manifestSource.checkedAt,
+          lastOkAt: manifestSource.lastOkAt,
+          issueCount: manifestSource.issueCount,
+        };
       }
-      return { id, name: fallback ? t(fallback.name) : id, mode: fallback ? fallback.mode : 'catalog', status: fallback ? fallback.status : 'ok', note: '', url: '', issueCount: 0 };
+      return {
+        id,
+        name: fallback ? t(fallback.name) : id,
+        mode: fallback ? fallback.mode : 'catalog',
+        status: fallback ? fallback.status : 'ok',
+        note: '',
+        url: '',
+        issueCount: 0,
+      };
     }
 
     /** כל המקורות המוכרים: מהמניפסט, ואם עוד אין — ברירות המחדל. */
     allSources() {
-      const list = this.catalog.sources.length ? this.catalog.sources.map((s) => s.id) : Object.keys(DEFAULT_SOURCES);
+      const list = this.catalog.sources.length
+        ? this.catalog.sources.map((s) => s.id)
+        : Object.keys(DEFAULT_SOURCES);
       return list.map((id) => this.sourceInfo(id));
     }
 
@@ -347,7 +403,9 @@
         isNew: this.isNew(item),
         followed: this.state.isFollowed(item.series),
         hidden,
-        hiddenReason: hidden ? A.Rules.reasonText(decision, this.ruleNames(), this.state.rules.mode) : '',
+        hiddenReason: hidden
+          ? A.Rules.reasonText(decision, this.ruleNames(), this.state.rules.mode)
+          : '',
         pinned: decision.pin,
         noDownload: decision.noDownload,
       };
@@ -463,14 +521,21 @@
       const on = !this.state.isFollowed(seriesId);
       this.state.setSeries(seriesId, { follow: on });
       const name = this.index.seriesTitleOf(seriesId);
-      this.toast(on ? t('עוקבים אחרי "{name}"', { name }) : t('הפסקת מעקב אחרי "{name}"', { name }));
+      this.toast(
+        on ? t('עוקבים אחרי "{name}"', { name }) : t('הפסקת מעקב אחרי "{name}"', { name }),
+      );
     }
 
     /** "הסתר סדרה זו": כלל חסימה מפורש, עם ביטול. */
     hideSeries(item) {
       const seriesId = item.series;
       const name = item.seriesTitle || item.title;
-      const rule = this.state.addRule({ action: 'hide', field: 'series', value: seriesId, label: name });
+      const rule = this.state.addRule({
+        action: 'hide',
+        field: 'series',
+        value: seriesId,
+        label: name,
+      });
       if (!rule) return;
       this.toast(t('הסדרה "{name}" הוסתרה', { name }), {
         action: {
@@ -484,7 +549,12 @@
     openIssue(item, ctx, options) {
       this.state.addOpened(item);
       this.state.logEvent('opened', item);
-      this.viewer = { item, ctx: ctx || null, options: options || {}, token: (this.viewerToken = (this.viewerToken || 0) + 1) };
+      this.viewer = {
+        item,
+        ctx: ctx || null,
+        options: options || {},
+        token: (this.viewerToken = (this.viewerToken || 0) + 1),
+      };
       Ui.closeMenu();
       this.emit('viewer', this.viewer);
     }
@@ -519,11 +589,17 @@
       }
       const decision = this.index.decision(item);
       if (decision.noDownload) {
-        this.toast(t('לפי כלל סינון, גיליון זה אינו מורד אוטומטית. אפשר לפתוח אותו לקריאה.'), { error: false });
+        this.toast(t('לפי כלל סינון, גיליון זה אינו מורד אוטומטית. אפשר לפתוח אותו לקריאה.'), {
+          error: false,
+        });
       }
       const job = await this.queueSave(item, src);
       if (!job) return;
-      this.toast(t('מוסיף להורדה: {title}', { title: Core.sanitizeFileName(item.seriesTitle || item.title, 40) }));
+      this.toast(
+        t('מוסיף להורדה: {title}', {
+          title: Core.sanitizeFileName(item.seriesTitle || item.title, 40),
+        }),
+      );
       const done = await job.done;
       if (done.status === 'done') {
         this.toast(t('ההורדה הסתיימה: {title}', { title: item.seriesTitle || item.title }));
@@ -543,7 +619,10 @@
         return null;
       }
       const job = this.files.enqueue(full, 'save', src);
-      if (job && job.done) job.done.then((done) => done && done.status === 'done' && this.state.logEvent('downloaded', item));
+      if (job && job.done)
+        job.done.then(
+          (done) => done && done.status === 'done' && this.state.logEvent('downloaded', item),
+        );
       return job;
     }
 
@@ -565,14 +644,20 @@
 
     pickSiteAsset(item) {
       const preferred = this.state.preferredSource(item.series);
-      return item.assets.find((a) => a.src === preferred && (a.page || a.url)) || item.assets.find((a) => a.page) || item.assets.find((a) => a.url) || item.assets[0];
+      return (
+        item.assets.find((a) => a.src === preferred && (a.page || a.url)) ||
+        item.assets.find((a) => a.page) ||
+        item.assets.find((a) => a.url) ||
+        item.assets[0]
+      );
     }
 
     async openSite(asset) {
       if (!asset) return false;
-      const url = asset.page || (this.sourceInfo(asset.src).url) || asset.url;
+      const url = asset.page || this.sourceInfo(asset.src).url || asset.url;
       const ok = await this.files.openOnSite(url, this.sourceHosts());
-      if (!ok) this.toast(t('אי אפשר לפתוח את הכתובת הזו: היא אינה מאתר מקור מוכר.'), { error: true });
+      if (!ok)
+        this.toast(t('אי אפשר לפתוח את הכתובת הזו: היא אינה מאתר מקור מוכר.'), { error: true });
       return ok;
     }
 
@@ -581,7 +666,8 @@
     /** גיליונות חדשים בסדרות שעוקבים אחריהן, עד מכסה יומית. כבוי כברירת מחדל. */
     maybeAutoDownload() {
       const prefs = this.state.prefs;
-      if (!prefs.autoDownload || !this.files.hasFolder || this.suspended || this.catalog.syncing) return;
+      if (!prefs.autoDownload || !this.files.hasFolder || this.suspended || this.catalog.syncing)
+        return;
       if (this.files.diskState.status !== 'ok') return;
       const today = Core.ymd(new Date());
       let count = prefs.autoDay === today ? prefs.autoCount : 0;
@@ -591,7 +677,8 @@
       for (const sid of followed) {
         for (const i of this.index.issuesOfSeries(sid)) {
           const item = this.index.item(i);
-          if (!this.isNew(item) || this.files.isDownloaded(item) || this.files.jobFor(item)) continue;
+          if (!this.isNew(item) || this.files.isDownloaded(item) || this.files.jobFor(item))
+            continue;
           if (this.index.decision(item).noDownload) continue;
           candidates.push(item);
         }
@@ -616,7 +703,10 @@
     quickAddToList(listId, item, quiet) {
       const ok = this.state.addToList(listId, item);
       const list = this.state.lists.find((l) => l.id === listId);
-      if (!quiet || !ok) this.toast(ok ? t('נוסף ל"{name}"', { name: list ? list.name : '' }) : t('האוסף מלא'), { error: !ok });
+      if (!quiet || !ok)
+        this.toast(ok ? t('נוסף ל"{name}"', { name: list ? list.name : '' }) : t('האוסף מלא'), {
+          error: !ok,
+        });
     }
 
     // ---------------------------------------------------- קיצורים
@@ -625,9 +715,18 @@
     onKey(event) {
       const key = event.key;
       const target = event.target;
-      const typing = target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT' || target.isContentEditable);
+      const typing =
+        target &&
+        (target.tagName === 'INPUT' ||
+          target.tagName === 'TEXTAREA' ||
+          target.tagName === 'SELECT' ||
+          target.isContentEditable);
       // לא Ctrl+K: באוצריא זה "החלף שולחן עבודה" (ברירת המחדל שלה), והחלון שלה גונב את המיקוד.
-      if ((event.ctrlKey || event.metaKey) && !event.altKey && (key === '/' || event.code === 'Slash')) {
+      if (
+        (event.ctrlKey || event.metaKey) &&
+        !event.altKey &&
+        (key === '/' || event.code === 'Slash')
+      ) {
         event.preventDefault();
         if (!Ui.topDialog()) this.focusSearch();
         return true;

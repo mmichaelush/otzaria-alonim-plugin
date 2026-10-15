@@ -17,14 +17,24 @@ const noSleep = async () => {};
 
 function data() {
   const { series, issues } = makeCatalog(300, 10, 11);
-  return buildFiles({ series, issues, weeks: [{ date: '2026-10-17', hy: 5787, parasha: ['noach'], label: 'נח' }], sources: DEFAULT_SOURCES, recentCount: 20 });
+  return buildFiles({
+    series,
+    issues,
+    weeks: [{ date: '2026-10-17', hy: 5787, parasha: ['noach'], label: 'נח' }],
+    sources: DEFAULT_SOURCES,
+    recentCount: 20,
+  });
 }
 
 function setup(scenario, extra) {
   const { files, manifest } = data();
   const sdk = createFakeSdk({ scenario, catalog: files, ...extra });
   const runtime = createRuntime(sdk, { logger: quiet, sleep: noSleep });
-  const catalog = new Catalog(runtime, { log: quiet, sleep: noSleep, online: () => (scenario === 'offline' ? false : true) });
+  const catalog = new Catalog(runtime, {
+    log: quiet,
+    sleep: noSleep,
+    online: () => (scenario === 'offline' ? false : true),
+  });
   const events = [];
   catalog.onData((e) => events.push(e));
   return { sdk, runtime, catalog, events, files, manifest };
@@ -90,11 +100,16 @@ test('גיבוב לא תואם (מטמון CDN ישן): ניסיון חוזר, �
   manifest.catalogVersion++;
   s.files['manifest.json'] = JSON.stringify(manifest);
   s.catalog.emitted.clear();
-  const cachedBefore = s.sdk.privateFs.get('catalog/issues/' + manifest.shards[0].id + '.json').content;
+  const cachedBefore = s.sdk.privateFs.get(
+    'catalog/issues/' + manifest.shards[0].id + '.json',
+  ).content;
   await s.catalog.sync();
   assert.equal(s.catalog.status.phase, 'partial');
   assert.equal(s.catalog.status.error, 'hash');
-  assert.equal(s.sdk.privateFs.get('catalog/issues/' + manifest.shards[0].id + '.json').content, cachedBefore);
+  assert.equal(
+    s.sdk.privateFs.get('catalog/issues/' + manifest.shards[0].id + '.json').content,
+    cachedBefore,
+  );
 });
 
 test('ללא רשת: המטמון עובד והסטטוס offline; allowlist חסום: error forbidden', async () => {
@@ -102,7 +117,11 @@ test('ללא רשת: המטמון עובד והסטטוס offline; allowlist ח�
   await warm.catalog.init();
   const offlineSdk = createFakeSdk({ scenario: 'offline', catalog: warm.files });
   offlineSdk.privateFs = warm.sdk.privateFs;
-  const catalog = new Catalog(createRuntime(offlineSdk, { logger: quiet, sleep: noSleep }), { log: quiet, sleep: noSleep, online: () => false });
+  const catalog = new Catalog(createRuntime(offlineSdk, { logger: quiet, sleep: noSleep }), {
+    log: quiet,
+    sleep: noSleep,
+    online: () => false,
+  });
   const events = [];
   catalog.onData((e) => events.push(e));
   await catalog.init();
@@ -135,7 +154,14 @@ test('ensureYear טוען שרד לפי דרישה', async () => {
 function filesFor(sdk, extra) {
   const runtime = createRuntime(sdk, { logger: quiet, sleep: noSleep });
   let folder = null;
-  const files = new Files(runtime, { log: quiet, sleep: noSleep, getFolder: () => folder, setFolder: (f) => (folder = f), fetch: null, ...extra });
+  const files = new Files(runtime, {
+    log: quiet,
+    sleep: noSleep,
+    getFolder: () => folder,
+    setFolder: (f) => (folder = f),
+    fetch: null,
+    ...extra,
+  });
   return files;
 }
 
@@ -149,7 +175,13 @@ const ISSUE = {
   parasha: ['noach'],
   no: 21,
   assets: [
-    { src: 'ladaat', ext: '1', url: 'https://ladaat.co/gilyonot/uploads/2026-10-17/files/a.pdf', page: 'https://ladaat.co/gilyonot/view/1', bytes: 2300 },
+    {
+      src: 'ladaat',
+      ext: '1',
+      url: 'https://ladaat.co/gilyonot/uploads/2026-10-17/files/a.pdf',
+      page: 'https://ladaat.co/gilyonot/view/1',
+      bytes: 2300,
+    },
     { src: 'tashma', ext: '2', url: 'https://tashma.co.il/gilyonot/file/2', bytes: 2300 },
   ],
 };
@@ -158,8 +190,14 @@ test('pickAsset: מקור מועדף, מקורות מוסתרים, ואין עו
   assert.equal(pickAsset(ISSUE, 'tashma').asset.src, 'tashma');
   assert.equal(pickAsset(ISSUE, '').asset.src, 'ladaat');
   assert.equal(pickAsset(ISSUE, '', ['ladaat']).asset.src, 'tashma');
-  assert.equal(pickAsset({ assets: [{ src: 'linksrc', page: 'https://x.example' }] }).reason, 'no_link');
-  assert.equal(pickAsset({ assets: [{ src: 'x', url: 'https://evil.example/a.pdf' }] }).reason, 'blocked');
+  assert.equal(
+    pickAsset({ assets: [{ src: 'linksrc', page: 'https://x.example' }] }).reason,
+    'no_link',
+  );
+  assert.equal(
+    pickAsset({ assets: [{ src: 'x', url: 'https://evil.example/a.pdf' }] }).reason,
+    'blocked',
+  );
 });
 
 test('שמירה: בוחרים תיקייה, מורידים לנתיב שנה/סדרה/קובץ, מאמתים, והמצב נגזר מהדיסק', async () => {
@@ -211,16 +249,24 @@ test('כשלים: חסימת allowlist, בלי קישור, בלי תיקייה, 
   const none = filesFor(createFakeSdk());
   const b = await none.enqueue(ISSUE, 'save').done;
   assert.equal(b.error.code, 'no_folder');
-  await assert.rejects(none.openForReading(ISSUE), (e) => e instanceof FileError && e.code === 'no_folder');
+  await assert.rejects(
+    none.openForReading(ISSUE),
+    (e) => e instanceof FileError && e.code === 'no_folder',
+  );
 
   const sdk = createFakeSdk();
   const noLink = filesFor(sdk);
   await noLink.pickFolder();
-  const c = await noLink.enqueue({ ...ISSUE, id: 'i_2', assets: [{ src: 'linksrc', page: 'https://linksrc.example/x' }] }, 'save').done;
+  const c = await noLink.enqueue(
+    { ...ISSUE, id: 'i_2', assets: [{ src: 'linksrc', page: 'https://linksrc.example/x' }] },
+    'save',
+  ).done;
   assert.equal(c.error.code, 'no_direct_link');
 
   const html = createFakeSdk({ scenario: 'download-html' });
-  const htmlFiles = filesFor(html, { fetch: async () => ({ arrayBuffer: async () => new TextEncoder().encode('<html>').buffer }) });
+  const htmlFiles = filesFor(html, {
+    fetch: async () => ({ arrayBuffer: async () => new TextEncoder().encode('<html>').buffer }),
+  });
   await htmlFiles.pickFolder();
   const d = await htmlFiles.enqueue(ISSUE, 'save').done;
   assert.equal(d.error.code, 'not_pdf');
@@ -229,13 +275,17 @@ test('כשלים: חסימת allowlist, בלי קישור, בלי תיקייה, 
 
 test('תור: שתי הורדות במקביל לכל היותר, וביטול של ממתינה', async () => {
   const sdk = createFakeSdk({ downloadDelay: 30 });
-  const files = filesFor(sdk, { sleep: (ms) => new Promise((r) => setTimeout(r, Math.min(ms, 5))) });
+  const files = filesFor(sdk, {
+    sleep: (ms) => new Promise((r) => setTimeout(r, Math.min(ms, 5))),
+  });
   await files.pickFolder();
   let maxActive = 0;
   files.onChange(() => {
     maxActive = Math.max(maxActive, files.list().filter((j) => j.status === 'active').length);
   });
-  const jobs = [1, 2, 3, 4, 5].map((n) => files.enqueue({ ...ISSUE, id: 'i_00000000000' + n }, 'save'));
+  const jobs = [1, 2, 3, 4, 5].map((n) =>
+    files.enqueue({ ...ISSUE, id: 'i_00000000000' + n }, 'save'),
+  );
   files.cancel(jobs[4].id);
   await Promise.all(jobs.map((j) => j.done));
   assert.ok(maxActive <= 2, 'מקסימום פעילות ' + maxActive);
@@ -279,10 +329,17 @@ test('הדפסה: מסלול ה-iframe נחסם (cross-origin) ולא זורק; 
   const sdk = createFakeSdk();
   const files = filesFor(sdk);
   await files.pickFolder();
-  const blockedFrame = { get contentWindow() { throw new Error('SecurityError'); } };
+  const blockedFrame = {
+    get contentWindow() {
+      throw new Error('SecurityError');
+    },
+  };
   assert.equal(files.printViaFrame(blockedFrame), false);
   let printed = 0;
-  assert.equal(files.printViaFrame({ contentWindow: { focus() {}, print: () => printed++ } }), true);
+  assert.equal(
+    files.printViaFrame({ contentWindow: { focus() {}, print: () => printed++ } }),
+    true,
+  );
   assert.equal(printed, 1);
   assert.equal((await files.openInReader(ISSUE)).reason, 'not_saved');
   await files.enqueue(ISSUE, 'save').done;
@@ -313,7 +370,11 @@ test('ביקור שני עם start(): טעינת שרדים מהמטמון בו-
   await catalog.start();
   // ממתינים לטעינת השרדים מהמטמון שרצה במקביל.
   await catalog.loadCachedShards();
-  assert.equal(first.sdk.streams - before, 1, 'רק המניפסט נבדק: שרד שכבר נטען מהמטמון אינו יורד שוב');
+  assert.equal(
+    first.sdk.streams - before,
+    1,
+    'רק המניפסט נבדק: שרד שכבר נטען מהמטמון אינו יורד שוב',
+  );
 });
 
 test('_loadJob מדלג על קובץ שכבר נטען מהמטמון בגיבוב זהה, אלא אם force', async () => {
@@ -324,7 +385,13 @@ test('_loadJob מדלג על קובץ שכבר נטען מהמטמון בגיב�
   await catalog.loadCache();
   await catalog.loadCachedShards();
   const shard = first.manifest.shards[0];
-  const job = { kind: 'shard', id: shard.id, path: shard.path, entry: shard, cachePath: 'issues/' + shard.id + '.json' };
+  const job = {
+    kind: 'shard',
+    id: shard.id,
+    path: shard.path,
+    entry: shard,
+    cachePath: 'issues/' + shard.id + '.json',
+  };
   const before = first.sdk.streams;
   await catalog._loadJob(job);
   assert.equal(first.sdk.streams, before, 'כבר בזיכרון בגיבוב תואם: בלי רשת');
@@ -347,13 +414,34 @@ test('צפיין: readBlobUrl קורא את הקובץ ב-fetch ומחזיר blo
 
 test('צפיין: קובץ שאינו PDF או fetch שנכשל זורקים open_failed', async () => {
   const sdk = createFakeSdk();
-  const notPdf = filesFor(sdk, { fetch: async () => ({ ok: true, blob: async () => new Blob(['<html>'], { type: 'text/html' }) }) });
-  await assert.rejects(() => notPdf.readBlobUrl({ url: 'http://127.0.0.1:1/x' }), (e) => e instanceof FileError && e.code === 'open_failed');
+  const notPdf = filesFor(sdk, {
+    fetch: async () => ({
+      ok: true,
+      blob: async () => new Blob(['<html>'], { type: 'text/html' }),
+    }),
+  });
+  await assert.rejects(
+    () => notPdf.readBlobUrl({ url: 'http://127.0.0.1:1/x' }),
+    (e) => e instanceof FileError && e.code === 'open_failed',
+  );
   const http = filesFor(sdk, { fetch: async () => ({ ok: false, status: 404 }) });
-  await assert.rejects(() => http.readBlobUrl({ url: 'http://127.0.0.1:1/x' }), (e) => e.code === 'open_failed');
-  const down = filesFor(sdk, { fetch: async () => { throw new TypeError('Failed to fetch'); } });
-  await assert.rejects(() => down.readBlobUrl({ url: 'http://127.0.0.1:1/x' }), (e) => e.code === 'open_failed');
+  await assert.rejects(
+    () => http.readBlobUrl({ url: 'http://127.0.0.1:1/x' }),
+    (e) => e.code === 'open_failed',
+  );
+  const down = filesFor(sdk, {
+    fetch: async () => {
+      throw new TypeError('Failed to fetch');
+    },
+  });
+  await assert.rejects(
+    () => down.readBlobUrl({ url: 'http://127.0.0.1:1/x' }),
+    (e) => e.code === 'open_failed',
+  );
   const none = filesFor(sdk, { fetch: null });
   none.fetchImpl = null;
-  await assert.rejects(() => none.readBlobUrl({ url: 'x' }), (e) => e.code === 'open_failed');
+  await assert.rejects(
+    () => none.readBlobUrl({ url: 'x' }),
+    (e) => e.code === 'open_failed',
+  );
 });

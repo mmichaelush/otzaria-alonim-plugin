@@ -16,7 +16,11 @@ const repo = path.join(__dirname, '..', '..');
 test('make-variant: נבנה על הקוד הנוכחי, עם שער ה-QA רק בעותק', () => {
   const out = fs.mkdtempSync(path.join(os.tmpdir(), 'alonim-qa-'));
   try {
-    const run = spawnSync(process.execPath, [path.join(repo, 'tools', 'qa', 'make-variant.mjs'), out, '--port', '39811'], { cwd: repo, encoding: 'utf8' });
+    const run = spawnSync(
+      process.execPath,
+      [path.join(repo, 'tools', 'qa', 'make-variant.mjs'), out, '--port', '39811'],
+      { cwd: repo, encoding: 'utf8' },
+    );
     assert.equal(run.status, 0, run.stderr || run.stdout);
     const core = fs.readFileSync(path.join(out, 'js', 'alonim-core.js'), 'utf8');
     assert.ok(core.includes('http://127.0.0.1:39811/data/'), 'בסיס הקטלוג של ה-QA');

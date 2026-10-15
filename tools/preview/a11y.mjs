@@ -94,7 +94,20 @@ if (isMain) {
   const here = dirname(fileURLToPath(import.meta.url));
   execFileSync(process.execPath, [join(here, 'build-preview.mjs')], { stdio: 'ignore' });
   const base = pathToFileURL(join(here, 'out', 'preview.html')).href;
-  const scenarios = ['page=week', 'page=all', 'page=all&view=list', 'series=0', 'page=series', 'page=mine', 'page=settings&section=rules', 'page=settings&section=backup', 'details=0', 'open=0&nofolder=1', 'open=0&print=1&xorigin=1', 'scenario=blocked&page=week&seed=0'];
+  const scenarios = [
+    'page=week',
+    'page=all',
+    'page=all&view=list',
+    'series=0',
+    'page=series',
+    'page=mine',
+    'page=settings&section=rules',
+    'page=settings&section=backup',
+    'details=0',
+    'open=0&nofolder=1',
+    'open=0&print=1&xorigin=1',
+    'scenario=blocked&page=week&seed=0',
+  ];
   const browser = await Browser.launch();
   let total = 0;
   try {
@@ -102,12 +115,25 @@ if (isMain) {
       for (const q of scenarios) {
         const page = await browser.newPage(1000, 800);
         await page.goto(`${base}?today=2026-10-15&${q}&mode=${mode}`);
-        await page.waitFor("document.documentElement.dataset.previewReady === '1'", 20000).catch(() => {});
+        await page
+          .waitFor("document.documentElement.dataset.previewReady === '1'", 20000)
+          .catch(() => {});
         await page.sleep(1200);
         const stats = {};
         const problems = await a11yReport(page, stats);
         total += problems.length;
-        console.log((problems.length ? '✖ ' : '✔ ') + mode + ' ' + q + ' [' + stats.checked + ' text elements, min contrast ' + stats.min + ']' + (problems.length ? '\n   ' + problems.join('\n   ') : ''));
+        console.log(
+          (problems.length ? '✖ ' : '✔ ') +
+            mode +
+            ' ' +
+            q +
+            ' [' +
+            stats.checked +
+            ' text elements, min contrast ' +
+            stats.min +
+            ']' +
+            (problems.length ? '\n   ' + problems.join('\n   ') : ''),
+        );
         await browser.closePage(page);
       }
     }
