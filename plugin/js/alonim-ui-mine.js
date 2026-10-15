@@ -416,7 +416,7 @@
         danger: true,
         onConfirm: async () => {
           try {
-            await app.files.deleteDownloaded(Core.idFragment(item.id));
+            await app.files.deleteDownloaded(app.files.fragmentOf(item));
             app.toast(t('הקובץ נמחק'));
           } catch (error) {
             app.toast(t('המחיקה נכשלה'), { error: true });

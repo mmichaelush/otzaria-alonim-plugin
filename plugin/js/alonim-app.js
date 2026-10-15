@@ -75,6 +75,7 @@
         setFolder: (folder) => this.state.setPref('folder', folder),
         hiddenSources: (item) => (this.index.decision(this.index.get(item.id) || item).hiddenSources || []),
         preferredSource: (item) => this.state.preferredSource(item.series),
+        previousIds: (id) => this.index.previousIdsOf(id),
       });
 
       /** מצב התצוגה של המסכים: שורד מעבר בין לשוניות. */
@@ -239,6 +240,12 @@
         this.index.addIssues(event.data, event.id);
       }
       this.dataVersion++;
+      // גיליון שמזההו השתנה: מצב המשתמש עובר למזהה החדש (אידמפוטנטי, לא מאבד דבר).
+      if (this.index.aliasVersion !== this.aliasMigrated) {
+        this.aliasMigrated = this.index.aliasVersion;
+        const moved = this.state.migrateIssueIds((id) => this.index.resolveIssueId(id));
+        if (moved) this.log.info('migrated ' + moved + ' state entries to new issue ids');
+      }
       // כמה שרדים ברצף = ציור אחד, לא אחד לכל שרד.
       clearTimeout(this.dataTimer);
       this.dataTimer = setTimeout(() => {

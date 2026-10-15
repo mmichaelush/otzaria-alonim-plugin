@@ -385,6 +385,15 @@ async function selectionFlows(browser, open, check) {
   await page.eval("window.__alonimApp.closeViewer(); window.__alonimApp.view.mine.tab = 'history'; window.__alonimApp.go('mine')");
   await page.sleep(400);
   check('היסטוריה: גיליון שנפתח מופיע', (await num("document.querySelectorAll('.history-row').length")) >= 1);
+  // מזהה גיליון שהשתנה (previousIds): מצב המשתמש עובר בעת סנכרון
+  await page.eval(`(() => {
+    const a = window.__alonimApp;
+    const it = a.index.item(5);
+    a.state.toggleFavorite({ ...it, id: 'i_legacy000001' });
+    a.state.markRead({ ...it, id: 'i_legacy000001' }, true);
+    a.onCatalogData({ kind: 'shard', id: 'recent', cached: true, data: [{ id: 'i_renamed00001', series: it.series, title: 'x', hy: 5787, assets: [{ src: 'ladaat', ext: '1' }], previousIds: ['i_legacy000001'] }] });
+  })()`);
+  check('previousIds: מועדף וקריאה עברו למזהה החדש', await page.eval("(() => { const s = window.__alonimApp.state; return s.isFavorite('i_renamed00001') && s.isRead('i_renamed00001') && !s.isFavorite('i_legacy000001') && !s.isRead('i_legacy000001'); })()"));
   check('היסטוריה: הסרת אירוע', await page.eval("(document.querySelector('.history-remove').click(), true)"));
   check('בחירה והיסטוריה: בלי שגיאות קונסול', page.errors.length === 0, page.errors.join('\n'));
   await browser.closePage(page);

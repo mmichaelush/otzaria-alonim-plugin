@@ -172,6 +172,12 @@
       this.seriesIdx = new Map();
       this.seriesById = new Map();
       this.seriesAlias = new Map();
+      /** מזהה גיליון ישן ← החדש (`previousIds` בקטלוג), להעברת מצב המשתמש. */
+      this.issueAlias = new Map();
+      /** מזהה גיליון ← מזהיו הקודמים (לזיהוי קבצים שהורדו לפני שהמזהה השתנה). */
+      this.issuePrev = new Map();
+      /** עולה בכל פעם שנוסף שם נרדף חדש: מי שמעביר מצב בודק אותו. */
+      this.aliasVersion = 0;
       this.weeks = [];
       /** לוח הארכיון (שנים ישנות), נטען לפי בקשה. */
       this.weeksOld = [];
@@ -409,6 +415,7 @@
         this.dayc[i] = dayOf(raw.date);
         this.addedc[i] = raw.added ? Math.floor((Date.parse(raw.added) || 0) / 1000) : 0;
         this.archc[i] = raw.archive === true ? 1 : 0;
+        if (Array.isArray(raw.previousIds) && raw.previousIds.length) this._addAliases(raw.id, raw.previousIds);
         this.newc[i] = this.archc[i] ? 0 : this.addedc[i];
         this.noc[i] = raw.no || 0;
         this.p1[i] = this.parashot.id(parasha[0]);
@@ -451,6 +458,30 @@
       this.version++;
       this.lastBuildMs = (typeof performance !== 'undefined' ? performance.now() : Date.now()) - started;
       return added;
+    }
+
+    /** רושם ש-[olds] הם מזהים קודמים של [id]. */
+    _addAliases(id, olds) {
+      let known = this.issuePrev.get(id);
+      for (const old of olds) {
+        if (typeof old !== 'string' || !old || old === id || this.issueAlias.get(old) === id) continue;
+        this.issueAlias.set(old, id);
+        if (!known) this.issuePrev.set(id, (known = []));
+        known.push(old);
+        this.aliasVersion++;
+      }
+    }
+
+    /** המזהה הנוכחי של גיליון שמזהה ישן (עד כמה צעדים); מזהה לא מוכר חוזר כמות שהוא. */
+    resolveIssueId(id) {
+      let current = id;
+      for (let step = 0; step < 5 && this.issueAlias.has(current); step++) current = this.issueAlias.get(current);
+      return current;
+    }
+
+    /** המזהים הקודמים של גיליון (ריק אם אין). */
+    previousIdsOf(id) {
+      return this.issuePrev.get(id) || [];
     }
 
     _titleId(title) {
@@ -743,6 +774,11 @@
       if (!this._fragMap) {
         this._fragMap = new Map();
         for (let i = 0; i < this.n; i++) this._fragMap.set(Core.idFragment(this.ids[i]), i);
+        // קובץ שהורד לפני ששם הגיליון השתנה: הקידומת הישנה מובילה לגיליון הנוכחי.
+        for (const [old, id] of this.issueAlias) {
+          const i = this.idToI.get(this.resolveIssueId(id));
+          if (i !== undefined && !this._fragMap.has(Core.idFragment(old))) this._fragMap.set(Core.idFragment(old), i);
+        }
       }
       const i = this._fragMap.get(fragment);
       return i === undefined ? null : this.item(i);

@@ -480,6 +480,92 @@
       if (changed) this._touch('series', 'rules');
     }
 
+    // ------------------------------------------- העברת מזהי גיליונות
+
+    /**
+     * גיליון שמזההו השתנה בקטלוג (`previousIds`): מעביר את כל מצב המשתמש מהמזהה
+     * הישן לחדש. [resolve] ממיר מזהה למזהה הנוכחי. אידמפוטנטי (מזהה שכבר נוכחי
+     * אינו משתנה), ואינו מאבד דבר: כשיש מצב גם למזהה הישן וגם לחדש הם ממוזגים.
+     * מחזיר את מספר הרשומות שהועברו.
+     */
+    migrateIssueIds(resolve) {
+      const d = this.data;
+      let moved = 0;
+      const touched = new Set();
+      const next = (id) => {
+        const target = resolve(id);
+        return target && target !== id ? target : null;
+      };
+      for (const id of Object.keys(d.favorites.items)) {
+        const to = next(id);
+        if (!to) continue;
+        const entry = d.favorites.items[id];
+        delete d.favorites.items[id];
+        const existing = d.favorites.items[to];
+        d.favorites.items[to] = existing ? { ...entry, ...existing, id: to, t: Math.max(entry.t || 0, existing.t || 0) } : { ...entry, id: to };
+        moved++;
+        touched.add('favorites');
+      }
+      for (const id of Object.keys(d.read.items)) {
+        const to = next(id);
+        if (!to) continue;
+        d.read.items[to] = Math.max(d.read.items[id] || 0, d.read.items[to] || 0);
+        delete d.read.items[id];
+        moved++;
+        touched.add('read');
+      }
+      for (const list of d.lists.items) {
+        let changed = false;
+        const seen = new Set();
+        const entries = [];
+        for (const entry of list.entries) {
+          const to = next(entry.id);
+          const id = to || entry.id;
+          if (to) changed = true;
+          if (seen.has(id)) {
+            changed = true;
+            continue;
+          }
+          seen.add(id);
+          entries.push(to ? { ...entry, id } : entry);
+          if (to) moved++;
+        }
+        if (changed) {
+          list.entries = entries;
+          touched.add('lists');
+        }
+      }
+      const rekey = (events, domain) => {
+        let changed = false;
+        for (const e of events) {
+          const to = next(e.id);
+          if (to) {
+            e.id = to;
+            moved++;
+            changed = true;
+          }
+        }
+        if (changed) touched.add(domain);
+        return changed;
+      };
+      if (rekey(d.opened.items, 'opened')) {
+        const seen = new Set();
+        d.opened.items = d.opened.items.filter((o) => !seen.has(o.id) && seen.add(o.id));
+      }
+      rekey(d.history.events, 'history');
+      for (const rule of d.rules.rules) {
+        if (rule.field !== 'issue') continue;
+        const to = next(rule.value);
+        if (to) {
+          rule.value = to;
+          moved++;
+          touched.add('rules');
+        }
+      }
+      if (touched.size) this._touch(...touched);
+      return moved;
+    }
+
     // ----------------------------------------------------- היסטוריה
 
     get historyOn() {

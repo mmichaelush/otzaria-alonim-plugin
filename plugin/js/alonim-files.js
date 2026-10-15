@@ -65,6 +65,8 @@
       this.setFolder = o.setFolder || (() => {});
       this.hiddenSources = o.hiddenSources || (() => []);
       this.preferredSource = o.preferredSource || (() => '');
+      /** `(id) => [מזהים קודמים]`: קובץ שירד תחת מזהה ישן עדיין שייך לגיליון. */
+      this.previousIds = o.previousIds || (() => []);
       this.fetchImpl = o.fetch || (typeof root.fetch === 'function' ? root.fetch.bind(root) : null);
       /** מזהה קצר ← `{ path, size, modified, name }`. */
       this.disk = new Map();
@@ -167,12 +169,26 @@
       return trimSlash(this.folder.path) + '/' + rel;
     }
 
+    /**
+     * המזהה הקצר שתחתיו הקובץ בדיסק: של הגיליון, ואם אין — של מזהה קודם שלו
+     * (`previousIds`); אם אין קובץ — המזהה הנוכחי (לשמירה חדשה).
+     */
+    fragmentOf(item) {
+      const own = Core.idFragment(item.id);
+      if (this.disk.has(own)) return own;
+      for (const old of this.previousIds(item.id)) {
+        const fragment = Core.idFragment(old);
+        if (this.disk.has(fragment)) return fragment;
+      }
+      return own;
+    }
+
     isDownloaded(item) {
-      return this.disk.has(Core.idFragment(item.id));
+      return this.disk.has(this.fragmentOf(item));
     }
 
     diskEntry(item) {
-      return this.disk.get(Core.idFragment(item.id)) || null;
+      return this.disk.get(this.fragmentOf(item)) || null;
     }
 
     async _list(path, extensions) {
@@ -393,7 +409,7 @@
     async _execute(job) {
       if (!this.hasFolder) throw new FileError('no_folder');
       const item = job.item;
-      const fragment = Core.idFragment(item.id);
+      const fragment = this.fragmentOf(item);
       const permanent = this.relPath(item);
       const temp = this.readPath(item);
       const disk = this.disk.get(fragment);
@@ -520,7 +536,7 @@
      */
     async openForReading(item, onJob) {
       if (!this.hasFolder) throw new FileError('no_folder');
-      const rel = this.disk.has(Core.idFragment(item.id)) ? this.disk.get(Core.idFragment(item.id)).path : null;
+      const rel = this.isDownloaded(item) ? this.diskEntry(item).path : null;
       let target = rel;
       if (!target) {
         const job = this.enqueue(item, 'read');
@@ -535,7 +551,7 @@
         return { url: file.url, token: file.token, name: file.name, size: file.size, rel: target, saved: Boolean(rel) || !target.startsWith(READ_DIR + '/') };
       } catch (error) {
         if (error.code === 'error.not_found') {
-          this.disk.delete(Core.idFragment(item.id));
+          this.disk.delete(this.fragmentOf(item));
           throw new FileError('missing_file');
         }
         throw new FileError('open_failed', error.code);
@@ -593,7 +609,7 @@
      * אישית), `error`.
      */
     async openInReader(item) {
-      const fragment = Core.idFragment(item.id);
+      const fragment = this.fragmentOf(item);
       const entry = this.disk.get(fragment);
       if (!entry) return { ok: false, reason: 'not_saved' };
       // סריקה מחדש של התיקיות האישיות, כדי שהקובץ שזה עתה ירד ייכנס לספרייה.
