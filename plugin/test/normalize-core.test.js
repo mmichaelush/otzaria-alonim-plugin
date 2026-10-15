@@ -46,9 +46,9 @@ test('זהות normalizeKey מול catalog/lib/normalize.mjs (כשהקובץ ק�
 });
 
 test('hyLetters ו-parseYear הפוכים זה לזה', () => {
-  assert.equal(Core.hyLetters(5787), 'תשפ"ז');
-  assert.equal(Core.hyLetters(5775), 'תשע"ה');
-  assert.equal(Core.hyLetters(5715), 'תשט"ו');
+  assert.equal(Core.hyLetters(5787), 'תשפ״ז');
+  assert.equal(Core.hyLetters(5775), 'תשע״ה');
+  assert.equal(Core.hyLetters(5715), 'תשט״ו');
   assert.equal(Core.parseYear('תשפ"ז'), 5787);
   assert.equal(Core.parseYear('תשפז'), 5787);
   assert.equal(Core.parseYear('5787'), 5787);

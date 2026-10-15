@@ -144,9 +144,9 @@
     'shabbat-chazon': N('שבת חזון'),
     'shabbat-nachamu': N('שבת נחמו'),
     'tisha-bav': N('תשעה באב'),
-    'tu-bishvat': N('ט"ו בשבט'),
+    'tu-bishvat': N('ט״ו בשבט'),
     'shabbat-shirah': N('שבת שירה'),
-    'lag-baomer': N('ל"ג בעומר'),
+    'lag-baomer': N('ל״ג בעומר'),
   });
 
   /** שם הפרשה בעברית; סלאג לא מוכר חוזר כמות שהוא, בלי מקפים. */
@@ -173,26 +173,10 @@
 
   // ------------------------------------------------------- שנה עברית
 
-  const ONES = ['', 'א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ז', 'ח', 'ט'];
-  const TENS = ['', 'י', 'כ', 'ל', 'מ', 'נ', 'ס', 'ע', 'פ', 'צ'];
-  const HUNDREDS = ['', 'ק', 'ר', 'ש', 'ת'];
+  const Heb = root.Alonim.HebCal;
 
-  /** 5787 → תשפ"ז (בלי האלפים), עם גרש/גרשיים כמו בכתיבה רגילה. */
-  function hyLetters(year) {
-    let n = Number(year) % 1000;
-    if (!Number.isFinite(n) || n <= 0) return '';
-    let out = '';
-    while (n >= 400) {
-      out += 'ת';
-      n -= 400;
-    }
-    out += HUNDREDS[Math.floor(n / 100)] || '';
-    n %= 100;
-    if (n === 15) out += 'טו';
-    else if (n === 16) out += 'טז';
-    else out += TENS[Math.floor(n / 10)] + ONES[n % 10];
-    return out.length > 1 ? out.slice(0, -1) + '"' + out.slice(-1) : out + "'";
-  }
+  /** 5787 ← תשפ״ז (בלי האלפים), עם גרש/גרשיים כמו בכתיבה רגילה. */
+  const hyLetters = (year) => Heb.yearLetters(year);
 
   /** מספר ("5787", "787") או אותיות (תשפ"ז, תשפז) ← 5787; `null` אם אינו שנה. */
   function parseYear(text) {
@@ -201,21 +185,8 @@
       const n = Number(s);
       return n < 1000 ? n + 5000 : n;
     }
-    const letters = s.replace(/["'׳״]/g, '');
-    if (!letters || !/^[א-ת]+$/.test(letters)) return null;
-    const value = { 'ך': 20, 'ם': 40, 'ן': 50, 'ף': 80, 'ץ': 90 };
-    let n = 0;
-    for (const ch of letters) {
-      let v = value[ch];
-      if (v === undefined) {
-        const code = 'אבגדהוזחטיכלמנסעפצקרשת'.indexOf(ch);
-        if (code < 0) return null;
-        v = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 200, 300, 400][code];
-      }
-      n += v;
-    }
-    if (n < 100 || n > 999) return null;
-    return n + 5000;
+    const n = Heb.parseNumeral(s);
+    return n && n >= 100 && n <= 999 ? n + 5000 : null;
   }
 
   // ---------------------------------------------------------- תאריכים
@@ -238,16 +209,32 @@
     return addDays(today, (6 - today.getDay() + 7) % 7);
   }
 
-  /** "י"ד בתשרי תשפ"ז" לפי לוח השנה העברי של הדפדפן; ריק אם אינו נתמך. */
-  function hebrewDate(date, language) {
-    try {
-      const tag = (language === 'he' || !language ? 'he' : language) + '-u-ca-hebrew';
-      return new Intl.DateTimeFormat(tag, { day: 'numeric', month: 'long', year: 'numeric' }).format(date);
-    } catch (error) {
-      return '';
-    }
+  const uiLang = () => (I18n.language === 'he' ? 'he' : I18n.language);
+
+  /**
+   * שורת תאריך לתצוגה, עברי ולועזי: "שבת, כ״ז בחשוון תשפ״ז · 7 בנובמבר 2026".
+   * האפשרויות ב-`HebCal.format` (weekday, hebrew, gregorian, short, year).
+   */
+  const dateLine = (date, options) => Heb.format(date, { lang: uiLang(), ...(options || {}) });
+
+  /** `dateLine` לתאריך `YYYY-MM-DD` מהקטלוג; טקסט שאינו תאריך חוזר כמות שהוא. */
+  function dateText(text, options) {
+    const date = parseYmd(text);
+    return date ? dateLine(date, options) : String(text || '');
   }
 
+  /** תאריך עברי בלבד: "כ״ז בחשוון תשפ״ז". */
+  const hebrewDate = (date, options) => Heb.formatHebrew(date, { lang: uiLang(), ...(options || {}) });
+
+  /** חותמת זמן (נבדק/הורד/נפתח): "כ״ז בחשוון · 7.11.2026, 14:05". */
+  function formatStamp(ms) {
+    const date = new Date(ms);
+    if (!ms || Number.isNaN(date.getTime())) return '';
+    const time = pad(date.getHours()) + ':' + pad(date.getMinutes());
+    return Heb.format(date, { lang: uiLang(), short: true, year: false }) + ', ' + time;
+  }
+
+  /** תאריך+שעה לפי האזור (לשימושים טכניים שבהם אין צורך בתאריך עברי). */
   function formatDate(date, options) {
     try {
       return new Intl.DateTimeFormat(I18n.locale(), options || { day: 'numeric', month: 'long', year: 'numeric' }).format(date);
@@ -467,7 +454,10 @@
     parseYmd,
     addDays,
     upcomingShabbat,
+    dateLine,
+    dateText,
     hebrewDate,
+    formatStamp,
     formatDate,
     formatBytes,
     formatCount,

@@ -19,7 +19,7 @@
     if (label) parts.push(label);
     if (item.hy) parts.push(Core.hyLetters(item.hy));
     if (item.no) parts.push(t('גיליון {no}', { no: item.no }));
-    if (!parts.length && item.date) parts.push(item.date);
+    if (!parts.length && item.date) parts.push(Core.dateText(item.date, { short: true }));
     return parts;
   }
 
@@ -91,7 +91,7 @@
     const state = app.cardState(item);
     const mode = opts.mode === 'row' ? 'row' : 'card';
     // בדף סדרה שם הסדרה חוזר בכל שורה: הכותרת היא השבוע, והמשנה — השנה והמספר.
-    const title = opts.inSeries ? Core.weekLabel(item) || item.date || titleOf(item) : titleOf(item);
+    const title = opts.inSeries ? Core.weekLabel(item) || (item.date ? Core.dateText(item.date, { short: true }) : '') || titleOf(item) : titleOf(item);
     const meta = opts.inSeries ? [item.hy ? Core.hyLetters(item.hy) : '', item.no ? t('גיליון {no}', { no: item.no }) : ''].filter(Boolean).join(' · ') : metaParts(item).join(' · ');
     const tokens = opts.tokens || [];
     const titleNode = el('h3', { class: 'card-title', dir: 'auto' }, Ui.marked(title, highlightSpans(title, tokens)));

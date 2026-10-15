@@ -174,7 +174,7 @@
       const s = app.catalog.status;
       const phase = s.phase;
       const lines = [];
-      const when = (ms) => (ms ? Core.formatDate(new Date(ms), { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) : t('עוד לא'));
+      const when = (ms) => (ms ? Core.formatStamp(ms) : t('עוד לא'));
       let text = t('הכול מעודכן');
       if (phase === 'checking') text = t('בודק עדכונים…');
       else if (phase === 'downloading') text = t('מוריד נתונים: {done} מתוך {total}', { done: s.done, total: s.total });
@@ -347,7 +347,7 @@
       } else text = t('כלל זה יחול על {n} גיליונות', { n: Core.formatCount(sim.total) });
       Ui.fill(box, 
         el('p', { class: 'setting-text' }, icon('info_24_regular'), text),
-        sim.examples.length ? el('ul', { class: 'example-list' }, sim.examples.map((it) => el('li', { dir: 'auto' }, (it.seriesTitle || it.title) + ' · ' + (Core.weekLabel(it) || it.date || '')))) : null,
+        sim.examples.length ? el('ul', { class: 'example-list' }, sim.examples.map((it) => el('li', { dir: 'auto' }, (it.seriesTitle || it.title) + ' · ' + (Core.weekLabel(it) || Core.dateText(it.date, { short: true }))))) : null,
         !app.catalog.syncing && app.catalog.shards.length > app.catalog.status.shardsLoaded ? el('p', { class: 'setting-help' }, t('חלק מהנתונים עוד נטענים, והמספר עשוי לגדול.')) : null,
       );
     }
@@ -361,7 +361,7 @@
           'li',
           { class: 'source-row' },
           el('div', { class: 'source-main' }, el('strong', { dir: 'auto' }, s.name), Ui.chip(A.Dialogs.statusText(s.status), { kind: s.status === 'ok' ? 'done' : 'warn' }), s.mode === 'link' ? Ui.chip(t('קישור בלבד'), { kind: 'warn', icon: 'open_24_regular' }) : null),
-          el('p', { class: 'setting-help' }, [s.issueCount ? t('{n} גיליונות', { n: Core.formatCount(s.issueCount) }) : '', s.checkedAt ? t('נבדק: {when}', { when: Core.formatDate(new Date(s.checkedAt), { day: 'numeric', month: 'short', hour: '2-digit', minute: '2-digit' }) }) : ''].filter(Boolean).join(' · ')),
+          el('p', { class: 'setting-help' }, [s.issueCount ? t('{n} גיליונות', { n: Core.formatCount(s.issueCount) }) : '', s.checkedAt ? t('נבדק: {when}', { when: Core.formatStamp(s.checkedAt) }) : ''].filter(Boolean).join(' · ')),
           s.note ? el('p', { class: 'setting-help', dir: 'auto' }, s.note) : null,
           s.url ? Ui.button('text', t('לאתר המקור'), () => app.openSite({ src: s.id }), { icon: 'open_24_regular', className: 'button-small' }) : null,
         ),

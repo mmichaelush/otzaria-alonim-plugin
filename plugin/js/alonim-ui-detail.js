@@ -76,11 +76,11 @@
       fact(t('פרשה'), Core.parashaLabel(item.parasha)),
       fact(t('אירוע'), item.event ? Core.eventName(item.event) : ''),
       fact(t('שנה'), item.hy ? Core.hyLetters(item.hy) + ' (' + item.hy + ')' : ''),
-      fact(t('תאריך השבת'), item.date ? (Core.parseYmd(item.date) ? Core.hebrewDate(Core.parseYmd(item.date), I18n.language) + ' · ' + Core.formatDate(Core.parseYmd(item.date)) : item.date) : ''),
+      fact(t('תאריך השבת'), item.date ? Core.dateText(item.date, { weekday: true }) : ''),
       fact(t('גיליון'), item.no ? String(item.no) : ''),
       fact(t('שפה'), Core.langName(item.lang)),
       fact(t('חוג'), series && series.circle),
-      fact(t('נוסף לקטלוג'), item.added ? Core.formatDate(new Date(item.added)) : ''),
+      fact(t('נוסף לקטלוג'), item.added ? Core.dateLine(new Date(item.added)) : ''),
       fact(t('עמודים'), item.pages ? String(item.pages) : ''),
     );
 

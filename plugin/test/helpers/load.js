@@ -11,6 +11,7 @@ const plugin = (...parts) => path.join(__dirname, '..', '..', ...parts);
 const PURE = [
   'js/alonim-i18n.js',
   'i18n/en.js',
+  'js/alonim-hebcal.js',
   'js/alonim-core.js',
   'js/alonim-normalize.js',
   'js/alonim-log.js',
