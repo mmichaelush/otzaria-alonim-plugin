@@ -3,6 +3,7 @@ import assert from 'node:assert/strict';
 import { mkdtemp, rm, readFile, readdir } from 'node:fs/promises';
 import { tmpdir } from 'node:os';
 import { join } from 'node:path';
+import { fileURLToPath } from 'node:url';
 import { fixture, fixtureJson, fakeHttp, HostBlockedError, HttpError } from './helpers.js';
 import { runBuild } from '../build.mjs';
 import { sha256, stableStringify, splitIssues, writeCatalog, SHARD_MAX_BYTES, prune } from '../lib/shards.mjs';
@@ -211,5 +212,25 @@ test('shards above 3MB are split into <year>-<k> files, each below the limit, in
     assert.equal(total, issues.length);
     // small data is not split
     assert.equal(splitIssues(issues.slice(0, 10)).length, 1);
+  });
+});
+
+test('publish guard: refuses an empty catalog and one that lost most of the previous data', async () => {
+  const { spawnSync } = await import('node:child_process');
+  const { writeFile, mkdir } = await import('node:fs/promises');
+  const run = (out, prev) => spawnSync(process.execPath, [new URL('../tools/sanity.mjs', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1'), '--out', out, ...(prev ? ['--prev', prev] : [])], { encoding: 'utf8' });
+  await withTmp(async (dir) => {
+    await runBuild({ out: join(dir, 'good'), now: NOW, http: fakeHttp(routes()), log: SILENT });
+    assert.equal(run(join(dir, 'good')).status, 0);
+    assert.equal(run(join(dir, 'good'), join(dir, 'good')).status, 0);
+    // a catalog with a tenth of the issues
+    const small = routes({ 'https://ladaat.co/gilyonot/api/files': { success: true, files: [], hasMore: false }, 'https://alonolam.com/wp-json/gallery/v1/list': [], 'https://tashma.co.il/gilyonot/new': { items: [] }, 'https://gilyoines.com/api/home': { gilyoines: [] }, 'https://gilyoines.com/api/home/getGilyoines/': { gilyoines: [] } });
+    await runBuild({ out: join(dir, 'empty'), now: NOW, http: fakeHttp(small), log: SILENT });
+    assert.equal(run(join(dir, 'empty')).status, 1, 'empty');
+    await mkdir(join(dir, 'x'), { recursive: true });
+    const m = JSON.parse(await readFile(join(dir, 'good', 'manifest.json'), 'utf8'));
+    m.shards = [{ ...m.shards[0], count: 1 }];
+    await writeFile(join(dir, 'x', 'manifest.json'), JSON.stringify(m));
+    assert.equal(run(join(dir, 'x'), join(dir, 'good')).status, 1, 'shrunk');
   });
 });
