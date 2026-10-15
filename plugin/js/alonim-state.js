@@ -16,6 +16,9 @@
   const MAX_OPENED = 30;
   const MAX_FAVORITES = 5000;
   const MAX_LISTS = 50;
+  const MAX_PRESETS = 30;
+  /** פער שאחריו כניסה נחשבת ביקור חדש (עבור חדשים מאז הביקור האחרון). */
+  const VISIT_GAP_MS = 6 * 3600 * 1000;
   const MAX_LIST_ENTRIES = 500;
   const MAX_IMPORT_BYTES = 3 * 1024 * 1024;
   const EXPORT_FORMAT = 'otzaria-alonim-settings';
@@ -45,6 +48,7 @@
     rules: () => Rules.emptyRules(),
     lists: () => ({ v: 1, items: [] }),
     opened: () => ({ v: 1, items: [] }),
+    views: () => ({ v: 1, tabs: {}, presets: [], lastSeen: 0, visitBase: 0 }),
   };
 
   const isObject = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
@@ -144,6 +148,45 @@
         const entries = (Array.isArray(l.entries) ? l.entries : []).slice(0, MAX_LIST_ENTRIES).map(cleanSnap).filter(Boolean);
         out.items.push({ id: str(l.id, 40), name: str(l.name, 80) || '—', kind: l.kind === 'shabbat' ? 'shabbat' : 'list', created: num(l.created, 0), entries });
       }
+      return out;
+    },
+    views(raw) {
+      const out = defaults.views();
+      if (!isObject(raw)) return out;
+      const sorts = ['relevance', 'new', 'date', 'alpha', 'size'];
+      const tabs = isObject(raw.tabs) ? raw.tabs : {};
+      if (isObject(tabs.all)) {
+        out.tabs.all = {
+          query: str(tabs.all.query, 300),
+          filters: A.Filters.clean(tabs.all.filters),
+          sort: sorts.includes(tabs.all.sort) ? tabs.all.sort : 'relevance',
+          includeHidden: tabs.all.includeHidden === true,
+        };
+      }
+      if (isObject(tabs.seriesList)) {
+        const t = tabs.seriesList;
+        out.tabs.seriesList = {
+          query: str(t.query, 200),
+          circle: str(t.circle, 80),
+          lang: str(t.lang, 10),
+          mode: ['all', 'follow', 'fav', 'mute'].includes(t.mode) ? t.mode : 'all',
+        };
+      }
+      const seen = new Set();
+      for (const p of (Array.isArray(raw.presets) ? raw.presets : []).slice(0, MAX_PRESETS)) {
+        if (!isObject(p) || typeof p.id !== 'string' || seen.has(p.id)) continue;
+        seen.add(p.id);
+        out.presets.push({
+          id: str(p.id, 40),
+          name: str(p.name, 80).trim() || '—',
+          query: str(p.query, 300),
+          filters: A.Filters.clean(p.filters),
+          sort: sorts.includes(p.sort) ? p.sort : 'relevance',
+          t: num(p.t, 0),
+        });
+      }
+      out.lastSeen = num(raw.lastSeen, 0);
+      out.visitBase = num(raw.visitBase, 0);
       return out;
     },
     opened(raw) {
@@ -394,6 +437,79 @@
       if (changed) this._touch('series', 'rules');
     }
 
+    // ------------------------------------------ מצב מסכים, הגדרות וביקורים
+
+    /** המצב השמור של לשונית (`all`, `seriesList`), או `null`. */
+    viewState(tab) {
+      return this.data.views.tabs[tab] || null;
+    }
+
+    /** שומר את מצב הלשונית (שאילתה, מסננים, מיון) לפתיחה הבאה. */
+    setViewState(tab, value) {
+      const next = cleaners.views({ tabs: { ...this.data.views.tabs, [tab]: value } }).tabs[tab];
+      if (!next || JSON.stringify(next) === JSON.stringify(this.data.views.tabs[tab])) return;
+      this.data.views.tabs[tab] = next;
+      this._touch('views');
+    }
+
+    get presets() {
+      return this.data.views.presets;
+    }
+
+    /** שומר הגדרת חיפוש בשם; שם קיים מתעדכן. מחזיר את ההגדרה, או `null` אם מלא. */
+    savePreset(name, snapshot) {
+      const clean = cleaners.views({ presets: [{ id: 'x', name, ...snapshot }] }).presets[0];
+      if (!clean) return null;
+      const list = this.data.views.presets;
+      const existing = list.find((p) => p.name === clean.name);
+      if (existing) {
+        Object.assign(existing, { query: clean.query, filters: clean.filters, sort: clean.sort, t: this.now() });
+        this._touch('views');
+        return existing;
+      }
+      if (list.length >= MAX_PRESETS) return null;
+      const preset = { ...clean, id: 'p' + this.now().toString(36) + Math.floor(Math.random() * 1e4).toString(36), t: this.now() };
+      list.push(preset);
+      this._touch('views');
+      return preset;
+    }
+
+    deletePreset(id) {
+      const preset = this.data.views.presets.find((p) => p.id === id) || null;
+      this.data.views.presets = this.data.views.presets.filter((p) => p.id !== id);
+      this._touch('views');
+      return preset;
+    }
+
+    restorePreset(preset) {
+      if (!preset || this.data.views.presets.some((p) => p.id === preset.id) || this.data.views.presets.length >= MAX_PRESETS) return;
+      this.data.views.presets.push(preset);
+      this._touch('views');
+    }
+
+    /**
+     * "ביקור": נקודת הייחוס ל"חדשים מאז הביקור האחרון". כניסה אחרי פער של שעות
+     * פותחת ביקור חדש (הבסיס = הפעם האחרונה שנראה); בתוך אותו ביקור הבסיס קבוע.
+     */
+    beginVisit() {
+      const v = this.data.views;
+      const now = this.now();
+      if (!v.visitBase || (v.lastSeen && now - v.lastSeen > VISIT_GAP_MS)) v.visitBase = v.lastSeen || now;
+      v.lastSeen = now;
+      this._touch('views');
+    }
+
+    /** מתי התחיל הביקור הקודם (או 0): "חדשים" = נוספו אחרי זה. */
+    get visitBase() {
+      return this.data.views.visitBase;
+    }
+
+    /** "סמן הכול כנקרא": הבסיס עובר לעכשיו. */
+    markVisited() {
+      this.data.views.visitBase = this.now();
+      this._touch('views');
+    }
+
     // -------------------------------------------------------- אוספים
 
     get lists() {
@@ -499,6 +615,7 @@
     exportSettings(options) {
       const withRead = !options || options.read !== false;
       const prefs = { ...this.data.prefs, folder: null };
+      const views = { v: 1, presets: this.data.views.presets };
       return {
         format: EXPORT_FORMAT,
         v: 1,
@@ -509,6 +626,7 @@
         series: this.data.series,
         rules: this.data.rules,
         lists: this.data.lists,
+        views,
         ...(withRead ? { read: this.data.read } : {}),
       };
     }
@@ -530,7 +648,7 @@
       if (!isObject(raw) || raw.format !== EXPORT_FORMAT) return { ok: false, error: 'format' };
       if (typeof raw.v !== 'number' || raw.v > 1) return { ok: false, error: 'too_new' };
       const sections = {};
-      for (const name of ['prefs', 'favorites', 'series', 'rules', 'lists', 'read']) {
+      for (const name of ['prefs', 'favorites', 'series', 'rules', 'lists', 'read', 'views']) {
         if (raw[name] !== undefined) sections[name] = cleaners[name](raw[name]);
       }
       if (sections.prefs) sections.prefs.folder = null;
@@ -540,6 +658,7 @@
         favorites: sections.favorites ? Object.keys(sections.favorites.items).length : 0,
         lists: sections.lists ? sections.lists.items.length : 0,
         read: sections.read ? Object.keys(sections.read.items).length : 0,
+        presets: sections.views ? sections.views.presets.length : 0,
         prefs: Boolean(sections.prefs),
       };
       return { ok: true, sections, summary };
@@ -570,6 +689,11 @@
           const names = new Set(d.lists.items.map((l) => l.id));
           for (const l of s.lists.items) if (!names.has(l.id) && d.lists.items.length < MAX_LISTS) d.lists.items.push(l);
         }
+      }
+      if (s.views) {
+        const have = new Set(d.views.presets.map((p) => p.name));
+        const incoming = replace ? s.views.presets : s.views.presets.filter((p) => !have.has(p.name));
+        d.views.presets = (replace ? [] : d.views.presets).concat(incoming.map((p) => ({ ...p, id: 'p' + this.now().toString(36) + Math.floor(Math.random() * 1e6).toString(36) }))).slice(0, MAX_PRESETS);
       }
       const touched = Object.keys(s);
       this._touch(...touched);

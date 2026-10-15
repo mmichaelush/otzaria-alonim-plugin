@@ -25,6 +25,7 @@
     rules: 'state_rules',
     lists: 'state_lists',
     opened: 'state_opened',
+    views: 'state_views',
   });
 
   /**
