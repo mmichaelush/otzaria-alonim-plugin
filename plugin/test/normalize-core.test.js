@@ -41,14 +41,29 @@ test('זהות normalizeKey מול catalog/lib/normalize.mjs (כשהקובץ ק�
     return;
   }
   const { normalizeKey: catalogKey } = await import(require('node:url').pathToFileURL(file).href);
-  const samples = ['בְּרֵאשִׁית', 'רש"י', "ה'תשפ״ז", 'לך־לך', 'a/b\\c_d', 'The  WEEKLY', 'סוף מלך', 'ﬁne', '“שבת”', '—', 'אסיפת גליונות - נח', '[37] אסיפה', 'x\u200Fy', 'a.b,c;d(e)'];
+  const samples = [
+    'בְּרֵאשִׁית',
+    'רש"י',
+    "ה'תשפ״ז",
+    'לך־לך',
+    'a/b\\c_d',
+    'The  WEEKLY',
+    'סוף מלך',
+    'ﬁne',
+    '“שבת”',
+    '—',
+    'אסיפת גליונות - נח',
+    '[37] אסיפה',
+    'x\u200Fy',
+    'a.b,c;d(e)',
+  ];
   for (const s of samples) assert.equal(normalizeKey(s), catalogKey(s), JSON.stringify(s));
 });
 
 test('hyLetters ו-parseYear הפוכים זה לזה', () => {
-  assert.equal(Core.hyLetters(5787), 'תשפ"ז');
-  assert.equal(Core.hyLetters(5775), 'תשע"ה');
-  assert.equal(Core.hyLetters(5715), 'תשט"ו');
+  assert.equal(Core.hyLetters(5787), 'תשפ״ז');
+  assert.equal(Core.hyLetters(5775), 'תשע״ה');
+  assert.equal(Core.hyLetters(5715), 'תשט״ו');
   assert.equal(Core.parseYear('תשפ"ז'), 5787);
   assert.equal(Core.parseYear('תשפז'), 5787);
   assert.equal(Core.parseYear('5787'), 5787);
@@ -86,7 +101,14 @@ test('sanitizeFileName: בלי נתיב, בלי .., בלי שמות שמורים
 });
 
 test('downloadPath: שנה/סדרה/קובץ עם מזהה, ואפשר לחלץ אותו חזרה', () => {
-  const item = { id: 'i_8c11d0e47a93', hy: 5787, title: 'אסיפת גליונות', parasha: ['noach'], no: 21, date: '2026-10-17' };
+  const item = {
+    id: 'i_8c11d0e47a93',
+    hy: 5787,
+    title: 'אסיפת גליונות',
+    parasha: ['noach'],
+    no: 21,
+    date: '2026-10-17',
+  };
   const p = Core.downloadPath(item, 'אסיפת גליונות');
   assert.equal(p.dir, '5787/אסיפת גליונות');
   assert.match(p.file, /^אסיפת גליונות - נח - #21 \[8c11d0e4\]\.pdf$/);
@@ -100,19 +122,24 @@ test('upcomingShabbat', () => {
   assert.equal(Core.ymd(Core.upcomingShabbat(new Date(2026, 9, 18, 12))), '2026-10-24');
 });
 
-const readJson = (name) => JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', name), 'utf8'));
+const readJson = (name) =>
+  JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', name), 'utf8'));
 
 test('normalizeKey עובר את הווקטורים המשותפים עם הקטלוג (normalize-vectors.json)', () => {
-  for (const [input, expected] of readJson('normalize-vectors.json')) assert.equal(normalizeKey(input), expected, JSON.stringify(input));
+  for (const [input, expected] of readJson('normalize-vectors.json'))
+    assert.equal(normalizeKey(input), expected, JSON.stringify(input));
   assert.equal(normalizeKey(null), '');
   assert.equal(normalizeKey('מטות־מסעי'), 'מטות מסעי');
 });
 
 test('כתובות: הווקטורים המשותפים עם הקטלוג (url-vectors.json)', () => {
   const v = readJson('url-vectors.json');
-  for (const [input, expected] of v.encodeNonAscii) assert.equal(Core.encodeNonAscii(input), expected, input);
-  for (const [input, expected] of v.decodeNonAscii) assert.equal(Core.decodeNonAscii(input), expected, input);
-  for (const c of v.resolve) assert.deepEqual(Core.resolveAssetUrls(c.asset, c.source), c.expect, c.name);
+  for (const [input, expected] of v.encodeNonAscii)
+    assert.equal(Core.encodeNonAscii(input), expected, input);
+  for (const [input, expected] of v.decodeNonAscii)
+    assert.equal(Core.decodeNonAscii(input), expected, input);
+  for (const c of v.resolve)
+    assert.deepEqual(Core.resolveAssetUrls(c.asset, c.source), c.expect, c.name);
 });
 
 test('keyIs: אות לטינית לפי key, ובפריסה עברית לפי המקש הפיזי (code)', () => {

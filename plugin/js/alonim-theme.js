@@ -22,7 +22,8 @@
     if (!theme || !theme.colorScheme || !doc) return false;
     const style = doc.documentElement.style;
     for (const [role, value] of Object.entries(theme.colorScheme)) {
-      if (typeof value === 'string' && value !== '') style.setProperty('--color-' + kebab(role), value);
+      if (typeof value === 'string' && value !== '')
+        style.setProperty('--color-' + kebab(role), value);
     }
     doc.documentElement.dataset.mode = theme.mode === 'dark' ? 'dark' : 'light';
     const typography = theme.typography || {};
@@ -42,6 +43,7 @@
   }
 
   const api = { applyTheme, applyScale, kebab };
+  /** @type {any} */
   const A = (root.Alonim = root.Alonim || {});
   A.Theme = api;
   if (typeof module === 'object' && module.exports) module.exports = api;

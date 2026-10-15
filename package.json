@@ -1,0 +1,30 @@
+{
+  "name": "otzaria-alonim-plugin",
+  "version": "0.2.0",
+  "private": true,
+  "description": "Dev tooling only (tests, format, lint, type check). The plugin itself (plugin/) has no build and no dependencies.",
+  "license": "MIT",
+  "engines": {
+    "node": ">=22"
+  },
+  "scripts": {
+    "test": "node --test \"plugin/test/*.test.js\"",
+    "test:catalog": "node --test \"catalog/test/*.test.js\"",
+    "smoke": "node tools/preview/smoke.mjs",
+    "perf": "node tools/preview/perf.mjs",
+    "syntax": "node tools/check-syntax.mjs",
+    "format": "prettier --write \"plugin/js/**/*.js\" \"plugin/test/**/*.js\" \"plugin/css/**/*.css\" \"tools/preview/**/*.{js,mjs}\" \"tools/icon/**/*.mjs\" \"tools/*.mjs\" eslint.config.js",
+    "format:check": "prettier --check \"plugin/js/**/*.js\" \"plugin/test/**/*.js\" \"plugin/css/**/*.css\" \"tools/preview/**/*.{js,mjs}\" \"tools/icon/**/*.mjs\" \"tools/*.mjs\" eslint.config.js",
+    "lint": "eslint plugin/js plugin/test tools/preview tools/icon tools/*.mjs",
+    "typecheck": "tsc --noEmit -p tools/tsconfig.plugin.json",
+    "check": "npm run syntax && npm run format:check && npm run lint && npm run typecheck && npm test"
+  },
+  "devDependencies": {
+    "@eslint/js": "^9.0.0",
+    "@types/node": "^22.0.0",
+    "eslint": "^9.0.0",
+    "globals": "^15.0.0",
+    "prettier": "^3.3.0",
+    "typescript": "^5.5.0"
+  }
+}

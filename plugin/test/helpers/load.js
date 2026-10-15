@@ -11,16 +11,27 @@ const plugin = (...parts) => path.join(__dirname, '..', '..', ...parts);
 const PURE = [
   'js/alonim-i18n.js',
   'i18n/en.js',
+  'js/alonim-hebcal.js',
   'js/alonim-core.js',
   'js/alonim-normalize.js',
   'js/alonim-log.js',
   'js/alonim-runtime.js',
+  'js/alonim-capabilities.js',
+  'js/alonim-errors.js',
+  'js/alonim-boundary.js',
   'js/alonim-theme.js',
+  'js/alonim-weeks.js',
   'js/alonim-rules.js',
+  'js/alonim-filters.js',
   'js/alonim-index.js',
+  'js/alonim-index-search.js',
+  'js/alonim-state-schema.js',
   'js/alonim-state.js',
   'js/alonim-catalog.js',
   'js/alonim-files.js',
+  'js/alonim-bulk.js',
+  'js/alonim-storage.js',
+  'js/alonim-diagnostics.js',
 ];
 
 function loadPlugin() {

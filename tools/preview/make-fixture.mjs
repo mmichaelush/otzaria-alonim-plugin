@@ -18,7 +18,8 @@ const { buildFiles, DEFAULT_SOURCES } = require('../../plugin/test/helpers/catal
 const { makeCatalog } = require('../../plugin/test/helpers/fixture.js');
 globalThis.Alonim = globalThis.Alonim || {};
 require('../../plugin/js/alonim-i18n.js');
-const Core = require('../../plugin/js/alonim-core.js');
+require('../../plugin/js/alonim-hebcal.js');
+require('../../plugin/js/alonim-core.js');
 
 const args = process.argv.slice(2);
 const flag = (name) => args.includes(name);
@@ -31,29 +32,21 @@ function readDir(dir) {
     for (const name of readdirSync(d)) {
       const full = join(d, name);
       if (statSync(full).isDirectory()) walk(full);
-      else if (name.endsWith('.json')) files[relative(dir, full).replaceAll('\\', '/')] = readFileSync(full, 'utf8');
+      else if (name.endsWith('.json'))
+        files[relative(dir, full).replaceAll('\\', '/')] = readFileSync(full, 'utf8');
     }
   };
   walk(dir);
   return files;
 }
 
-const PARASHA_ORDER = Object.keys(Core.PARASHOT);
 const ANCHOR = { date: '2026-10-17', hy: 5787, slug: 'noach' };
 
-/** שבתות שנה אחורה ושנה קדימה, מעוגנות בנח תשפ"ז (מחזור פשוט: לתצוגה בלבד). */
+/** לוח השבועות האמיתי של הקטלוג (5786-5788), כולל שורות חג באמצע השבוע. */
 function weeksFixture() {
-  const weeks = [];
-  const base = new Date(2026, 9, 17, 12);
-  const start = PARASHA_ORDER.indexOf(ANCHOR.slug);
-  for (let k = -52; k <= 52; k++) {
-    const d = new Date(base.getFullYear(), base.getMonth(), base.getDate() + k * 7, 12);
-    const slug = PARASHA_ORDER[(((start + k) % 54) + 54) % 54];
-    const hy = d.getFullYear() + 3760 + (d.getMonth() >= 8 ? 1 : 0);
-    weeks.push({ date: Core.ymd(d), hy, parasha: [slug], parashaIL: [slug], label: Core.PARASHOT[slug], event: k === 1 ? null : null });
-  }
-  weeks[52 + 7].event = 'sukkot';
-  return weeks;
+  return JSON.parse(
+    readFileSync(join(here, '..', '..', 'plugin', 'test', 'fixtures', 'weeks-real.json'), 'utf8'),
+  );
 }
 
 const SERIES = [
@@ -73,7 +66,8 @@ const SERIES = [
 
 function smallCatalog() {
   const weeks = weeksFixture();
-  const noachIndex = weeks.findIndex((w) => w.date === ANCHOR.date);
+  const shabbatRows = weeks.filter((w) => w.shabbat !== false);
+  const noachIndex = shabbatRows.findIndex((w) => w.date === ANCHOR.date);
   const series = SERIES.map(([title, lang, circle, src], i) => ({
     id: 's_' + (0x3fa91c02b1 + i * 7919).toString(16).slice(0, 10),
     title,
@@ -94,9 +88,9 @@ function smallCatalog() {
     const total = SERIES[si][4];
     for (let k = 0; k < total; k++) {
       // השבוע הנוכחי תחילה, ואז אחורה: כל סדרה מקבלת את השבוע הנוכחי.
-      const week = weeks[noachIndex - k];
+      const week = shabbatRows[noachIndex - k];
       if (!week) break;
-      const slug = week.parasha[0];
+      const slug = week.parasha[0] || week.event || 'shabbat';
       const primary = sources[(si + k) % 4];
       const copies = [primary];
       if ((si + k) % 5 === 0) copies.push(sources[(si + k + 1) % 4]);
@@ -104,8 +98,29 @@ function smallCatalog() {
       const assets = copies.map((src, c) => ({
         src,
         ext: String(1000 + n * 3 + c),
-        url: src === 'ladaat' ? 'https://ladaat.co/gilyonot/uploads/' + date + '/files/' + (si + 1) + '-' + slug + '.pdf' : src === 'tashma' ? 'https://tashma.co.il/gilyonot/file/' + (5000 + n) : src === 'gilyoines' ? 'https://gilyoines.com/storage/' + n + '.pdf' : 'https://alonolam.com/wp-content/uploads/' + date.slice(0, 7) + '/' + n + '.pdf',
-        page: 'https://' + { ladaat: 'ladaat.co/gilyonot/view/', tashma: 'tashma.co.il/gilyonot/', gilyoines: 'gilyoines.com/g/', alonolam: 'alonolam.com/g/' }[src] + n,
+        url:
+          src === 'ladaat'
+            ? 'https://ladaat.co/gilyonot/uploads/' +
+              date +
+              '/files/' +
+              (si + 1) +
+              '-' +
+              slug +
+              '.pdf'
+            : src === 'tashma'
+              ? 'https://tashma.co.il/gilyonot/file/' + (5000 + n)
+              : src === 'gilyoines'
+                ? 'https://gilyoines.com/storage/' + n + '.pdf'
+                : 'https://alonolam.com/wp-content/uploads/' + date.slice(0, 7) + '/' + n + '.pdf',
+        page:
+          'https://' +
+          {
+            ladaat: 'ladaat.co/gilyonot/view/',
+            tashma: 'tashma.co.il/gilyonot/',
+            gilyoines: 'gilyoines.com/g/',
+            alonolam: 'alonolam.com/g/',
+          }[src] +
+          n,
         bytes: 200000 + ((n * 7919) % 1000000),
         pages: 4 + ((n * 13) % 40),
         downloads: (n * 37) % 700,
@@ -114,7 +129,9 @@ function smallCatalog() {
       if (n % 17 === 0) {
         delete assets[0].url;
       }
-      const added = new Date(Date.UTC(2026, 9, 14, 20, 0, 0) - k * 7 * 86400000 - (n % 9) * 3600000).toISOString();
+      const added = new Date(
+        Date.UTC(2026, 9, 14, 20, 0, 0) - k * 7 * 86400000 - (n % 9) * 3600000,
+      ).toISOString();
       issues.push({
         id: 'i_' + (0x8c11d0e47a93 + n * 104729).toString(16).padStart(12, '0').slice(-12),
         series: s.id,
@@ -122,7 +139,8 @@ function smallCatalog() {
         no: 50 - k,
         date,
         hy: week.hy,
-        parasha: [slug],
+        parasha: week.parasha,
+        event: week.event || undefined,
         lang: s.lang,
         pages: assets[0].pages,
         added,
@@ -132,7 +150,20 @@ function smallCatalog() {
       n++;
     }
   });
-  const { files } = buildFiles({ series, issues, weeks, sources: DEFAULT_SOURCES, recentCount: 40 });
+  const weeksArchive = JSON.parse(
+    readFileSync(
+      join(here, '..', '..', 'plugin', 'test', 'fixtures', 'weeks-archive-real.json'),
+      'utf8',
+    ),
+  );
+  const { files } = buildFiles({
+    series,
+    issues,
+    weeks,
+    weeksArchive,
+    sources: DEFAULT_SOURCES,
+    recentCount: 40,
+  });
   return files;
 }
 
@@ -150,7 +181,13 @@ if (value('--catalog')) {
     const size = Number(value('--size') || 32000);
     const { series, issues } = makeCatalog(size, 1200, 5);
     const weeks = weeksFixture();
-    const { files } = buildFiles({ series, issues, weeks, sources: DEFAULT_SOURCES, recentCount: 60 });
+    const { files } = buildFiles({
+      series,
+      issues,
+      weeks,
+      sources: DEFAULT_SOURCES,
+      recentCount: 60,
+    });
     write('fixture-large.js', files);
   }
 }

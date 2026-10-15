@@ -33,7 +33,8 @@ function collectStrings() {
   const strings = new Set();
   for (const name of fs.readdirSync(JS_DIR)) {
     if (!name.endsWith('.js')) continue;
-    for (const text of stringsIn(fs.readFileSync(path.join(JS_DIR, name), 'utf8'))) strings.add(text);
+    for (const text of stringsIn(fs.readFileSync(path.join(JS_DIR, name), 'utf8')))
+      strings.add(text);
   }
   return strings;
 }

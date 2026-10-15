@@ -17,7 +17,7 @@
   const norm = memoized(normalizeKey, 60000);
   const skey = memoized(searchKey, 60000);
 
-  const FIELDS = ['series', 'year', 'parasha', 'lang', 'source', 'circle'];
+  const FIELDS = ['series', 'year', 'parasha', 'event', 'lang', 'source', 'circle'];
   const SORTS = ['relevance', 'new', 'date', 'alpha', 'size'];
   const DAY_MS = 86400000;
   const MATERIALIZED_MAX = 800;
@@ -47,7 +47,12 @@
         raw.push({ or: true });
         continue;
       }
-      raw.push({ field: useField, body, neg: m[1] === '-', phrase: quoted !== undefined && /\s/.test(quoted.trim()) });
+      raw.push({
+        field: useField,
+        body,
+        neg: m[1] === '-',
+        phrase: quoted !== undefined && /\s/.test(quoted.trim()),
+      });
     }
     const clauses = [];
     const tokens = [];
@@ -59,7 +64,8 @@
       }
       const term = makeTerm(part);
       if (!term) continue;
-      if (!term.neg && (!term.field || term.field === 'series')) for (const w of term.norm.split(' ')) if (w) tokens.push(w);
+      if (!term.neg && (!term.field || term.field === 'series'))
+        for (const w of term.norm.split(' ')) if (w) tokens.push(w);
       if (pendingOr && clauses.length) clauses[clauses.length - 1].alts.push(term);
       else clauses.push({ alts: [term] });
       pendingOr = false;
@@ -70,14 +76,23 @@
   function makeTerm(part) {
     const body = String(part.body || '').trim();
     if (!body) return null;
-    const term = { field: part.field, neg: part.neg, norm: skey(body), needle: '', phrase: part.phrase, from: 0, to: 0 };
+    const term = {
+      field: part.field,
+      neg: part.neg,
+      norm: skey(body),
+      needle: '',
+      phrase: part.phrase,
+      from: 0,
+      to: 0,
+    };
     if (part.field === 'year') {
-      const range = /^(\d{3,4})\s*(?:-|\.\.|–)\s*(\d{3,4})$/.exec(body);
-      const a = range ? Core.parseYear(range[1]) : Core.parseYear(body);
-      const b = range ? Core.parseYear(range[2]) : a;
-      if (a) {
-        term.from = Math.min(a, b || a);
-        term.to = Math.max(a, b || a);
+      // שנה, או טווח "5785-5787" / "תשפ״ה-תשפ״ז" (מספרים או אותיות, בכל שילוב).
+      const ends = body.split(/\s*(?:-|\.\.|–|־)\s*/);
+      const a = Core.parseYear(ends[0]);
+      const b = ends.length === 2 ? Core.parseYear(ends[1]) : a;
+      if (a && b) {
+        term.from = Math.min(a, b);
+        term.to = Math.max(a, b);
       }
     }
     if (!term.norm && !term.from) return null;
@@ -132,6 +147,10 @@
       this.hyc = [];
       this.dayc = [];
       this.addedc = [];
+      /** archive: ה-`added` אינו סימן ל"חדש" (ייבוא המוני, חומר ישן שהועלה מאוחר). */
+      this.archc = [];
+      /** זמן "חדש": `added`, או 0 לגיליון archive. משמש ל"חדש", למיון ולעדיפויות. */
+      this.newc = [];
       this.noc = [];
       this.p1 = [];
       this.p2 = [];
@@ -167,7 +186,15 @@
       this.seriesIdx = new Map();
       this.seriesById = new Map();
       this.seriesAlias = new Map();
+      /** מזהה גיליון ישן ← החדש (`previousIds` בקטלוג), להעברת מצב המשתמש. */
+      this.issueAlias = new Map();
+      /** מזהה גיליון ← מזהיו הקודמים (לזיהוי קבצים שהורדו לפני שהמזהה השתנה). */
+      this.issuePrev = new Map();
+      /** עולה בכל פעם שנוסף שם נרדף חדש: מי שמעביר מצב בודק אותו. */
+      this.aliasVersion = 0;
       this.weeks = [];
+      /** לוח הארכיון (שנים ישנות), נטען לפי בקשה. */
+      this.weeksOld = [];
       this.pending = [];
       this.bySeries = new Map();
       this.byDay = new Map();
@@ -199,7 +226,18 @@
       let k = this.seriesIdx.get(id);
       if (k === undefined) {
         k = this.seriesArr.length;
-        this.seriesArr.push({ id, title: '', _norm: '', _ntitle: '', _skey: '', _nc: '', circle: '', lang: '', _lang: 0, placeholder: true });
+        this.seriesArr.push({
+          id,
+          title: '',
+          _norm: '',
+          _ntitle: '',
+          _skey: '',
+          _nc: '',
+          circle: '',
+          lang: '',
+          _lang: 0,
+          placeholder: true,
+        });
         this.seriesIdx.set(id, k);
       }
       return k;
@@ -232,7 +270,34 @@
     }
 
     setWeeks(list) {
-      this.weeks = (Array.isArray(list) ? list : []).filter((w) => w && w.date).sort((a, b) => (a.date < b.date ? -1 : 1));
+      this.weeks = (Array.isArray(list) ? list : [])
+        .filter((w) => w && w.date)
+        .sort((a, b) => (a.date < b.date ? -1 : 1));
+      this._derived = null;
+      this._calendar = null;
+      this.version++;
+    }
+
+    /** שורות לוח של שנים ישנות (`weeks-archive.json`); מצטרפות ללוח הרגיל. */
+    setWeeksArchive(list) {
+      this.weeksOld = (Array.isArray(list) ? list : [])
+        .filter((w) => w && w.date)
+        .sort((a, b) => (a.date < b.date ? -1 : 1));
+      this._derived = null;
+      this._calendar = null;
+      this.version++;
+    }
+
+    /** הלוח המלא: הארכיון (אם נטען) ואחריו הלוח הרגיל, ממוינים. */
+    calendar() {
+      if (!this.weeksOld.length) return this.weeks;
+      if (!this._calendar || this._calendarVersion !== this.version) {
+        this._calendar = this.weeksOld
+          .concat(this.weeks)
+          .sort((a, b) => (a.date < b.date ? -1 : 1));
+        this._calendarVersion = this.version;
+      }
+      return this._calendar;
     }
 
     resolveSeriesId(id) {
@@ -248,7 +313,11 @@
     setSources(list) {
       this.sourceTemplate = new Map();
       for (const x of Array.isArray(list) ? list : []) {
-        if (x && x.id) this.sourceTemplate.set(x.id, Boolean(x.urlTemplates && typeof x.urlTemplates.url === 'string'));
+        if (x && x.id)
+          this.sourceTemplate.set(
+            x.id,
+            Boolean(x.urlTemplates && typeof x.urlTemplates.url === 'string'),
+          );
       }
       this._mat.clear();
       this.version++;
@@ -278,24 +347,61 @@
 
     _parashaHay(p1, p2, ev) {
       return this._part('p' + p1 + '/' + p2 + '/' + ev, () => {
-        const names = [p1, p2].filter(Boolean).map((p) => (Core.PARASHOT[this.parashot.get(p)] || '') + ' ' + this.parashot.get(p));
-        const event = ev ? (Core.EVENTS[this.events.get(ev)] || '') + ' ' + this.events.get(ev) : '';
+        const names = [p1, p2]
+          .filter(Boolean)
+          .map((p) => (Core.PARASHOT[this.parashot.get(p)] || '') + ' ' + this.parashot.get(p));
+        const event = ev
+          ? (Core.EVENTS[this.events.get(ev)] || '') + ' ' + this.events.get(ev)
+          : '';
         return ' ' + skey(names.join(' ') + ' ' + event) + ' ';
       });
     }
 
+    /**
+     * מזהי הפרשות (`kind: 'parasha'`) או האירועים (`'event'`) שהטקסט [norm] מציין:
+     * שם מדויק (עברית או סלאג) קודם; ורק אם אין — תחילת מילה. כך `parasha:נח` הוא נח
+     * בלבד, ולא גם "נחמו" שמתחילה באותן אותיות.
+     */
+    _namedIds(kind, norm) {
+      const dict = kind === 'event' ? this.events : this.parashot;
+      const names = kind === 'event' ? Core.EVENTS : Core.PARASHOT;
+      return this._part('n' + kind + '/' + dict.list.length + '/' + norm, () => {
+        const exact = new Set();
+        const prefix = new Set();
+        for (let id = 1; id < dict.list.length; id++) {
+          const slug = dict.list[id];
+          const forms = [skey(names[slug] || ''), skey(slug)];
+          if (forms.some((form) => form === norm)) exact.add(id);
+          else if (forms.some((form) => (' ' + form).includes(' ' + norm))) prefix.add(id);
+        }
+        return exact.size ? exact : prefix;
+      });
+    }
+
     _yearHay(hy) {
-      return this._part('y' + hy, () => (hy ? ' ' + hy + ' ' + skey(Core.hyLetters(hy)) + ' ' + (hy % 1000) + ' ' : ' '));
+      return this._part('y' + hy, () =>
+        hy ? ' ' + hy + ' ' + skey(Core.hyLetters(hy)) + ' ' + (hy % 1000) + ' ' : ' ',
+      );
     }
 
     _langHay(lang) {
-      return this._part('l' + lang, () => ' ' + this.langs.get(lang) + ' ' + skey(Core.LANG_NAMES[this.langs.get(lang)] || '') + ' ');
+      return this._part(
+        'l' + lang,
+        () =>
+          ' ' +
+          this.langs.get(lang) +
+          ' ' +
+          skey(Core.LANG_NAMES[this.langs.get(lang)] || '') +
+          ' ',
+      );
     }
 
     _srcHay(mask) {
       return this._part('s' + mask, () => {
         let text = '';
-        for (const [id, bit] of this.sourceBits) if (mask & (1 << bit)) text += ' ' + id + ' ' + (this.names.source ? this.names.source(id) || '' : '');
+        for (const [id, bit] of this.sourceBits)
+          if (mask & (1 << bit))
+            text += ' ' + id + ' ' + (this.names.source ? this.names.source(id) || '' : '');
         return ' ' + skey(text) + ' ';
       });
     }
@@ -359,6 +465,10 @@
         this.hyc[i] = raw.hy || 0;
         this.dayc[i] = dayOf(raw.date);
         this.addedc[i] = raw.added ? Math.floor((Date.parse(raw.added) || 0) / 1000) : 0;
+        this.archc[i] = raw.archive === true ? 1 : 0;
+        if (Array.isArray(raw.previousIds) && raw.previousIds.length)
+          this._addAliases(raw.id, raw.previousIds);
+        this.newc[i] = this.archc[i] ? 0 : this.addedc[i];
         this.noc[i] = raw.no || 0;
         this.p1[i] = this.parashot.id(parasha[0]);
         this.p2[i] = this.parashot.id(parasha[1]);
@@ -398,8 +508,35 @@
       this._facets = null;
       this._fragMap = null;
       this.version++;
-      this.lastBuildMs = (typeof performance !== 'undefined' ? performance.now() : Date.now()) - started;
+      this.lastBuildMs =
+        (typeof performance !== 'undefined' ? performance.now() : Date.now()) - started;
       return added;
+    }
+
+    /** רושם ש-[olds] הם מזהים קודמים של [id]. */
+    _addAliases(id, olds) {
+      let known = this.issuePrev.get(id);
+      for (const old of olds) {
+        if (typeof old !== 'string' || !old || old === id || this.issueAlias.get(old) === id)
+          continue;
+        this.issueAlias.set(old, id);
+        if (!known) this.issuePrev.set(id, (known = []));
+        known.push(old);
+        this.aliasVersion++;
+      }
+    }
+
+    /** המזהה הנוכחי של גיליון שמזהה ישן (עד כמה צעדים); מזהה לא מוכר חוזר כמות שהוא. */
+    resolveIssueId(id) {
+      let current = id;
+      for (let step = 0; step < 5 && this.issueAlias.has(current); step++)
+        current = this.issueAlias.get(current);
+      return current;
+    }
+
+    /** המזהים הקודמים של גיליון (ריק אם אין). */
+    previousIdsOf(id) {
+      return this.issuePrev.get(id) || [];
     }
 
     _titleId(title) {
@@ -463,7 +600,17 @@
     }
 
     _scratch() {
-      return { id: '', series: '', lang: '', title: '', srcs: [], _ns: '', _nall: undefined, _nc: '', _i: 0 };
+      return {
+        id: '',
+        series: '',
+        lang: '',
+        title: '',
+        srcs: [],
+        _ns: '',
+        _nall: undefined,
+        _nc: '',
+        _i: 0,
+      };
     }
 
     _fill(v, i) {
@@ -505,7 +652,12 @@
 
     decision(item) {
       const i = item._i !== undefined && item._i >= 0 ? item._i : this.idToI.get(item.id);
-      if (i === undefined) return this._compiled.decide({ ...item, srcs: (item.assets || []).map((a) => a.src), seriesTitle: item.seriesTitle });
+      if (i === undefined)
+        return this._compiled.decide({
+          ...item,
+          srcs: (item.assets || []).map((a) => a.src),
+          seriesTitle: item.seriesTitle,
+        });
       return this._compiled.decide(this._fill(this._scratch(), i));
     }
 
@@ -549,12 +701,14 @@
     _cmp(key) {
       const day = this.dayc;
       const added = this.addedc;
+      const fresh = this.newc;
       const byDate = (a, b) => day[b] - day[a] || added[b] - added[a] || a - b;
-      if (key === 'new') return (a, b) => added[b] - added[a] || byDate(a, b);
+      if (key === 'new') return (a, b) => fresh[b] - fresh[a] || byDate(a, b);
       if (key === 'size') {
         const maxKb = (i) => {
           let m = 0;
-          for (let k = this.astart[i]; k < this.astart[i] + this.acount[i]; k++) if (this.aKb[k] > m) m = this.aKb[k];
+          for (let k = this.astart[i]; k < this.astart[i] + this.acount[i]; k++)
+            if (this.aKb[k] > m) m = this.aKb[k];
           return m;
         };
         return (a, b) => maxKb(b) - maxKb(a) || byDate(a, b);
@@ -600,7 +754,8 @@
         let a = 0;
         let b = 0;
         let k = 0;
-        while (a < order.length && b < extra.length) merged[k++] = cmp(order[a], extra[b]) <= 0 ? order[a++] : extra[b++];
+        while (a < order.length && b < extra.length)
+          merged[k++] = cmp(order[a], extra[b]) <= 0 ? order[a++] : extra[b++];
         while (a < order.length) merged[k++] = order[a++];
         while (b < extra.length) merged[k++] = extra[b++];
         this._orders.set(key, merged);
@@ -616,8 +771,12 @@
           return String(this.hyc[i] || '').startsWith(term.norm);
         case 'series':
           return (' ' + this.seriesArr[this.sidx[i]]._skey + ' ').includes(term.needle);
-        case 'parasha':
-          return this._parashaHay(this.p1[i], this.p2[i], this.evc[i]).includes(term.needle);
+        case 'parasha': {
+          const set = this._namedIds('parasha', term.norm);
+          return set.has(this.p1[i]) || set.has(this.p2[i]);
+        }
+        case 'event':
+          return this._namedIds('event', term.norm).has(this.evc[i]);
         case 'lang':
           return this._langHay(this._lang(i)).includes(term.needle);
         case 'source':
@@ -629,99 +788,26 @@
       }
     }
 
-    /**
-     * מריץ שאילתה. [filters]: `{ parasha, hy, lang, source, circle, series,
-     * favorite, downloaded, unread, isNew }`. [ctx]: פרדיקטים למצב המשתמש:
-     * `{ isFavorite(item), isDownloaded(item), isRead(item), isNew(item) }`.
-     * [options]: `{ sort, includeHidden }`. מחזיר `{ idx, total, hidden, ms }`.
-     */
-    search(query, filters, ctx, options) {
-      const started = typeof performance !== 'undefined' ? performance.now() : Date.now();
-      const q = typeof query === 'string' ? parseQuery(query) : query || { clauses: [], tokens: [] };
-      const f = filters || {};
-      const c = ctx || {};
-      const o = options || {};
-      const sort = SORTS.includes(o.sort) ? o.sort : 'relevance';
-      const hasText = q.clauses.length > 0;
-      const order = this._order(sort);
-      const out = [];
-      let hidden = 0;
-      const bit = f.source && this.sourceBits.has(f.source) ? 1 << this.sourceBits.get(f.source) : 0;
-      if (f.source && !bit) return { idx: out, total: 0, hidden: 0, ms: 0, query: q };
-      const langId = f.lang ? this.langs.map.get(f.lang) || -1 : 0;
-      const parId = f.parasha ? this.parashot.map.get(f.parasha) || 0 : 0;
-      const evId = f.parasha ? this.events.map.get(f.parasha) || 0 : 0;
-      if (f.parasha && !parId && !evId) return { idx: out, total: 0, hidden: 0, ms: 0, query: q };
-      const seriesK = f.series ? this.seriesIdx.get(this.resolveSeriesId(f.series)) : -1;
-      const scores = hasText && sort === 'relevance' ? new Map() : null;
-      const clauses = q.clauses;
-      const needItem = f.favorite || f.downloaded || f.unread || f.isNew;
-      for (let k = 0; k < order.length; k++) {
-        const i = order[k];
-        if (f.hy && this.hyc[i] !== f.hy) continue;
-        if (langId && this._lang(i) !== langId) continue;
-        if (bit && !(this.maskc[i] & bit)) continue;
-        if (parId || evId) {
-          if (!((parId && (this.p1[i] === parId || this.p2[i] === parId)) || (evId && this.evc[i] === evId))) continue;
-        }
-        if (f.circle && this.seriesArr[this.sidx[i]].circle !== f.circle) continue;
-        if (f.series && this.sidx[i] !== seriesK) continue;
-        if (hasText) {
-          let ok = true;
-          let score = 0;
-          for (let ci = 0; ci < clauses.length && ok; ci++) {
-            const alts = clauses[ci].alts;
-            let hit = false;
-            for (let ai = 0; ai < alts.length; ai++) {
-              const term = alts[ai];
-              const matched = term.field ? this._termHit(i, term) : this.hay[i].includes(term.needle);
-              if (term.neg) {
-                if (!matched) hit = true;
-              } else if (matched) {
-                hit = true;
-                if (scores && !term.field) {
-                  const ns = this.seriesArr[this.sidx[i]]._ntitle;
-                  score += ns.startsWith(term.norm) ? 4 : (' ' + ns + ' ').includes(' ' + term.norm + ' ') ? 3 : (' ' + ns).includes(' ' + term.norm) ? 2 : 1;
-                }
-              }
-            }
-            if (!hit) ok = false;
-          }
-          if (!ok) continue;
-          if (scores) scores.set(i, score);
-        }
-        if (this.vis[i] !== 1 && !o.includeHidden) {
-          hidden++;
-          continue;
-        }
-        if (needItem) {
-          const it = this.item(i);
-          if (f.favorite && !(c.isFavorite && c.isFavorite(it))) continue;
-          if (f.downloaded && !(c.isDownloaded && c.isDownloaded(it))) continue;
-          if (f.unread && c.isRead && c.isRead(it)) continue;
-          if (f.isNew && !(c.isNew && c.isNew(it))) continue;
-        }
-        out.push(i);
-      }
-      if (scores && out.length > 1) {
-        const rank = new Map();
-        for (let r = 0; r < out.length; r++) rank.set(out[r], r);
-        out.sort((a, b) => scores.get(b) - scores.get(a) || rank.get(a) - rank.get(b));
-      }
-      const ms = (typeof performance !== 'undefined' ? performance.now() : Date.now()) - started;
-      return { idx: out, total: out.length, hidden, ms, query: q };
-    }
-
     // -------------------------------------------- גיליון, קיבוץ ושליפות
 
     /** אובייקט גיליון (בלי כתובות) לפי אינדקס, עם מטמון קטן. */
+    /**
+     * @param {number} i
+     * @returns {Item}
+     */
     item(i) {
       let it = this._mat.get(i);
       if (it) return it;
       const s = this.seriesArr[this.sidx[i]];
       const assets = [];
       for (let k = this.astart[i]; k < this.astart[i] + this.acount[i]; k++) {
-        assets.push({ src: this.sourceNames[this.aSrc[k]], bytes: this.aKb[k] * 1024, pages: this.aPages[k] || undefined, downloads: this.aDl[k] || undefined, noUrl: this.aNoUrl[k] === 1 && !this.sourceTemplate.get(this.sourceNames[this.aSrc[k]]) });
+        assets.push({
+          src: this.sourceNames[this.aSrc[k]],
+          bytes: this.aKb[k] * 1024,
+          pages: this.aPages[k] || undefined,
+          downloads: this.aDl[k] || undefined,
+          noUrl: this.aNoUrl[k] === 1 && !this.sourceTemplate.get(this.sourceNames[this.aSrc[k]]),
+        });
       }
       const title = this.titlec[i] ? this.titles[this.titlec[i]] : s.title;
       const parasha = [this.p1[i], this.p2[i]].filter(Boolean).map((p) => this.parashot.get(p));
@@ -748,7 +834,8 @@
         circleName: s.circle || '',
         _i: i,
         _ns: s._ntitle,
-        _added: this.addedc[i] * 1000,
+        archive: this.archc[i] === 1 || undefined,
+        _added: this.newc[i] * 1000,
         _date: this.dayc[i] * DAY_MS,
         _bytes: bytes,
         _dl: downloads,
@@ -769,6 +856,12 @@
       if (!this._fragMap) {
         this._fragMap = new Map();
         for (let i = 0; i < this.n; i++) this._fragMap.set(Core.idFragment(this.ids[i]), i);
+        // קובץ שהורד לפני ששם הגיליון השתנה: הקידומת הישנה מובילה לגיליון הנוכחי.
+        for (const [old, id] of this.issueAlias) {
+          const i = this.idToI.get(this.resolveIssueId(id));
+          if (i !== undefined && !this._fragMap.has(Core.idFragment(old)))
+            this._fragMap.set(Core.idFragment(old), i);
+        }
       }
       const i = this._fragMap.get(fragment);
       return i === undefined ? null : this.item(i);
@@ -776,7 +869,9 @@
 
     /** גיליונות הסדרה, מהחדש לישן (לפי תאריך, אחר כך זמן הוספה). */
     issuesOfSeries(seriesId, includeHidden) {
-      const list = (this.bySeries.get(this.resolveSeriesId(seriesId)) || []).filter((i) => includeHidden || this.vis[i] === 1);
+      const list = (this.bySeries.get(this.resolveSeriesId(seriesId)) || []).filter(
+        (i) => includeHidden || this.vis[i] === 1,
+      );
       const day = this.dayc;
       const added = this.addedc;
       return list.sort((a, b) => day[b] - day[a] || added[b] - added[a] || a - b);
@@ -792,16 +887,55 @@
       return [...set].filter((i) => includeHidden || this.vis[i] === 1);
     }
 
-    weekFor(dateText) {
-      const weeks = this.weeks;
-      for (let i = 0; i < weeks.length; i++) if (weeks[i].date >= dateText) return i;
-      return weeks.length ? weeks.length - 1 : -1;
+    /**
+     * שורות שבוע לתאריכים שמחוץ ללוח (`weeks.json` מכסה כשנתיים): נגזרות
+     * מהגיליונות המתוארכים שנטענו. כך אפשר לדפדף גם בשנים שאין להן לוח.
+     */
+    derivedWeeks() {
+      if (this._derived && this._derivedVersion === this.version) return this._derived;
+      const calendar = this.calendar();
+      const first = calendar.length ? dayOf(calendar[0].date) : Infinity;
+      const last = calendar.length ? dayOf(calendar[calendar.length - 1].date) : -Infinity;
+      const rows = [];
+      for (const [day, list] of this.byDay) {
+        if (day >= first && day <= last) continue;
+        const i = list[0];
+        const parasha = [this.parashot.get(this.p1[i]), this.parashot.get(this.p2[i])].filter(
+          Boolean,
+        );
+        const event = this.events.get(this.evc[i]) || null;
+        const dow = new Date(day * DAY_MS).getUTCDay();
+        if (dow !== 6 && !event) continue; // יום חול בלי אירוע: אינו שבוע
+        rows.push({
+          date: dateOfDay(day),
+          hy: this.hyc[i] || 0,
+          parasha,
+          parashaIL: parasha,
+          event,
+          shabbat: dow === 6,
+          derived: true,
+        });
+      }
+      this._derived = rows.sort((a, b) => (a.date < b.date ? -1 : 1));
+      this._derivedVersion = this.version;
+      return this._derived;
+    }
+
+    /** לוח + שורות נגזרות, ממוינים לפי תאריך. */
+    allWeeks() {
+      const derived = this.derivedWeeks();
+      const calendar = this.calendar();
+      return derived.length
+        ? calendar.concat(derived).sort((a, b) => (a.date < b.date ? -1 : 1))
+        : calendar;
     }
 
     /** כל הסדרות, מסודרות א-ב (עברית קודם), עם `_norm` לחיפוש. */
     seriesList() {
       const rank = (s) => (/^[֐-׿]/.test(s._ntitle) ? 0 : 1);
-      return [...this.seriesById.values()].sort((a, b) => rank(a) - rank(b) || (a._ntitle < b._ntitle ? -1 : a._ntitle > b._ntitle ? 1 : 0));
+      return [...this.seriesById.values()].sort(
+        (a, b) => rank(a) - rank(b) || (a._ntitle < b._ntitle ? -1 : a._ntitle > b._ntitle ? 1 : 0),
+      );
     }
 
     /** סדרות לפי טקסט ומסננים: `{ circle, lang }`. */
@@ -814,7 +948,9 @@
         if (f.lang && s.lang !== f.lang) return false;
         if (predicate && !predicate(s)) return false;
         const hay = ' ' + s._norm + ' ';
-        return terms.every((term) => (term.neg ? !hay.includes(' ' + term.norm) : hay.includes(' ' + term.norm)));
+        return terms.every((term) =>
+          term.neg ? !hay.includes(' ' + term.norm) : hay.includes(' ' + term.norm),
+        );
       });
     }
 
@@ -840,11 +976,6 @@
       }
       this._facets = { years, parashot, langs, sources, circles };
       return this._facets;
-    }
-
-    /** נתיב קבצי השרד שבהם מצוי הגיליון: `recent` או מזהה שרד. */
-    shardOf(item) {
-      return item._shard || '';
     }
   }
 

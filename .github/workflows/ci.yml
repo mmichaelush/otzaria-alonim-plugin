@@ -1,0 +1,82 @@
+name: ci
+
+# Plugin checks: syntax, format, lint, types, unit tests (incl. the filter matrix on a synthetic
+# catalog), browser smoke, performance budgets, and the official store validator.
+# Catalog checks live in catalog-ci.yml.
+on:
+  push:
+    branches: [main, 'release/**']
+    paths:
+      - 'plugin/**'
+      - 'tools/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'eslint.config.js'
+      - '.prettierrc.json'
+      - 'docs/ALLOWLIST_REQUEST.md'
+      - '.github/workflows/ci.yml'
+  pull_request:
+    paths:
+      - 'plugin/**'
+      - 'tools/**'
+      - 'package.json'
+      - 'package-lock.json'
+      - 'eslint.config.js'
+      - '.prettierrc.json'
+      - 'docs/ALLOWLIST_REQUEST.md'
+      - '.github/workflows/ci.yml'
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+jobs:
+  plugin:
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      - name: Syntax
+        run: npm run syntax
+      - name: Format
+        run: npm run format:check
+      - name: Lint
+        run: npm run lint
+      - name: Types
+        run: npm run typecheck
+      - name: Unit tests
+        run: npm test
+      # minAppVersion comes from the manifest so this file is identical on every branch.
+      - name: minAppVersion
+        id: manifest
+        run: echo "min-app-version=$(node -p "require('./plugin/manifest.json').minAppVersion")" >> "$GITHUB_OUTPUT"
+      - name: Official validator
+        uses: Otzaria/otzaria-plugin-validator@v1
+        with:
+          path: plugin
+          app-version: ${{ steps.manifest.outputs.min-app-version }}
+          fail-on-warnings: true
+          publish: false
+
+  browser:
+    # Real Chrome: every screen and scenario, both host paths, then the performance budgets.
+    runs-on: ubuntu-latest
+    needs: plugin
+    steps:
+      - uses: actions/checkout@v4
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+      - run: npm ci
+      # ubuntu-latest ships google-chrome at /usr/bin (tools/preview/cdp.mjs looks there)
+      - name: Smoke
+        run: npm run smoke
+      - name: Performance budgets
+        run: |
+          node tools/preview/build-preview.mjs --large
+          npm run perf

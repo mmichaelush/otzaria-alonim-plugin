@@ -120,7 +120,12 @@
     }
 
     get shards() {
-      return (this.manifest && Array.isArray(this.manifest.shards) && this.manifest.shards.filter((s) => s && validShardId(s.id))) || [];
+      return (
+        (this.manifest &&
+          Array.isArray(this.manifest.shards) &&
+          this.manifest.shards.filter((s) => s && validShardId(s.id))) ||
+        []
+      );
     }
 
     // ---------------------------------------------------------- מטמון
@@ -171,8 +176,15 @@
         this.manifest = manifest;
         this._emitData({ kind: 'sources', data: this.sources, cached: true });
       }
-      this._setStatus({ lastOkAt: this.meta.lastOkAt || 0, lastCheckAt: this.meta.lastCheckAt || 0 });
-      const results = await Promise.all(FILE_KEYS.map((key) => this._loadCached(key + '.json', key)));
+      this._setStatus({
+        lastOkAt: this.meta.lastOkAt || 0,
+        lastCheckAt: this.meta.lastCheckAt || 0,
+      });
+      const results = await Promise.all(
+        FILE_KEYS.map((key) => this._loadCached(key + '.json', key)),
+      );
+      // לוח הארכיון (שנים ישנות): נטען מהמטמון רק אם המשתמש כבר ביקש אותו פעם.
+      await this._loadCached('weeks-archive.json', 'weeksArchive');
       const hasAny = results.some(Boolean);
       if (hasAny) this._setStatus({ fromCache: true });
       this._setStatus({ shardsTotal: this.warmShards().length });
@@ -215,7 +227,9 @@
     }
 
     _shardsByRecency() {
-      return [...this.shards].sort((a, b) => this._recencyKey(b).localeCompare(this._recencyKey(a)) || (a.id < b.id ? 1 : -1));
+      return [...this.shards].sort(
+        (a, b) => this._recencyKey(b).localeCompare(this._recencyKey(a)) || (a.id < b.id ? 1 : -1),
+      );
     }
 
     /**
@@ -289,25 +303,60 @@
         this._setStatus({ phase: 'idle', schemaTooNew: true, lastCheckAt: this.now() });
         return false;
       }
-      if (manifest.minPluginVersion && compareVersions(manifest.minPluginVersion, Core.PLUGIN_VERSION) > 0) {
+      if (
+        manifest.minPluginVersion &&
+        compareVersions(manifest.minPluginVersion, Core.PLUGIN_VERSION) > 0
+      ) {
         this._setStatus({ pluginTooOld: true });
       }
       this.manifest = manifest;
       this._emitData({ kind: 'sources', data: this.sources, cached: false });
       this.meta.lastCheckAt = this.now();
-      this._setStatus({ lastCheckAt: this.meta.lastCheckAt, schemaTooNew: false, shardsTotal: this.warmShards().length });
+      this._setStatus({
+        lastCheckAt: this.meta.lastCheckAt,
+        schemaTooNew: false,
+        shardsTotal: this.warmShards().length,
+      });
 
       const files = manifest.files || {};
       const plan = [];
       for (const key of FILE_KEYS) {
-        if (files[key] && files[key].path) plan.push({ kind: key, path: files[key].path, entry: files[key], cachePath: key + '.json' });
+        if (files[key] && files[key].path)
+          plan.push({
+            kind: key,
+            path: files[key].path,
+            entry: files[key],
+            cachePath: key + '.json',
+          });
       }
+      // הארכיון מתעדכן רק אם כבר נטען (לפי בקשה).
+      const archive = this.weeksArchiveEntry();
+      if (archive && this.emitted.has('weeks-archive.json'))
+        plan.push({
+          kind: 'weeksArchive',
+          path: archive.path,
+          entry: archive,
+          cachePath: 'weeks-archive.json',
+        });
       for (const shard of this.warmShards()) {
-        plan.push({ kind: 'shard', id: shard.id, path: shard.path, entry: shard, cachePath: 'issues/' + shard.id + '.json' });
+        plan.push({
+          kind: 'shard',
+          id: shard.id,
+          path: shard.path,
+          entry: shard,
+          cachePath: 'issues/' + shard.id + '.json',
+        });
       }
-      const needed = plan.filter((p) => options.force || this._stale(p)).map((p) => ({ ...p, force: Boolean(options.force) }));
-      this._setStatus({ phase: needed.length ? 'downloading' : 'idle', total: needed.length, done: 0 });
+      const needed = plan
+        .filter((p) => options.force || this._stale(p))
+        .map((p) => ({ ...p, force: Boolean(options.force) }));
+      this._setStatus({
+        phase: needed.length ? 'downloading' : 'idle',
+        total: needed.length,
+        done: 0,
+      });
       let failed = 0;
+      /** @type {any} */
       let firstError = null;
       let cursor = 0;
       const worker = async () => {
@@ -336,7 +385,10 @@
       await this._evictIfNeeded();
       this._setStatus({ shardsLoaded: this._loadedShardCount() });
       if (failed) {
-        this._setStatus({ phase: failed === needed.length ? 'error' : 'partial', error: firstError && (firstError.code || 'network') });
+        this._setStatus({
+          phase: failed === needed.length ? 'error' : 'partial',
+          error: firstError && (firstError.code || 'network'),
+        });
         this._scheduleRetry();
         return false;
       }
@@ -348,7 +400,8 @@
     /** האם הקובץ השתנה (גיבוב) או חסר במטמון/בזיכרון. */
     _stale(job) {
       const sha = job.entry.sha256 || '';
-      if (this.emitted.has(job.cachePath) && this.meta.sha[job.cachePath] === sha && sha) return false;
+      if (this.emitted.has(job.cachePath) && this.meta.sha[job.cachePath] === sha && sha)
+        return false;
       return true;
     }
 
@@ -364,7 +417,12 @@
       const data = parseJson(text);
       if (!Array.isArray(data)) throw Object.assign(new Error('bad file'), { code: 'bad_file' });
       this.emitted.set(job.cachePath, sha || 'net');
-      this._emitData({ kind: job.kind, data, id: job.kind === 'recent' ? 'recent' : job.id, cached: false });
+      this._emitData({
+        kind: job.kind,
+        data,
+        id: job.kind === 'recent' ? 'recent' : job.id,
+        cached: false,
+      });
       this.meta.sha[job.cachePath] = sha;
       if (job.kind === 'shard') this.meta.use[job.id] = this.now();
       await this._write(job.cachePath, text);
@@ -377,7 +435,10 @@
     async _fetchWithRetry(path, label, sha, entry) {
       let lastError;
       for (let attempt = 0; attempt < 3; attempt++) {
-        const suffix = attempt > 0 ? '?v=' + (this.manifest ? this.manifest.catalogVersion : attempt) + '-' + attempt : '';
+        const suffix =
+          attempt > 0
+            ? '?v=' + (this.manifest ? this.manifest.catalogVersion : attempt) + '-' + attempt
+            : '';
         try {
           const res = await this.runtime.fetchText(this.base + path + suffix, {
             timeoutMs: entry && entry.bytes > 1000000 ? 90000 : 30000,
@@ -385,13 +446,20 @@
           });
           if (sha) {
             const actual = await sha256Hex(res.text);
-            if (actual && actual !== sha) throw Object.assign(new Error('sha mismatch ' + label), { code: 'hash' });
+            if (actual && actual !== sha)
+              throw Object.assign(new Error('sha mismatch ' + label), { code: 'hash' });
           }
           return res;
         } catch (error) {
           lastError = error;
           const code = error.code;
-          if (code === 'forbidden' || code === 'blocked' || code === 'permission' || code === 'too_large') throw error;
+          if (
+            code === 'forbidden' ||
+            code === 'blocked' ||
+            code === 'permission' ||
+            code === 'too_large'
+          )
+            throw error;
           if (attempt < 2) await this.sleep(code === 'hash' ? 300 : 800 * (attempt + 1));
         }
       }
@@ -434,6 +502,44 @@
     }
 
     // -------------------------------------------------- שרדים לפי דרישה
+
+    // ------------------------------------------------ לוח שנים ישנות
+
+    /** רשומת `files.weeksArchive` במניפסט, או `null` (אין ארכיון בקטלוג). */
+    weeksArchiveEntry() {
+      const entry = this.manifest && this.manifest.files && this.manifest.files.weeksArchive;
+      return entry && entry.path ? entry : null;
+    }
+
+    hasWeeksArchive() {
+      return Boolean(this.weeksArchiveEntry());
+    }
+
+    weeksArchiveLoaded() {
+      return this.emitted.has('weeks-archive.json');
+    }
+
+    /** טוען את לוח הארכיון (מהמטמון או מהרשת). `true` כשהוא בזיכרון. */
+    async ensureWeeksArchive() {
+      if (this.weeksArchiveLoaded()) return true;
+      const entry = this.weeksArchiveEntry();
+      if (!entry) return false;
+      const job = {
+        kind: 'weeksArchive',
+        path: entry.path,
+        entry,
+        cachePath: 'weeks-archive.json',
+      };
+      try {
+        if (this.online() === false) return await this._loadCached(job.cachePath, 'weeksArchive');
+        await this._loadJob(job);
+        await this._saveMeta();
+        return true;
+      } catch (error) {
+        this.log.warn('weeks archive failed', error);
+        return this._loadCached(job.cachePath, 'weeksArchive');
+      }
+    }
 
     /** שנה עברית → השרדים שלה (`5787`, `5787-2`). */
     shardsOfYear(hy) {
@@ -490,7 +596,11 @@
     /** כמה שרדים קרים עוד לא נטענו, וכמה גיליונות בהם (לפי המניפסט). */
     coldPending() {
       const cold = this.coldShards().filter((x) => !this.emitted.has('issues/' + x.id + '.json'));
-      return { shards: cold.length, issues: cold.reduce((n, x) => n + (x.count || 0), 0), bytes: cold.reduce((n, x) => n + (x.bytes || 0), 0) };
+      return {
+        shards: cold.length,
+        issues: cold.reduce((n, x) => n + (x.count || 0), 0),
+        bytes: cold.reduce((n, x) => n + (x.bytes || 0), 0),
+      };
     }
 
     /** שנים עבריות שבמניפסט, עם מספר גיליונות (כולל קרות, שעוד לא נטענו). */
@@ -514,14 +624,18 @@
       const raw = await this._rawIssue(item);
       if (!raw) return null;
       const sources = new Map(this.sources.map((x) => [x.id, x]));
-      const assets = (Array.isArray(raw.assets) ? raw.assets : []).map((a) => ({ ...a, ...Core.resolveAssetUrls(a, sources.get(a.src)) }));
+      const assets = (Array.isArray(raw.assets) ? raw.assets : []).map((a) => ({
+        ...a,
+        ...Core.resolveAssetUrls(a, sources.get(a.src)),
+      }));
       return { ...item, assets, _full: true };
     }
 
     async _rawIssue(item) {
       const paths = [];
       if (item._shard && item._shard !== 'recent') paths.push('issues/' + item._shard + '.json');
-      if (item.hy) for (const shard of this.shardsOfYear(item.hy)) paths.push('issues/' + shard.id + '.json');
+      if (item.hy)
+        for (const shard of this.shardsOfYear(item.hy)) paths.push('issues/' + shard.id + '.json');
       paths.push('recent.json');
       for (const path of [...new Set(paths)]) {
         const map = await this._parsedMap(path);
@@ -547,7 +661,12 @@
       let text = await this._read(path);
       if (text === null && this.online() !== false) {
         try {
-          text = (await this.runtime.fetchText(this.base + path, { timeoutMs: 90000, maxBytes: 30 * 1024 * 1024 })).text;
+          text = (
+            await this.runtime.fetchText(this.base + path, {
+              timeoutMs: 90000,
+              maxBytes: 30 * 1024 * 1024,
+            })
+          ).text;
         } catch (error) {
           this.log.warn('hydrate fetch failed ' + path, error);
         }
@@ -579,10 +698,18 @@
       let total = this._baseBytes() + cached.reduce((n, x) => n + (x.bytes || 0), 0);
       if (total <= cap) return;
       const warm = new Set(this.warmShards().map((x) => x.id));
-      const keep = new Set(this._shardsByRecency().slice(0, 2).map((x) => x.id));
+      const keep = new Set(
+        this._shardsByRecency()
+          .slice(0, 2)
+          .map((x) => x.id),
+      );
       const victims = cached
         .filter((x) => !keep.has(x.id))
-        .sort((a, b) => Number(warm.has(a.id)) - Number(warm.has(b.id)) || (this.meta.use[a.id] || 0) - (this.meta.use[b.id] || 0));
+        .sort(
+          (a, b) =>
+            Number(warm.has(a.id)) - Number(warm.has(b.id)) ||
+            (this.meta.use[a.id] || 0) - (this.meta.use[b.id] || 0),
+        );
       for (const shard of victims) {
         if (total <= cap) break;
         const path = 'issues/' + shard.id + '.json';
@@ -610,7 +737,11 @@
       } catch (error) {
         this.log.warn('usage failed', error);
       }
-      return { used: this.usedBytes, quota: this.quotaBytes, cap: Math.min(CACHE_CAP, this.quotaBytes ? this.quotaBytes * 0.5 : CACHE_CAP) };
+      return {
+        used: this.usedBytes,
+        quota: this.quotaBytes,
+        cap: Math.min(CACHE_CAP, this.quotaBytes ? this.quotaBytes * 0.5 : CACHE_CAP),
+      };
     }
 
     /** מוחק את מטמון הקטלוג (לא את מצב המשתמש) ומסנכרן מחדש. */

@@ -10,152 +10,28 @@
   const Core = A.Core;
   const Rules = A.Rules;
   const KEYS = Core.KEYS;
-
-  const SAVE_DELAY_MS = 700;
-  const MAX_READ = 6000;
-  const MAX_OPENED = 30;
-  const MAX_FAVORITES = 5000;
-  const MAX_LISTS = 50;
-  const MAX_LIST_ENTRIES = 500;
-  const MAX_IMPORT_BYTES = 3 * 1024 * 1024;
-  const EXPORT_FORMAT = 'otzaria-alonim-settings';
-
-  const DEFAULT_PREFS = Object.freeze({
-    v: 1,
-    scale: 1,
-    lang: 'auto',
-    view: 'cards',
-    sort: 'relevance',
-    thumbs: false,
-    diaspora: false,
-    autoDownload: false,
-    autoDownloadCap: 5,
-    /** יום ומספר ההורדות האוטומטיות שבוצעו בו (מכסה יומית). */
-    autoDay: '',
-    autoCount: 0,
-    folder: null,
-    welcomeSeen: false,
-  });
-
-  const defaults = {
-    prefs: () => ({ ...DEFAULT_PREFS }),
-    favorites: () => ({ v: 1, items: {} }),
-    read: () => ({ v: 1, items: {} }),
-    series: () => ({ v: 1, items: {} }),
-    rules: () => Rules.emptyRules(),
-    lists: () => ({ v: 1, items: [] }),
-    opened: () => ({ v: 1, items: [] }),
-  };
-
-  const isObject = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
-  const str = (v, max) => (typeof v === 'string' ? v.slice(0, max || 200) : '');
-  const num = (v, fallback) => (typeof v === 'number' && Number.isFinite(v) ? v : fallback);
-
-  /** מה שנשמר על גיליון כדי להציג אותו גם כשהשרד שלו עוד לא נטען. */
-  function snapOf(item) {
-    return {
-      id: item.id,
-      s: item.series || '',
-      st: item.seriesTitle || '',
-      ti: item.title || '',
-      hy: item.hy || 0,
-      d: item.date || '',
-      p: Array.isArray(item.parasha) ? item.parasha.slice(0, 2) : [],
-      ev: item.event || '',
-    };
-  }
-
-  function cleanSnap(raw) {
-    if (!isObject(raw) || typeof raw.id !== 'string' || !raw.id) return null;
-    return {
-      id: str(raw.id, 40),
-      s: str(raw.s, 40),
-      st: str(raw.st, 120),
-      ti: str(raw.ti, 160),
-      hy: num(raw.hy, 0),
-      d: str(raw.d, 10),
-      p: Array.isArray(raw.p) ? raw.p.slice(0, 2).map((x) => str(x, 40)) : [],
-      ev: str(raw.ev, 40),
-    };
-  }
-
-  // ------------------------------------------------- ניקוי לפי תחום
-
-  const cleaners = {
-    prefs(raw) {
-      const out = { ...DEFAULT_PREFS };
-      if (!isObject(raw)) return out;
-      const p = raw;
-      out.scale = p.scale >= 0.7 && p.scale <= 2 ? p.scale : 1;
-      out.lang = ['auto', 'he', 'en'].includes(p.lang) ? p.lang : 'auto';
-      out.view = p.view === 'list' ? 'list' : 'cards';
-      out.sort = ['relevance', 'new', 'date', 'alpha', 'size'].includes(p.sort) ? p.sort : 'relevance';
-      out.thumbs = p.thumbs === true;
-      out.diaspora = p.diaspora === true;
-      out.autoDownload = p.autoDownload === true;
-      out.autoDownloadCap = Math.min(30, Math.max(1, Math.round(num(p.autoDownloadCap, 5))));
-      out.autoDay = typeof p.autoDay === 'string' ? p.autoDay.slice(0, 10) : '';
-      out.autoCount = Math.max(0, Math.round(num(p.autoCount, 0)));
-      out.welcomeSeen = p.welcomeSeen === true;
-      out.folder =
-        isObject(p.folder) && typeof p.folder.token === 'string' && p.folder.token
-          ? { token: str(p.folder.token, 200), name: str(p.folder.name, 200), path: str(p.folder.path, 600) }
-          : null;
-      return out;
-    },
-    favorites(raw) {
-      const out = defaults.favorites();
-      if (!isObject(raw) || !isObject(raw.items)) return out;
-      for (const [id, v] of Object.entries(raw.items).slice(0, MAX_FAVORITES)) {
-        const snap = cleanSnap({ ...(isObject(v) ? v : {}), id });
-        if (snap) out.items[id] = { ...snap, t: num(v && v.t, 0) };
-      }
-      return out;
-    },
-    read(raw) {
-      const out = defaults.read();
-      if (!isObject(raw) || !isObject(raw.items)) return out;
-      const entries = Object.entries(raw.items).filter(([, t]) => typeof t === 'number');
-      entries.sort((a, b) => b[1] - a[1]);
-      for (const [id, t] of entries.slice(0, MAX_READ)) out.items[id] = t;
-      return out;
-    },
-    series(raw) {
-      const out = defaults.series();
-      if (!isObject(raw) || !isObject(raw.items)) return out;
-      for (const [id, v] of Object.entries(raw.items).slice(0, 5000)) {
-        if (!isObject(v)) continue;
-        const entry = { follow: v.follow === true, mute: v.mute === true, fav: v.fav === true };
-        if (typeof v.src === 'string' && v.src) entry.src = str(v.src, 40);
-        if (entry.follow || entry.mute || entry.fav || entry.src) out.items[str(id, 40)] = entry;
-      }
-      return out;
-    },
-    rules(raw) {
-      return Rules.sanitize(raw).rules;
-    },
-    lists(raw) {
-      const out = defaults.lists();
-      if (!isObject(raw) || !Array.isArray(raw.items)) return out;
-      const seen = new Set();
-      for (const l of raw.items.slice(0, MAX_LISTS)) {
-        if (!isObject(l) || typeof l.id !== 'string' || seen.has(l.id)) continue;
-        seen.add(l.id);
-        const entries = (Array.isArray(l.entries) ? l.entries : []).slice(0, MAX_LIST_ENTRIES).map(cleanSnap).filter(Boolean);
-        out.items.push({ id: str(l.id, 40), name: str(l.name, 80) || '—', kind: l.kind === 'shabbat' ? 'shabbat' : 'list', created: num(l.created, 0), entries });
-      }
-      return out;
-    },
-    opened(raw) {
-      const out = defaults.opened();
-      if (!isObject(raw) || !Array.isArray(raw.items)) return out;
-      for (const o of raw.items.slice(0, MAX_OPENED)) {
-        const snap = cleanSnap(o);
-        if (snap) out.items.push({ ...snap, t: num(o.t, 0) });
-      }
-      return out;
-    },
-  };
+  const {
+    DEFAULT_PREFS,
+    EXPORT_FORMAT,
+    HISTORY_KINDS,
+    MAX_FAVORITES,
+    MAX_HISTORY,
+    MAX_IMPORT_BYTES,
+    MAX_LISTS,
+    MAX_LIST_ENTRIES,
+    MAX_OPENED,
+    MAX_PRESETS,
+    MAX_READ,
+    MAX_SEARCHES,
+    MAX_SERIES_VIEWS,
+    SAVE_DELAY_MS,
+    VISIT_GAP_MS,
+    cleaners,
+    defaults,
+    isObject,
+    snapOf,
+    str,
+  } = A.StateSchema;
 
   class State {
     /** [runtime] מ-`createRuntime`; [log] עם debug/warn. */
@@ -287,9 +163,22 @@
     toggleFavorite(item) {
       const items = this.data.favorites.items;
       if (Object.hasOwn(items, item.id)) delete items[item.id];
-      else if (Object.keys(items).length < MAX_FAVORITES) items[item.id] = { ...snapOf(item), t: this.now() };
+      else if (Object.keys(items).length < MAX_FAVORITES)
+        items[item.id] = { ...snapOf(item), t: this.now() };
       this._touch('favorites');
       return this.isFavorite(item.id);
+    }
+
+    /** קובע מועדף במפורש (לפעולות על כמה גיליונות). */
+    setFavorite(item, on) {
+      const items = this.data.favorites.items;
+      const has = Object.hasOwn(items, item.id);
+      if (on === has) return;
+      if (on) {
+        if (Object.keys(items).length >= MAX_FAVORITES) return;
+        items[item.id] = { ...snapOf(item), t: this.now() };
+      } else delete items[item.id];
+      this._touch('favorites');
     }
 
     favoriteSnaps() {
@@ -316,6 +205,7 @@
 
     /** גיליון נפתח לקריאה: נכנס ל"המשך קריאה". */
     addOpened(item) {
+      if (!this.historyOn) return;
       const list = this.data.opened.items.filter((o) => o.id !== item.id);
       list.unshift({ ...snapOf(item), t: this.now() });
       this.data.opened.items = list.slice(0, MAX_OPENED);
@@ -394,6 +284,274 @@
       if (changed) this._touch('series', 'rules');
     }
 
+    // ------------------------------------------- העברת מזהי גיליונות
+
+    /**
+     * גיליון שמזההו השתנה בקטלוג (`previousIds`): מעביר את כל מצב המשתמש מהמזהה
+     * הישן לחדש. [resolve] ממיר מזהה למזהה הנוכחי. אידמפוטנטי (מזהה שכבר נוכחי
+     * אינו משתנה), ואינו מאבד דבר: כשיש מצב גם למזהה הישן וגם לחדש הם ממוזגים.
+     * מחזיר את מספר הרשומות שהועברו.
+     */
+    migrateIssueIds(resolve) {
+      const d = this.data;
+      let moved = 0;
+      const touched = new Set();
+      const next = (id) => {
+        const target = resolve(id);
+        return target && target !== id ? target : null;
+      };
+      for (const id of Object.keys(d.favorites.items)) {
+        const to = next(id);
+        if (!to) continue;
+        const entry = d.favorites.items[id];
+        delete d.favorites.items[id];
+        const existing = d.favorites.items[to];
+        d.favorites.items[to] = existing
+          ? { ...entry, ...existing, id: to, t: Math.max(entry.t || 0, existing.t || 0) }
+          : { ...entry, id: to };
+        moved++;
+        touched.add('favorites');
+      }
+      for (const id of Object.keys(d.read.items)) {
+        const to = next(id);
+        if (!to) continue;
+        d.read.items[to] = Math.max(d.read.items[id] || 0, d.read.items[to] || 0);
+        delete d.read.items[id];
+        moved++;
+        touched.add('read');
+      }
+      for (const list of d.lists.items) {
+        let changed = false;
+        const seen = new Set();
+        const entries = [];
+        for (const entry of list.entries) {
+          const to = next(entry.id);
+          const id = to || entry.id;
+          if (to) changed = true;
+          if (seen.has(id)) {
+            changed = true;
+            continue;
+          }
+          seen.add(id);
+          entries.push(to ? { ...entry, id } : entry);
+          if (to) moved++;
+        }
+        if (changed) {
+          list.entries = entries;
+          touched.add('lists');
+        }
+      }
+      const rekey = (events, domain) => {
+        let changed = false;
+        for (const e of events) {
+          const to = next(e.id);
+          if (to) {
+            e.id = to;
+            moved++;
+            changed = true;
+          }
+        }
+        if (changed) touched.add(domain);
+        return changed;
+      };
+      if (rekey(d.opened.items, 'opened')) {
+        const seen = new Set();
+        d.opened.items = d.opened.items.filter((o) => !seen.has(o.id) && seen.add(o.id));
+      }
+      rekey(d.history.events, 'history');
+      for (const rule of d.rules.rules) {
+        if (rule.field !== 'issue') continue;
+        const to = next(rule.value);
+        if (to) {
+          rule.value = to;
+          moved++;
+          touched.add('rules');
+        }
+      }
+      if (touched.size) this._touch(...touched);
+      return moved;
+    }
+
+    // ----------------------------------------------------- היסטוריה
+
+    get historyOn() {
+      return this.data.prefs.history !== false;
+    }
+
+    /** רושם אירוע (`opened|read|downloaded|printed`); פעולה כפולה באותה דקה נספרת פעם אחת. */
+    logEvent(kind, item) {
+      if (!this.historyOn || !HISTORY_KINDS.includes(kind) || !item || !item.id) return;
+      const now = this.now();
+      const events = this.data.history.events;
+      const last = events[0];
+      if (last && last.id === item.id && last.k === kind && now - last.t < 60000) return;
+      events.unshift({ ...snapOf(item), k: kind, t: now });
+      if (events.length > MAX_HISTORY) events.length = MAX_HISTORY;
+      this._touch('history');
+    }
+
+    /** האירועים, מהחדש לישן; [kind] מסנן לפי סוג. */
+    historyEvents(kind) {
+      const all = this.data.history.events;
+      return kind ? all.filter((e) => e.k === kind) : all;
+    }
+
+    removeEvent(event) {
+      const events = this.data.history.events;
+      const at = events.indexOf(event);
+      if (at < 0) return;
+      events.splice(at, 1);
+      this._touch('history');
+    }
+
+    /** מוחק את כל האירועים. מחזיר את הרשימה הקודמת (לביטול). */
+    clearEvents() {
+      const old = this.data.history.events;
+      this.data.history.events = [];
+      this._touch('history');
+      return old;
+    }
+
+    restoreEvents(events) {
+      this.data.history.events = (Array.isArray(events) ? events : [])
+        .concat(this.data.history.events)
+        .sort((a, b) => b.t - a.t)
+        .slice(0, MAX_HISTORY);
+      this._touch('history');
+    }
+
+    /** חיפוש שהושלם: ייחודי, האחרון ראשון. */
+    addSearch(query) {
+      const q = String(query || '').trim();
+      if (!this.historyOn || q.length < 2) return;
+      const list = this.data.history.searches.filter((s) => s.q !== q);
+      list.unshift({ q: str(q, 300), t: this.now() });
+      this.data.history.searches = list.slice(0, MAX_SEARCHES);
+      this._touch('history');
+    }
+
+    get searches() {
+      return this.data.history.searches;
+    }
+
+    removeSearch(query) {
+      this.data.history.searches = this.data.history.searches.filter((s) => s.q !== query);
+      this._touch('history');
+    }
+
+    clearSearches() {
+      this.data.history.searches = [];
+      this._touch('history');
+    }
+
+    /** סדרה שנצפתה (דף הסדרה): "נצפו לאחרונה". */
+    viewSeries(id) {
+      if (!this.historyOn || !id) return;
+      const list = this.data.history.series.filter((s) => s.id !== id);
+      list.unshift({ id, t: this.now() });
+      this.data.history.series = list.slice(0, MAX_SERIES_VIEWS);
+      this._touch('history');
+    }
+
+    recentSeries() {
+      return this.data.history.series;
+    }
+
+    /** מוחק הכול: אירועים, חיפושים, סדרות שנצפו והמשך קריאה. */
+    clearHistory() {
+      this.data.history = defaults.history();
+      this.data.opened = defaults.opened();
+      this._touch('history', 'opened');
+    }
+
+    // ------------------------------------------ מצב מסכים, הגדרות וביקורים
+
+    /** המצב השמור של לשונית (`all`, `seriesList`), או `null`. */
+    viewState(tab) {
+      return this.data.views.tabs[tab] || null;
+    }
+
+    /** שומר את מצב הלשונית (שאילתה, מסננים, מיון) לפתיחה הבאה. */
+    setViewState(tab, value) {
+      const next = cleaners.views({ tabs: { ...this.data.views.tabs, [tab]: value } }).tabs[tab];
+      if (!next || JSON.stringify(next) === JSON.stringify(this.data.views.tabs[tab])) return;
+      this.data.views.tabs[tab] = next;
+      this._touch('views');
+    }
+
+    get presets() {
+      return this.data.views.presets;
+    }
+
+    /** שומר הגדרת חיפוש בשם; שם קיים מתעדכן. מחזיר את ההגדרה, או `null` אם מלא. */
+    savePreset(name, snapshot) {
+      const clean = cleaners.views({ presets: [{ id: 'x', name, ...snapshot }] }).presets[0];
+      if (!clean) return null;
+      const list = this.data.views.presets;
+      const existing = list.find((p) => p.name === clean.name);
+      if (existing) {
+        Object.assign(existing, {
+          query: clean.query,
+          filters: clean.filters,
+          sort: clean.sort,
+          t: this.now(),
+        });
+        this._touch('views');
+        return existing;
+      }
+      if (list.length >= MAX_PRESETS) return null;
+      const preset = {
+        ...clean,
+        id: 'p' + this.now().toString(36) + Math.floor(Math.random() * 1e4).toString(36),
+        t: this.now(),
+      };
+      list.push(preset);
+      this._touch('views');
+      return preset;
+    }
+
+    deletePreset(id) {
+      const preset = this.data.views.presets.find((p) => p.id === id) || null;
+      this.data.views.presets = this.data.views.presets.filter((p) => p.id !== id);
+      this._touch('views');
+      return preset;
+    }
+
+    restorePreset(preset) {
+      if (
+        !preset ||
+        this.data.views.presets.some((p) => p.id === preset.id) ||
+        this.data.views.presets.length >= MAX_PRESETS
+      )
+        return;
+      this.data.views.presets.push(preset);
+      this._touch('views');
+    }
+
+    /**
+     * "ביקור": נקודת הייחוס ל"חדשים מאז הביקור האחרון". כניסה אחרי פער של שעות
+     * פותחת ביקור חדש (הבסיס = הפעם האחרונה שנראה); בתוך אותו ביקור הבסיס קבוע.
+     */
+    beginVisit() {
+      const v = this.data.views;
+      const now = this.now();
+      if (!v.visitBase || (v.lastSeen && now - v.lastSeen > VISIT_GAP_MS))
+        v.visitBase = v.lastSeen || now;
+      v.lastSeen = now;
+      this._touch('views');
+    }
+
+    /** מתי התחיל הביקור הקודם (או 0): "חדשים" = נוספו אחרי זה. */
+    get visitBase() {
+      return this.data.views.visitBase;
+    }
+
+    /** "סמן הכול כנקרא": הבסיס עובר לעכשיו. */
+    markVisited() {
+      this.data.views.visitBase = this.now();
+      this._touch('views');
+    }
+
     // -------------------------------------------------------- אוספים
 
     get lists() {
@@ -457,10 +615,6 @@
       this._touch('lists');
     }
 
-    listsContaining(id) {
-      return this.data.lists.items.filter((l) => l.entries.some((e) => e.id === id));
-    }
-
     /** "אוסף שבת": נוצר בפעם הראשונה שמבקשים אותו. */
     shabbatList() {
       return this.data.lists.items.find((l) => l.kind === 'shabbat') || null;
@@ -475,7 +629,9 @@
     addRule(raw) {
       const rule = Rules.cleanRule({ ...raw, id: raw.id || Rules.newId(), at: this.now() });
       if (!rule || this.data.rules.rules.length >= Rules.MAX_RULES) return null;
-      this.data.rules.rules = this.data.rules.rules.filter((r) => !(r.field === rule.field && r.value === rule.value && r.action === rule.action));
+      this.data.rules.rules = this.data.rules.rules.filter(
+        (r) => !(r.field === rule.field && r.value === rule.value && r.action === rule.action),
+      );
       this.data.rules.rules.push(rule);
       this._touch('rules');
       return rule;
@@ -499,6 +655,7 @@
     exportSettings(options) {
       const withRead = !options || options.read !== false;
       const prefs = { ...this.data.prefs, folder: null };
+      const views = { v: 1, presets: this.data.views.presets };
       return {
         format: EXPORT_FORMAT,
         v: 1,
@@ -509,6 +666,7 @@
         series: this.data.series,
         rules: this.data.rules,
         lists: this.data.lists,
+        views,
         ...(withRead ? { read: this.data.read } : {}),
       };
     }
@@ -530,7 +688,7 @@
       if (!isObject(raw) || raw.format !== EXPORT_FORMAT) return { ok: false, error: 'format' };
       if (typeof raw.v !== 'number' || raw.v > 1) return { ok: false, error: 'too_new' };
       const sections = {};
-      for (const name of ['prefs', 'favorites', 'series', 'rules', 'lists', 'read']) {
+      for (const name of ['prefs', 'favorites', 'series', 'rules', 'lists', 'read', 'views']) {
         if (raw[name] !== undefined) sections[name] = cleaners[name](raw[name]);
       }
       if (sections.prefs) sections.prefs.folder = null;
@@ -540,6 +698,7 @@
         favorites: sections.favorites ? Object.keys(sections.favorites.items).length : 0,
         lists: sections.lists ? sections.lists.items.length : 0,
         read: sections.read ? Object.keys(sections.read.items).length : 0,
+        presets: sections.views ? sections.views.presets.length : 0,
         prefs: Boolean(sections.prefs),
       };
       return { ok: true, sections, summary };
@@ -551,15 +710,22 @@
       const s = preview.sections;
       const replace = mode === 'replace';
       const d = this.data;
-      if (s.prefs) d.prefs = { ...s.prefs, folder: d.prefs.folder, welcomeSeen: d.prefs.welcomeSeen };
-      if (s.favorites) d.favorites.items = replace ? s.favorites.items : { ...d.favorites.items, ...s.favorites.items };
+      if (s.prefs)
+        d.prefs = { ...s.prefs, folder: d.prefs.folder, welcomeSeen: d.prefs.welcomeSeen };
+      if (s.favorites)
+        d.favorites.items = replace
+          ? s.favorites.items
+          : { ...d.favorites.items, ...s.favorites.items };
       if (s.read) d.read.items = replace ? s.read.items : { ...d.read.items, ...s.read.items };
-      if (s.series) d.series.items = replace ? s.series.items : { ...d.series.items, ...s.series.items };
+      if (s.series)
+        d.series.items = replace ? s.series.items : { ...d.series.items, ...s.series.items };
       if (s.rules) {
         if (replace) d.rules = s.rules;
         else {
           const have = new Set(d.rules.rules.map((r) => r.field + '|' + r.action + '|' + r.value));
-          for (const r of s.rules.rules) if (!have.has(r.field + '|' + r.action + '|' + r.value)) d.rules.rules.push({ ...r, id: Rules.newId() });
+          for (const r of s.rules.rules)
+            if (!have.has(r.field + '|' + r.action + '|' + r.value))
+              d.rules.rules.push({ ...r, id: Rules.newId() });
           d.rules.rules = d.rules.rules.slice(0, Rules.MAX_RULES);
           d.rules.mode = s.rules.mode;
         }
@@ -568,8 +734,23 @@
         if (replace) d.lists = s.lists;
         else {
           const names = new Set(d.lists.items.map((l) => l.id));
-          for (const l of s.lists.items) if (!names.has(l.id) && d.lists.items.length < MAX_LISTS) d.lists.items.push(l);
+          for (const l of s.lists.items)
+            if (!names.has(l.id) && d.lists.items.length < MAX_LISTS) d.lists.items.push(l);
         }
+      }
+      if (s.views) {
+        const have = new Set(d.views.presets.map((p) => p.name));
+        const incoming = replace
+          ? s.views.presets
+          : s.views.presets.filter((p) => !have.has(p.name));
+        d.views.presets = (replace ? [] : d.views.presets)
+          .concat(
+            incoming.map((p) => ({
+              ...p,
+              id: 'p' + this.now().toString(36) + Math.floor(Math.random() * 1e6).toString(36),
+            })),
+          )
+          .slice(0, MAX_PRESETS);
       }
       const touched = Object.keys(s);
       this._touch(...touched);

@@ -18,14 +18,19 @@ test('call מחזיר data, וכשל הופך ל-SdkError עם הקוד', async 
   const sdk = createFakeSdk();
   const rt = runtimeFor(sdk);
   assert.equal(await rt.call('storage.get', { key: 'x' }), null);
-  await assert.rejects(rt.call('nope.method'), (e) => e instanceof SdkError && e.code === 'error.unknown_method' && e.isUnsupported);
+  await assert.rejects(
+    rt.call('nope.method'),
+    (e) => e instanceof SdkError && e.code === 'error.unknown_method' && e.isUnsupported,
+  );
   assert.equal(await rt.callSoft('nope.method', {}, 7), 7);
 });
 
 test('פרץ של 200 קריאות עובר דרך מגביל הקצב בלי להידחות', async () => {
   const sdk = createFakeSdk({ noInjectedLimit: true });
   const rt = runtimeFor(sdk);
-  const results = await Promise.all(Array.from({ length: 200 }, (_, i) => rt.call('storage.set', { key: 'k' + i, value: i })));
+  const results = await Promise.all(
+    Array.from({ length: 200 }, (_, i) => rt.call('storage.set', { key: 'k' + i, value: i })),
+  );
   assert.equal(results.length, 200);
   assert.equal(sdk.rateLimited, 0, 'המגביל המקומי מנע דחייה אצל המארח');
 });
@@ -45,11 +50,17 @@ test('fetchText: טקסט, 404, והודעת allowlist הופכת ל-forbidden',
   const sdk = createFakeSdk({ catalog: { 'a.json': '[1,2,3]' } });
   const rt = runtimeFor(sdk);
   assert.equal((await rt.fetchText(base + 'a.json')).text, '[1,2,3]');
-  await assert.rejects(rt.fetchText(base + 'missing.json'), (e) => e instanceof NetError && e.code === 'http' && e.status === 404);
+  await assert.rejects(
+    rt.fetchText(base + 'missing.json'),
+    (e) => e instanceof NetError && e.code === 'http' && e.status === 404,
+  );
   await assert.rejects(rt.fetchText('https://other.example/x'), (e) => e.code === 'forbidden');
   const offline = runtimeFor(createFakeSdk({ scenario: 'offline' }));
   await assert.rejects(offline.fetchText(base + 'a.json'), (e) => e.code === 'network');
-  await assert.rejects(rt.fetchText(base + 'a.json', { maxBytes: 3 }), (e) => e.code === 'too_large');
+  await assert.rejects(
+    rt.fetchText(base + 'a.json', { maxBytes: 3 }),
+    (e) => e.code === 'too_large',
+  );
 });
 
 test('on: חריגה במטפל נרשמת ואינה בורחת כדחייה', async () => {
@@ -73,7 +84,15 @@ test('State: שמירה וטעינה חוזרת של כל התחומים', async
   const sdk = createFakeSdk();
   const s = stateFor(sdk);
   await s.load();
-  const item = { id: 'i_1', series: 's_1', seriesTitle: 'סדרה', title: 'סדרה', hy: 5787, date: '2026-10-17', parasha: ['noach'] };
+  const item = {
+    id: 'i_1',
+    series: 's_1',
+    seriesTitle: 'סדרה',
+    title: 'סדרה',
+    hy: 5787,
+    date: '2026-10-17',
+    parasha: ['noach'],
+  };
   assert.equal(s.toggleFavorite(item), true);
   s.markRead(item, true);
   s.setSeries('s_1', { follow: true, src: 'ladaat' });
@@ -111,7 +130,11 @@ test('State: קריאה שנכשלה אינה מצב ריק — לא דורסי�
   assert.equal(s.readOnly, true);
   s.toggleFavorite({ id: 'i_new', title: 'חדש' });
   await s.flush();
-  assert.deepEqual(Object.keys(sdk.storage.get('state_favorites').items), ['i_9'], 'המצב השמור לא נדרס');
+  assert.deepEqual(
+    Object.keys(sdk.storage.get('state_favorites').items),
+    ['i_9'],
+    'המצב השמור לא נדרס',
+  );
   failReads = false;
   assert.equal(await s.retryFailed(), true);
   assert.equal(s.isFavorite('i_9'), true);
@@ -151,7 +174,18 @@ test('State: ייצוא וייבוא — סכימה, גרסה, ניקוי, מי�
   assert.equal(target.previewImport('{nope').error, 'json');
   assert.equal(target.previewImport('{"format":"other"}').error, 'format');
   assert.equal(target.previewImport(JSON.stringify({ ...exported, v: 9 })).error, 'too_new');
-  const evil = target.previewImport(JSON.stringify({ ...exported, rules: { v: 1, rules: [{ action: 'hide', field: '__proto__', value: 'x' }, { action: 'hide', field: 'lang', value: 'x'.repeat(5000) }] } }));
+  const evil = target.previewImport(
+    JSON.stringify({
+      ...exported,
+      rules: {
+        v: 1,
+        rules: [
+          { action: 'hide', field: '__proto__', value: 'x' },
+          { action: 'hide', field: 'lang', value: 'x'.repeat(5000) },
+        ],
+      },
+    }),
+  );
   assert.equal(evil.ok, true);
   assert.equal(evil.summary.rules, 1);
   assert.equal(evil.sections.rules.rules[0].value.length, 200);

@@ -71,7 +71,8 @@ test('font-size ב-px רק בפס הכותרת', () => {
 test('border-radius רק דרך var() או %', () => {
   for (const match of stripped.matchAll(/border-radius\s*:\s*([^;}]+)/gi)) {
     const value = match[1].trim();
-    if (/var\s*\(/.test(value) || /^\d+(?:\.\d+)?\s*%$/.test(value) || /^0(?:px)?$/.test(value)) continue;
+    if (/var\s*\(/.test(value) || /^\d+(?:\.\d+)?\s*%$/.test(value) || /^0(?:px)?$/.test(value))
+      continue;
     assert.fail(`border-radius: ${value}`);
   }
 });

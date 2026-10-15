@@ -85,6 +85,7 @@
   }
 
   const api = { icon, names: Object.keys(shapes) };
+  /** @type {any} */
   const A = (root.Alonim = root.Alonim || {});
   A.Icons = api;
   if (typeof module === 'object' && module.exports) module.exports = api;

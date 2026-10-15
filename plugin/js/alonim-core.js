@@ -10,7 +10,7 @@
 
   const PLUGIN_ID = 'com.otzaria-alonim';
   /** זהה ל-`manifest.json` (נבדק ב-test/manifest.test.js). */
-  const PLUGIN_VERSION = '0.1.0';
+  const PLUGIN_VERSION = '0.2.0';
   const CATALOG_BASE = 'https://raw.githubusercontent.com/mmichaelush/otzaria-alonim-plugin/data/';
   /** גרסת הסכמה של הקטלוג שהתוסף מכיר. גבוהה יותר = "יש גרסה חדשה של התוסף". */
   const SCHEMA = 1;
@@ -25,6 +25,8 @@
     rules: 'state_rules',
     lists: 'state_lists',
     opened: 'state_opened',
+    views: 'state_views',
+    history: 'state_history',
   });
 
   /**
@@ -144,9 +146,21 @@
     'shabbat-chazon': N('שבת חזון'),
     'shabbat-nachamu': N('שבת נחמו'),
     'tisha-bav': N('תשעה באב'),
-    'tu-bishvat': N('ט"ו בשבט'),
+    'tu-bishvat': N('ט״ו בשבט'),
     'shabbat-shirah': N('שבת שירה'),
-    'lag-baomer': N('ל"ג בעומר'),
+    'lag-baomer': N('ל״ג בעומר'),
+    'tzom-gedaliah': N('צום גדליה'),
+    'chol-hamoed-sukkot': N('חול המועד סוכות'),
+    'hoshana-raba': N('הושענא רבה'),
+    'asara-btevet': N('עשרה בטבת'),
+    'taanit-esther': N('תענית אסתר'),
+    'shushan-purim': N('שושן פורים'),
+    'chol-hamoed-pesach': N('חול המועד פסח'),
+    'shvii-shel-pesach': N('שביעי של פסח'),
+    'shiva-asar-btammuz': N('י״ז בתמוז'),
+    'rosh-chodesh': N('ראש חודש'),
+    'aseret-yemei-teshuva': N('עשרת ימי תשובה'),
+    'shabbat-mevarchim': N('שבת מברכים'),
   });
 
   /** שם הפרשה בעברית; סלאג לא מוכר חוזר כמות שהוא, בלי מקפים. */
@@ -173,26 +187,10 @@
 
   // ------------------------------------------------------- שנה עברית
 
-  const ONES = ['', 'א', 'ב', 'ג', 'ד', 'ה', 'ו', 'ז', 'ח', 'ט'];
-  const TENS = ['', 'י', 'כ', 'ל', 'מ', 'נ', 'ס', 'ע', 'פ', 'צ'];
-  const HUNDREDS = ['', 'ק', 'ר', 'ש', 'ת'];
+  const Heb = root.Alonim.HebCal;
 
-  /** 5787 → תשפ"ז (בלי האלפים), עם גרש/גרשיים כמו בכתיבה רגילה. */
-  function hyLetters(year) {
-    let n = Number(year) % 1000;
-    if (!Number.isFinite(n) || n <= 0) return '';
-    let out = '';
-    while (n >= 400) {
-      out += 'ת';
-      n -= 400;
-    }
-    out += HUNDREDS[Math.floor(n / 100)] || '';
-    n %= 100;
-    if (n === 15) out += 'טו';
-    else if (n === 16) out += 'טז';
-    else out += TENS[Math.floor(n / 10)] + ONES[n % 10];
-    return out.length > 1 ? out.slice(0, -1) + '"' + out.slice(-1) : out + "'";
-  }
+  /** 5787 ← תשפ״ז (בלי האלפים), עם גרש/גרשיים כמו בכתיבה רגילה. */
+  const hyLetters = (year) => Heb.yearLetters(year);
 
   /** מספר ("5787", "787") או אותיות (תשפ"ז, תשפז) ← 5787; `null` אם אינו שנה. */
   function parseYear(text) {
@@ -201,21 +199,8 @@
       const n = Number(s);
       return n < 1000 ? n + 5000 : n;
     }
-    const letters = s.replace(/["'׳״]/g, '');
-    if (!letters || !/^[א-ת]+$/.test(letters)) return null;
-    const value = { 'ך': 20, 'ם': 40, 'ן': 50, 'ף': 80, 'ץ': 90 };
-    let n = 0;
-    for (const ch of letters) {
-      let v = value[ch];
-      if (v === undefined) {
-        const code = 'אבגדהוזחטיכלמנסעפצקרשת'.indexOf(ch);
-        if (code < 0) return null;
-        v = [1, 2, 3, 4, 5, 6, 7, 8, 9, 10, 20, 30, 40, 50, 60, 70, 80, 90, 100, 200, 300, 400][code];
-      }
-      n += v;
-    }
-    if (n < 100 || n > 999) return null;
-    return n + 5000;
+    const n = Heb.parseNumeral(s);
+    return n && n >= 100 && n <= 999 ? n + 5000 : null;
   }
 
   // ---------------------------------------------------------- תאריכים
@@ -223,7 +208,8 @@
   const pad = (n) => (n < 10 ? '0' + n : String(n));
 
   /** `YYYY-MM-DD` בשעון המקומי. */
-  const ymd = (date) => date.getFullYear() + '-' + pad(date.getMonth() + 1) + '-' + pad(date.getDate());
+  const ymd = (date) =>
+    date.getFullYear() + '-' + pad(date.getMonth() + 1) + '-' + pad(date.getDate());
 
   /** צהריים מקומי: בלי קפיצות של שעון קיץ. */
   function parseYmd(text) {
@@ -231,26 +217,47 @@
     return m ? new Date(Number(m[1]), Number(m[2]) - 1, Number(m[3]), 12) : null;
   }
 
-  const addDays = (date, days) => new Date(date.getFullYear(), date.getMonth(), date.getDate() + days, 12);
+  const addDays = (date, days) =>
+    new Date(date.getFullYear(), date.getMonth(), date.getDate() + days, 12);
 
   /** השבת הקרובה (היום, אם הוא שבת). */
   function upcomingShabbat(today) {
     return addDays(today, (6 - today.getDay() + 7) % 7);
   }
 
-  /** "י"ד בתשרי תשפ"ז" לפי לוח השנה העברי של הדפדפן; ריק אם אינו נתמך. */
-  function hebrewDate(date, language) {
-    try {
-      const tag = (language === 'he' || !language ? 'he' : language) + '-u-ca-hebrew';
-      return new Intl.DateTimeFormat(tag, { day: 'numeric', month: 'long', year: 'numeric' }).format(date);
-    } catch (error) {
-      return '';
-    }
+  const uiLang = () => (I18n.language === 'he' ? 'he' : I18n.language);
+
+  /**
+   * שורת תאריך לתצוגה, עברי ולועזי: "שבת, כ״ז בחשוון תשפ״ז · 7 בנובמבר 2026".
+   * האפשרויות ב-`HebCal.format` (weekday, hebrew, gregorian, short, year).
+   */
+  const dateLine = (date, options) => Heb.format(date, { lang: uiLang(), ...(options || {}) });
+
+  /** `dateLine` לתאריך `YYYY-MM-DD` מהקטלוג; טקסט שאינו תאריך חוזר כמות שהוא. */
+  function dateText(text, options) {
+    const date = parseYmd(text);
+    return date ? dateLine(date, options) : String(text || '');
   }
 
+  /** תאריך עברי בלבד: "כ״ז בחשוון תשפ״ז". */
+  const hebrewDate = (date, options) =>
+    Heb.formatHebrew(date, { lang: uiLang(), ...(options || {}) });
+
+  /** חותמת זמן (נבדק/הורד/נפתח): "כ״ז בחשוון · 7.11.2026, 14:05". */
+  function formatStamp(ms) {
+    const date = new Date(ms);
+    if (!ms || Number.isNaN(date.getTime())) return '';
+    const time = pad(date.getHours()) + ':' + pad(date.getMinutes());
+    return Heb.format(date, { lang: uiLang(), short: true, year: false }) + ', ' + time;
+  }
+
+  /** תאריך+שעה לפי האזור (לשימושים טכניים שבהם אין צורך בתאריך עברי). */
   function formatDate(date, options) {
     try {
-      return new Intl.DateTimeFormat(I18n.locale(), options || { day: 'numeric', month: 'long', year: 'numeric' }).format(date);
+      return new Intl.DateTimeFormat(
+        I18n.locale(),
+        options || { day: 'numeric', month: 'long', year: 'numeric' },
+      ).format(date);
     } catch (error) {
       return ymd(date);
     }
@@ -277,10 +284,6 @@
   /** ספרות באותו פורמט בכל מקום (בלי מפרידי אלפים שמשתנים לפי שפה). */
   const formatCount = (n) => Number(n || 0).toLocaleString(I18n.locale());
 
-  function relativeDays(fromMs, nowMs) {
-    return Math.floor((nowMs - fromMs) / 86400000);
-  }
-
   // ------------------------------------------------------------ כתובות
 
   function parseUrl(text) {
@@ -294,14 +297,17 @@
   /** שם מארח ציבורי: לא IP, לא localhost, לא שם פנימי. */
   function isPublicHost(host) {
     if (!host || !/\./.test(host) || host === 'localhost') return false;
-    if (/^\d{1,3}(\.\d{1,3}){3}$/.test(host) || host.includes(':') || host.startsWith('[')) return false;
+    if (/^\d{1,3}(\.\d{1,3}){3}$/.test(host) || host.includes(':') || host.startsWith('['))
+      return false;
     return /^[a-z0-9.-]+$/i.test(host);
   }
 
   /** https בלבד, בלי פרטי התחברות, ובלי IP או localhost. */
   function isSafeHttpsUrl(text) {
     const u = parseUrl(text);
-    return Boolean(u && u.protocol === 'https:' && !u.username && !u.password && isPublicHost(u.hostname));
+    return Boolean(
+      u && u.protocol === 'https:' && !u.username && !u.password && isPublicHost(u.hostname),
+    );
   }
 
   /** האם [text] תחת אחת הקידומות ב-[prefixes] (גבול נתיב, לא רק מחרוזת). */
@@ -314,7 +320,11 @@
       if (!p) return false;
       const base = p.origin + p.pathname.replace(/\/$/, '');
       if (u.origin !== p.origin) return false;
-      return target === base || target.startsWith(base + '/') || (p.pathname === '/' && target.startsWith(base));
+      return (
+        target === base ||
+        target.startsWith(base + '/') ||
+        (p.pathname === '/' && target.startsWith(base))
+      );
     });
   }
 
@@ -373,7 +383,9 @@
       if (value === undefined || value === null) {
         const template = templates[field];
         if (typeof template !== 'string') continue;
-        value = template.split('{ext}').join(a.ext === undefined || a.ext === null ? '' : String(a.ext));
+        value = template
+          .split('{ext}')
+          .join(a.ext === undefined || a.ext === null ? '' : String(a.ext));
       }
       value = String(value);
       out[field] = encodeNonAscii(value.startsWith('https://') ? value : base + value);
@@ -385,7 +397,9 @@
 
   // תווים שאסורים בשם קובץ ב-Windows, תווי בקרה, וסימני כיוון שמבלבלים את
   // סייר הקבצים.
-  const BAD_FILE_CHARS = new RegExp('[<>:"/\\\\|?*\\u0000-\\u001F\\u200E\\u200F\\u202A-\\u202E\\u2066-\\u2069]', 'g');
+  const BAD_FILE_SOURCE =
+    '[<>:"/\\\\|?*\\u0000-\\u001F\\u200E\\u200F\\u202A-\\u202E\\u2066-\\u2069]';
+  const BAD_FILE_CHARS = new RegExp(BAD_FILE_SOURCE, 'g');
   const RESERVED = /^(con|prn|aux|nul|com[1-9]|lpt[1-9])$/i;
 
   /**
@@ -408,7 +422,10 @@
   }
 
   /** 8 התווים האחרונים של המזהה, בתוך סוגריים בשם הקובץ: כך מזהים הורדה בדיסק. */
-  const idFragment = (id) => String(id || '').replace(/^i_/, '').slice(0, 8);
+  const idFragment = (id) =>
+    String(id || '')
+      .replace(/^i_/, '')
+      .slice(0, 8);
 
   /**
    * הנתיב היחסי של גיליון בתיקיית ההורדות: `<שנה>/<סדרה>/<קובץ>.pdf`. דטרמיניסטי,
@@ -418,7 +435,10 @@
     const year = item.hy ? String(item.hy) : 'ללא שנה';
     const series = sanitizeFileName(seriesTitle || item.title || 'עלון', 60);
     const label = weekLabel(item) || item.date || '';
-    const base = sanitizeFileName([seriesTitle || item.title, label, item.no ? '#' + item.no : ''].filter(Boolean).join(' - '), 90);
+    const base = sanitizeFileName(
+      [seriesTitle || item.title, label, item.no ? '#' + item.no : ''].filter(Boolean).join(' - '),
+      90,
+    );
     return { dir: year + '/' + series, file: base + ' [' + idFragment(item.id) + '].pdf' };
   }
 
@@ -429,8 +449,6 @@
   }
 
   // ---------------------------------------------------------- שונות
-
-  const clone = (value) => JSON.parse(JSON.stringify(value));
 
   /**
    * האם המקש הוא האות [letter]. בפריסת מקלדת עברית `event.key` הוא 'ל' ולא 'k',
@@ -467,11 +485,13 @@
     parseYmd,
     addDays,
     upcomingShabbat,
+    dateLine,
+    dateText,
     hebrewDate,
+    formatStamp,
     formatDate,
     formatBytes,
     formatCount,
-    relativeDays,
     parseUrl,
     isPublicHost,
     isSafeHttpsUrl,
@@ -486,7 +506,6 @@
     idFragment,
     downloadPath,
     fragmentFromFile,
-    clone,
   };
   root.Alonim.Core = api;
   if (typeof module === 'object' && module.exports) module.exports = api;

@@ -30,9 +30,17 @@ test('תיאור קצר: עד 150 תווים', () => {
 });
 
 test('הרשאות מינימליות: רשת, קבצי משתמש, פתיחת כתובת, וקורא אוצריא (להדפסה)', () => {
-  assert.deepEqual([...manifest.permissions].sort(), ['app.open_url', 'fs.user_files.read', 'library.books.read', 'library.refresh', 'network.access', 'reader.open']);
+  assert.deepEqual([...manifest.permissions].sort(), [
+    'app.open_url',
+    'fs.user_files.read',
+    'library.books.read',
+    'library.refresh',
+    'network.access',
+    'reader.open',
+  ]);
   // הרשאות בסיס (storage, theme.changed) ניתנות אוטומטית ואינן מוצהרות.
-  for (const p of manifest.permissions) assert.ok(!/^plugin\.storage|^events\.subscribe|^app\.info/.test(p), p);
+  for (const p of manifest.permissions)
+    assert.ok(!/^plugin\.storage|^events\.subscribe|^app\.info/.test(p), p);
   assert.equal(manifest.network.enabled, true);
   assert.equal(manifest.minAppVersion, '0.9.98');
 });
@@ -40,7 +48,8 @@ test('הרשאות מינימליות: רשת, קבצי משתמש, פתיחת �
 test('כתובות הקבצים בקוד זהות ל-network.allowlist (פרט לקטלוג)', () => {
   const list = manifest.network.allowlist;
   assert.ok(list.includes(Core.CATALOG_BASE.replace(/\/$/, '')), 'ערך הקטלוג');
-  for (const prefix of Core.FILE_PREFIXES) assert.ok(list.includes(prefix), prefix + ' חסר במניפסט');
+  for (const prefix of Core.FILE_PREFIXES)
+    assert.ok(list.includes(prefix), prefix + ' חסר במניפסט');
   assert.deepEqual(
     list.filter((x) => !Core.FILE_PREFIXES.includes(x)),
     [Core.CATALOG_BASE.replace(/\/$/, '')],
@@ -58,7 +67,8 @@ test('docs/ALLOWLIST_REQUEST.md: הבלוק להדבקה זהה למניפסט, 
   assert.deepEqual(entries.sort(), [...manifest.network.allowlist].sort());
   // כל ערך מקדים הערה.
   block.forEach((line, i) => {
-    if (!line.startsWith('#')) assert.ok(block[i - 1] && block[i - 1].startsWith('#'), 'אין הערה לפני ' + line);
+    if (!line.startsWith('#'))
+      assert.ok(block[i - 1] && block[i - 1].startsWith('#'), 'אין הערה לפני ' + line);
   });
 });
 
@@ -74,7 +84,8 @@ test('כל סקריפט ב-HTML קיים, כל קובץ ב-js/ נטען, והס�
   const html = read('index.html');
   const scripts = [...html.matchAll(/<script src="([^"]+)"/g)].map((m) => m[1]);
   for (const src of scripts) assert.ok(fs.existsSync(path.join(root, src)), src);
-  for (const name of fs.readdirSync(path.join(root, 'js'))) assert.ok(scripts.includes('js/' + name), 'נטען ב-index.html: ' + name);
+  for (const name of fs.readdirSync(path.join(root, 'js')))
+    assert.ok(scripts.includes('js/' + name), 'נטען ב-index.html: ' + name);
   const order = (name) => scripts.findIndex((src) => src.endsWith(name));
   const before = (a, b) => assert.ok(order(a) >= 0 && order(a) < order(b), a + ' לפני ' + b);
   before('alonim-i18n.js', 'en.js');
@@ -96,11 +107,23 @@ test('אין בחבילה קבצי פיתוח', () => {
 });
 
 test('אין שום כתובת קשיחה לשרת שאינו בהצהרת הרשת (קוד התוסף)', () => {
-  const allowed = new Set(['raw.githubusercontent.com', 'ladaat.co', 'tashma.co.il', 'gilyoines.com', 'alonolam.com', 'linksrc.example', 'github.com', 'www.w3.org']);
+  const allowed = new Set([
+    'raw.githubusercontent.com',
+    'ladaat.co',
+    'tashma.co.il',
+    'gilyoines.com',
+    'alonolam.com',
+    'linksrc.example',
+    'github.com',
+    'www.w3.org',
+  ]);
   for (const name of fs.readdirSync(path.join(root, 'js'))) {
     if (name === 'alonim-icons.js') continue;
-    const code = read('js', name).replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
-    for (const m of code.matchAll(/https?:\/\/([a-z0-9.-]+)/gi)) assert.ok(allowed.has(m[1].toLowerCase()), name + ': ' + m[0]);
+    const code = read('js', name)
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+      .replace(/^\s*\/\/.*$/gm, '');
+    for (const m of code.matchAll(/https?:\/\/([a-z0-9.-]+)/gi))
+      assert.ok(allowed.has(m[1].toLowerCase()), name + ': ' + m[0]);
   }
 });
 
@@ -108,10 +131,16 @@ test('אין שום כתובת קשיחה לשרת שאינו בהצהרת הר�
 // (`runtime.call('…')`): לכן ההתאמה בין המתודות, ההרשאות וגרסת המינימום נבדקת כאן.
 test('כל מתודת SDK שהקוד קורא לה: מוכרת, עם הרשאה במניפסט (או בסיס), ומגרסה שעד minAppVersion', () => {
   const sdk = JSON.parse(read('test', 'fixtures', 'sdk-methods.json'));
-  const cmp = (a, b) => a.split('.').map(Number).reduce((d, n, i) => d || n - Number(b.split('.')[i] || 0), 0);
+  const cmp = (a, b) =>
+    a
+      .split('.')
+      .map(Number)
+      .reduce((d, n, i) => d || n - Number(b.split('.')[i] || 0), 0);
   const used = new Set();
   for (const name of fs.readdirSync(path.join(root, 'js'))) {
-    const code = read('js', name).replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');
+    const code = read('js', name)
+      .replace(/\/\*[\s\S]*?\*\//g, '')
+      .replace(/^\s*\/\/.*$/gm, '');
     for (const m of code.matchAll(/(?:call|callSoft)\('([a-z]+\.[a-zA-Z]+)'/g)) used.add(m[1]);
     for (const m of code.matchAll(/'(network\.(?:fetchStream|download))'/g)) used.add(m[1]);
   }
@@ -120,12 +149,18 @@ test('כל מתודת SDK שהקוד קורא לה: מוכרת, עם הרשאה 
     const info = sdk.methods[method];
     assert.ok(info, 'מתודה לא מוכרת (חסרה ב-sdk-methods.json): ' + method);
     if (info.permission && !sdk.baseline.includes(info.permission)) {
-      assert.ok(manifest.permissions.includes(info.permission), method + ' דורשת ' + info.permission);
+      assert.ok(
+        manifest.permissions.includes(info.permission),
+        method + ' דורשת ' + info.permission,
+      );
     }
     assert.ok(cmp(info.since, manifest.minAppVersion) <= 0, method + ' מגרסה ' + info.since);
   }
   // וההפך: אין הרשאה מוצהרת שאין שימוש שמצדיק אותה.
   for (const permission of manifest.permissions) {
-    assert.ok(Object.values(sdk.methods).some((x) => x.permission === permission), 'הרשאה בלי שימוש: ' + permission);
+    assert.ok(
+      Object.values(sdk.methods).some((x) => x.permission === permission),
+      'הרשאה בלי שימוש: ' + permission,
+    );
   }
 });
