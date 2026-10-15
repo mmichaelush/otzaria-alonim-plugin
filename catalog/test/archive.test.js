@@ -23,10 +23,12 @@ test('archive: late uploads, bulk-import days, year-only issues; fresh uploads a
   assert.equal(isArchive({ added: '2026-10-01T00:00:00Z', src: 'tashma', hy: 5787 }), false);
   // nothing known: not archive
   assert.equal(isArchive({ added: '2026-07-01T00:00:00Z', src: 'tashma' }), false);
-  // a bulk day, whatever the week
+  // a bulk day matters for issues without a date; a dated one is judged by its date
   const bulk = new Set(['tashma:2026-07-01']);
-  assert.equal(isArchive({ added: '2026-07-01T10:00:00Z', src: 'tashma', date: '2026-06-27' }, bulk), true);
-  assert.equal(isArchive({ added: '2026-07-01T10:00:00Z', src: 'ladaat', date: '2026-06-27' }, bulk), false, 'the day is per source');
+  assert.equal(isArchive({ added: '2026-07-01T10:00:00Z', src: 'tashma' }, bulk), true);
+  assert.equal(isArchive({ added: '2026-07-01T10:00:00Z', src: 'tashma', hy: 5787 }, bulk), true);
+  assert.equal(isArchive({ added: '2026-07-01T10:00:00Z', src: 'ladaat' }, bulk), false, 'the day is per source');
+  assert.equal(isArchive({ added: '2026-07-01T10:00:00Z', src: 'tashma', date: '2026-07-04' }, bulk), false, 'a batch of upcoming issues is news');
 });
 
 test('bulkDaysOf counts uploads per source and day', () => {

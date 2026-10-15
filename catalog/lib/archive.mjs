@@ -2,8 +2,8 @@
 // backfill or a bulk import must not look new. An issue gets `archive: true` when
 //  1. its earliest upload is more than ARCHIVE_LAG_DAYS after the week it belongs to
 //     (or after the end of its Hebrew year, when only the year is known), or
-//  2. that upload falls on a day on which one source added BULK_DAY_MIN or more files
-//     (a mass import; measured over the files seen in this run, so it needs a --full crawl).
+//  2. it has no date, and that upload falls on a day on which one source added BULK_DAY_MIN or
+//     more files (a mass import; measured over the files seen in this run, so it needs a --full crawl).
 // The flag is sticky: once set it stays (the earlier upload time does not become "newer").
 import { daysBetween, hyEndIso } from './calendar.mjs';
 import { dayOf } from './dates.mjs';
@@ -29,8 +29,10 @@ export function bulkDaysOf(items) {
 export function isArchive({ added, src, date, hy }, bulkDays = new Set()) {
   const day = dayOf(added);
   if (!day) return false;
-  if (bulkDays.has(`${src}:${day}`)) return true;
+  // A dated issue is judged by its date alone: a batch of holiday issues uploaded together
+  // weeks ahead is news, however many files that day had.
   if (date) return daysBetween(date, day) > ARCHIVE_LAG_DAYS;
+  if (bulkDays.has(`${src}:${day}`)) return true;
   if (hy) return daysBetween(hyEndIso(hy), day) > ARCHIVE_LAG_DAYS;
   return false;
 }

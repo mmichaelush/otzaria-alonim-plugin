@@ -126,6 +126,8 @@
 
 ## הרצה
 
+פירוט מלא (דיבוג, הוספת מחבר, נימוס, טעויות נפוצות): `docs/CATALOG_DEV.md`.
+
 ```
 cd catalog && npm ci
 node build.mjs --out out                       # רגיל (incremental); בלי --prev מקבלים רק את החדש

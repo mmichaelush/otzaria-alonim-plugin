@@ -120,7 +120,7 @@ function textFacts(raw, ctx, expect, notes, T) {
   T(`כותרת "${raw.rawTitle}": פרשה=${slugList(a.slugs)} שנה=${a.hy ?? '-'} אירועים=${a.events.join(',') || '-'} מספר=${a.no ?? '-'} (שאריות: "${a.title}")`);
   // A series known to be weekly (most of its titles name a parasha) may use the relaxed reading
   // of ambiguous names, e.g. a title that ends in "שלח" (lib/parasha.mjs, relaxed).
-  if (!a.slugs.length && ctx.weeklySeries?.has(weeklyKey(raw))) {
+  if (!a.slugs.length && !raw.dateHint && !raw.weekHint && ctx.weeklySeries?.has(weeklyKey(raw))) {
     const r = sane(analyzeTitle(raw.rawTitle, { expect, relaxed: true }));
     if (r.slugs.length) { a = r; notes.push('parasha-relaxed'); T(`סדרה שבועית: קריאה מקלה של השם → ${slugList(r.slugs)}`); }
   }
