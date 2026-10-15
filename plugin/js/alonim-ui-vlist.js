@@ -42,10 +42,18 @@
       this.onResize = null;
       this.root.addEventListener('scroll', () => this._schedule(), { passive: true });
       if (typeof ResizeObserver === 'function') {
+        // מחוץ לקריאה החוזרת של ה-observer: מדידה ופריסה בתוכה גורמות ל"ResizeObserver loop completed
+        // with undelivered notifications" (נראה כשגיאת חלון ב-WebView של אוצריא).
         this.observer = new ResizeObserver(() => {
-          this.measure();
-          if (this.onResize) this.onResize(this.root.clientWidth, this.emPx);
-          this._schedule();
+          if (this._resizeFrame) return;
+          const run = () => {
+            this._resizeFrame = 0;
+            this.measure();
+            if (this.onResize) this.onResize(this.root.clientWidth, this.emPx);
+            this._schedule();
+          };
+          this._resizeFrame =
+            typeof requestAnimationFrame === 'function' ? requestAnimationFrame(run) : (run(), 0);
         });
         this.observer.observe(this.root);
       }
@@ -53,6 +61,8 @@
 
     destroy() {
       if (this.observer) this.observer.disconnect();
+      if (this._resizeFrame && typeof cancelAnimationFrame === 'function')
+        cancelAnimationFrame(this._resizeFrame);
     }
 
     /** גודל ה-em בפיקסלים: משתנה עם "גודל תצוגה". */
