@@ -23,20 +23,7 @@
     return field(label, b, help);
   }
 
-  async function copyText(text, fallbackEl) {
-    try {
-      await navigator.clipboard.writeText(text);
-      return true;
-    } catch (error) {
-      try {
-        fallbackEl.focus();
-        fallbackEl.select();
-        return document.execCommand('copy');
-      } catch (inner) {
-        return false;
-      }
-    }
-  }
+  const copyText = Ui.copyText;
 
   const SECTION_IDS = ['folder', 'sync', 'queue', 'auto', 'disk', 'rules', 'sources', 'look', 'backup', 'about'];
 

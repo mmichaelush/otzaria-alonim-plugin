@@ -126,14 +126,16 @@
 
   // -------------------------------------------------------- הוספה לאוסף
 
-  function addToList(app, item) {
+  /** [target]: גיליון, או מערך גיליונות (מצב בחירה). */
+  function addToList(app, target) {
+    const items = Array.isArray(target) ? target : [target];
     const lists = app.state.lists;
     const body = el('div', { class: 'choose-list' });
     const dlg = Ui.dialog({ title: t('הוספה לאוסף'), size: 'small', body });
     const draw = () => {
       const rows = lists.map((l) => {
-        const has = l.entries.some((e) => e.id === item.id);
-        return el('button', { type: 'button', class: 'choice-row', onclick: () => { if (has) app.state.removeFromList(l.id, item.id); else app.quickAddToList(l.id, item); dlg.close(); } }, icon(has ? 'checkmark_circle_24_filled' : 'circle_24_regular'), el('span', { class: 'choice-text', dir: 'auto' }, l.kind === 'shabbat' ? t('אוסף שבת') : l.name), el('span', { class: 'section-count' }, String(l.entries.length)));
+        const has = items.every((item) => l.entries.some((e) => e.id === item.id));
+        return el('button', { type: 'button', class: 'choice-row', onclick: () => { if (has) items.forEach((item) => app.state.removeFromList(l.id, item.id)); else items.forEach((item) => app.quickAddToList(l.id, item, items.length > 1)); if (items.length > 1 && !has) app.toast(t('{n} גיליונות נוספו לאוסף', { n: items.length })); dlg.close(); } }, icon(has ? 'checkmark_circle_24_filled' : 'circle_24_regular'), el('span', { class: 'choice-text', dir: 'auto' }, l.kind === 'shabbat' ? t('אוסף שבת') : l.name), el('span', { class: 'section-count' }, String(l.entries.length)));
       });
       const input = el('input', { class: 'input', type: 'text', placeholder: t('שם לרשימה חדשה'), maxlength: '80', 'aria-label': t('שם לרשימה חדשה'), dir: 'auto' });
       const form = el('form', { class: 'new-list', onsubmit: (e) => {
@@ -141,7 +143,8 @@
         const name = input.value.trim();
         if (!name) return;
         const list = app.state.createList(name);
-        if (list) app.quickAddToList(list.id, item);
+        if (list) items.forEach((item) => app.quickAddToList(list.id, item, items.length > 1));
+        if (list && items.length > 1) app.toast(t('{n} גיליונות נוספו לאוסף', { n: items.length }));
         dlg.close();
       } }, input, Ui.button('filled', t('יצירה והוספה'), () => form.requestSubmit(), { className: 'button-small' }));
       body.replaceChildren(...rows, form);

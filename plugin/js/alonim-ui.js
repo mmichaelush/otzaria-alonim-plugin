@@ -97,6 +97,25 @@
     );
   }
 
+  /**
+   * מעתיק טקסט ללוח. אם `navigator.clipboard` חסום (ב-WebView של אוצריא לפעמים),
+   * נופל ל-`execCommand('copy')` מתוך [fallbackEl] (שדה טקסט גלוי). `true` בהצלחה.
+   */
+  async function copyText(text, fallbackEl) {
+    try {
+      await navigator.clipboard.writeText(text);
+      return true;
+    } catch (error) {
+      try {
+        fallbackEl.focus();
+        fallbackEl.select();
+        return document.execCommand('copy');
+      } catch (inner) {
+        return false;
+      }
+    }
+  }
+
   /** `<select>` קטן עם תווית נגישה. [options]: `{ value, label }`. */
   function selectField(label, options, value, onChange, className) {
     return el(
@@ -605,6 +624,7 @@
     iconButton,
     chip,
     selectField,
+    copyText,
     marked,
     stateCard,
     progress,

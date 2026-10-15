@@ -88,6 +88,8 @@
         mine: { tab: 'favorites', list: '' },
         settings: { section: '' },
       };
+      /** מצב בחירה מרובה ("כל העלונים", דף סדרה): מזהי הגיליונות שנבחרו. */
+      this.selection = { on: false, ids: new Set() };
       this.viewer = null;
       this.screen = null;
       this.lastQueryMs = 0;
@@ -370,6 +372,7 @@
 
     go(tab, options) {
       const o = options || {};
+      if (this.selection.on) this.setSelecting(false);
       this.closeViewer(true);
       this.view.route = { tab, series: o.series || null };
       if (o.mineTab) this.view.mine.tab = o.mineTab;
@@ -388,6 +391,39 @@
     focusSearch() {
       if (this.view.route.tab !== 'all' || this.viewer) this.go('all');
       this.emit('focus-search');
+    }
+
+    // --------------------------------------------------- בחירה מרובה
+
+    setSelecting(on) {
+      this.selection.on = Boolean(on);
+      if (!on) this.selection.ids.clear();
+      this.emit('selection');
+    }
+
+    isSelected(id) {
+      return this.selection.ids.has(id);
+    }
+
+    toggleSelected(item) {
+      const ids = this.selection.ids;
+      if (ids.has(item.id)) ids.delete(item.id);
+      else ids.add(item.id);
+      this.emit('selection');
+    }
+
+    /** מוסיף ל-(או מסיר מ-) הבחירה את כל [items]. */
+    selectMany(items, on) {
+      for (const item of items) {
+        if (on) this.selection.ids.add(item.id);
+        else this.selection.ids.delete(item.id);
+      }
+      this.emit('selection');
+    }
+
+    /** הגיליונות שנבחרו (אלה שנמצאים באינדקס), בסדר הבחירה. */
+    selectedItems() {
+      return [...this.selection.ids].map((id) => this.index.get(id)).filter(Boolean);
     }
 
     // ------------------------------------------------------- פעולות
@@ -564,10 +600,10 @@
 
     // ----------------------------------------------------- אוספים
 
-    quickAddToList(listId, item) {
+    quickAddToList(listId, item, quiet) {
       const ok = this.state.addToList(listId, item);
       const list = this.state.lists.find((l) => l.id === listId);
-      this.toast(ok ? t('נוסף ל"{name}"', { name: list ? list.name : '' }) : t('האוסף מלא'), { error: !ok });
+      if (!quiet || !ok) this.toast(ok ? t('נוסף ל"{name}"', { name: list ? list.name : '' }) : t('האוסף מלא'), { error: !ok });
     }
 
     // ---------------------------------------------------- קיצורים

@@ -108,8 +108,9 @@
       Cards.attachListKeys(this.list, () => ({ count: this.result.idx.length, perRow: this.perRow }));
       this.perRow = 1;
 
+      this.selectionBar = new A.Selection.SelectionBar(app, { count: () => this.result.idx.length, all: () => this.result.idx.map((i) => app.index.item(i)) });
       host.replaceChildren(
-        el('div', { class: 'page fill-page all-page' }, el('div', { class: 'toolbar' }, el('div', { class: 'search-wrap' }, searchBar, this.suggestHost), this.builderHost, this.filterRow, this.chipsHost, this.countLine), this.listHost),
+        el('div', { class: 'page fill-page all-page' }, el('div', { class: 'toolbar' }, el('div', { class: 'search-wrap' }, searchBar, this.suggestHost), this.builderHost, this.filterRow, this.chipsHost, this.countLine), this.listHost, this.selectionBar.el),
       );
       this.renderQuickRow();
       this.renderChips();
@@ -122,6 +123,10 @@
         app.on('data', () => this.schedule(true)),
         app.on('state', (domains) => this.onState(domains)),
         app.on('files', () => this.refresh()),
+        app.on('selection', () => {
+          this.renderQuickRow();
+          this.refresh();
+        }),
         app.on('disk', () => this.onDisk()),
         app.on('prefs', () => {
           this.list.measure();
@@ -132,7 +137,8 @@
           this.input.select();
         }),
         app.on('escape', () => {
-          if (v.query) this.setQuery('');
+          if (app.selection.on) app.setSelecting(false);
+          else if (v.query) this.setQuery('');
         }),
       );
       if (v.scroll) this.list.root.scrollTop = v.scroll;
@@ -143,6 +149,7 @@
 
     destroy() {
       for (const off of this.unsub) off();
+      this.selectionBar.destroy();
       this.list.destroy();
     }
 
@@ -487,6 +494,7 @@
       Ui.fill(
         this.filterRow,
         ...QUICK_FLAGS.map(([key, label, iconName]) => toggle(key, t(label), iconName)),
+        A.Selection.modeButton(app),
         el('span', { class: 'filter-spacer' }),
         sortSelect,
         viewToggle,

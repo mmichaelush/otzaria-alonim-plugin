@@ -364,6 +364,18 @@
       return this.isFavorite(item.id);
     }
 
+    /** קובע מועדף במפורש (לפעולות על כמה גיליונות). */
+    setFavorite(item, on) {
+      const items = this.data.favorites.items;
+      const has = Object.hasOwn(items, item.id);
+      if (on === has) return;
+      if (on) {
+        if (Object.keys(items).length >= MAX_FAVORITES) return;
+        items[item.id] = { ...snapOf(item), t: this.now() };
+      } else delete items[item.id];
+      this._touch('favorites');
+    }
+
     favoriteSnaps() {
       return Object.values(this.data.favorites.items).sort((a, b) => b.t - a.t);
     }

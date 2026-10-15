@@ -25,6 +25,7 @@ const PURE = [
   'js/alonim-state.js',
   'js/alonim-catalog.js',
   'js/alonim-files.js',
+  'js/alonim-bulk.js',
 ];
 
 function loadPlugin() {

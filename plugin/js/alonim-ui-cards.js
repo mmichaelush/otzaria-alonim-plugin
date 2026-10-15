@@ -114,9 +114,28 @@
     chips.push(...sourceChips(app, item, 2));
     const size = sizeText(item);
 
-    const open = () => app.openIssue(item, opts.ctx);
+    const selecting = app.selection.on && !opts.noSelect;
+    const selected = selecting && app.isSelected(item.id);
+    const check = selecting
+      ? el(
+          'button',
+          {
+            type: 'button',
+            class: 'select-check',
+            role: 'checkbox',
+            'aria-checked': String(selected),
+            'aria-label': t('בחירה: {name}', { name: title }),
+            onclick: (event) => {
+              event.stopPropagation();
+              app.toggleSelected(item);
+            },
+          },
+          icon(selected ? 'checkmark_circle_24_filled' : 'circle_24_regular'),
+        )
+      : null;
+    const open = () => (selecting ? app.toggleSelected(item) : app.openIssue(item, opts.ctx));
     const attrs = {
-      class: 'card is-' + mode + (state.read ? ' is-read' : ' is-unread') + (state.hidden ? ' is-hidden' : ''),
+      class: 'card is-' + mode + (state.read ? ' is-read' : ' is-unread') + (state.hidden ? ' is-hidden' : '') + (selecting ? ' is-selecting' : '') + (selected ? ' is-selected' : ''),
       role: 'listitem',
       // מיקוד "נודד": פריט אחד ברשימה נגיש ב-Tab, והחצים מעבירים בין הפריטים.
       tabindex: opts.index === (opts.active || 0) ? '0' : '-1',
@@ -130,7 +149,7 @@
       },
       onkeydown: (event) => {
         if (event.target !== event.currentTarget) return;
-        if (event.key === 'Enter') {
+        if (event.key === 'Enter' || (selecting && event.key === ' ')) {
           event.preventDefault();
           open();
         } else if (Core.keyIs(event, 'd')) app.download(item);
@@ -145,6 +164,7 @@
       return el(
         'article',
         attrs,
+        check,
         el('span', { class: 'unread-dot', 'aria-hidden': 'true' }),
         el('div', { class: 'row-main' }, titleNode, metaNode),
         el('div', { class: 'card-chips' }, el('span', { class: 'chip-row' }, chips)),
@@ -158,7 +178,7 @@
       el(
         'div',
         { class: 'card-main' },
-        el('div', { class: 'card-top' }, el('span', { class: 'unread-dot', 'aria-hidden': 'true' }), titleNode, el('div', { class: 'card-tools' }, star, menuBtn, removeBtn)),
+        el('div', { class: 'card-top' }, check, el('span', { class: 'unread-dot', 'aria-hidden': 'true' }), titleNode, el('div', { class: 'card-tools' }, star, menuBtn, removeBtn)),
         metaNode,
         el('div', { class: 'card-chips' }, el('span', { class: 'chip-row' }, chips), size ? el('span', { class: 'card-size' }, size) : null),
         el(

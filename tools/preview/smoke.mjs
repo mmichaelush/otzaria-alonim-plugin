@@ -320,6 +320,43 @@ async function filterFlows(browser, open, check) {
   await browser.closePage(narrow);
 }
 
+/** מצב בחירה מרובה והיסטוריה. */
+async function selectionFlows(browser, open, check) {
+  const page = await open('page=all');
+  const num = (expr) => page.eval(`Number(${expr})`);
+  await page.eval("document.querySelector('[data-key=select-mode]').click()");
+  await page.sleep(300);
+  check('מצב בחירה: תיבות סימון בכרטיסים ושורת פעולות', (await num("document.querySelectorAll('.select-check').length")) > 3 && (await page.eval("!document.querySelector('.selection-bar').hidden")));
+  const before = await num('window.__alonimApp.state.favoriteSnaps().length');
+  await page.eval("[...document.querySelectorAll('.select-check')].slice(0, 3).forEach((b) => b.click())");
+  await page.sleep(300);
+  check('נבחרו שלושה', (await num('window.__alonimApp.selection.ids.size')) === 3 && (await page.eval("document.querySelector('.selection-count').textContent.includes('3')")));
+  check('לחיצה על כרטיס במצב בחירה אינה פותחת צפיין', await page.eval("(document.querySelector('.card:not(.is-selected)').click(), document.querySelector('.viewer').hidden)"));
+  await page.sleep(200);
+  await page.eval("[...document.querySelectorAll('.selection-bar button')].find((b) => b.textContent.includes('למועדפים')).click()");
+  await page.sleep(300);
+  check('"למועדפים" מוסיף את כל הנבחרים', await page.eval('window.__alonimApp.selectedItems().every((it) => window.__alonimApp.state.isFavorite(it.id))') && (await num('window.__alonimApp.state.favoriteSnaps().length')) >= before);
+  await page.eval("[...document.querySelectorAll('.selection-bar button')].find((b) => b.textContent.includes('בחירת כל התוצאות')).click()");
+  await page.sleep(300);
+  const total = await num("document.querySelector('.results-count').textContent.replace(/[^0-9]/g, '')");
+  check('"בחירת כל התוצאות" בוחר את כולן', (await num('window.__alonimApp.selection.ids.size')) === total, String(total));
+  await page.eval("[...document.querySelectorAll('.selection-bar button')].find((b) => b.textContent.includes('העתקה כטקסט')).click()");
+  await page.sleep(700);
+  check('העתקה כטקסט מציגה הודעה', await page.eval("/הרשימה הועתקה|ההעתקה נכשלה/.test(document.body.innerText)"));
+  await page.key('Escape');
+  await page.sleep(300);
+  check('Esc יוצא ממצב בחירה', (await page.eval("document.querySelector('.selection-bar').hidden")) && (await num("document.querySelectorAll('.select-check').length")) === 0);
+  // היסטוריה: פתיחת גיליון נרשמת ומופיעה בלשונית
+  await page.eval("window.__alonimApp.openIssue(window.__alonimApp.index.item(0))");
+  await page.sleep(500);
+  await page.eval("window.__alonimApp.closeViewer(); window.__alonimApp.view.mine.tab = 'history'; window.__alonimApp.go('mine')");
+  await page.sleep(400);
+  check('היסטוריה: גיליון שנפתח מופיע', (await num("document.querySelectorAll('.history-row').length")) >= 1);
+  check('היסטוריה: הסרת אירוע', await page.eval("(document.querySelector('.history-remove').click(), true)"));
+  check('בחירה והיסטוריה: בלי שגיאות קונסול', page.errors.length === 0, page.errors.join('\n'));
+  await browser.closePage(page);
+}
+
 /** תרחישי זרימה: נבדקים בפועל, לא רק נטענים. */
 async function flows(browser) {
   const open = async (query, base, width) => {
@@ -377,6 +414,7 @@ async function flows(browser) {
 
   await weekFlows(browser, open, check);
   await filterFlows(browser, open, check);
+  await selectionFlows(browser, open, check);
 
   // לחיצה על כרטיס = קריאה; הורדה = שמירה קבועה ומצב "הורד" מהדיסק
   page = await open('page=all');
