@@ -303,3 +303,31 @@ test('פתיחה באתר: רק כתובת https מדומיין ברשימה', a
   assert.deepEqual(sdk.openedUrls, ['https://ladaat.co/gilyonot/view/1']);
   assert.ok(Core.isSiteUrl('https://ladaat.co/'));
 });
+
+test('ביקור שני עם start(): טעינת שרדים מהמטמון בו-זמנית לסנכרון אינה מורידה אותם שוב', async () => {
+  const first = setup();
+  await first.catalog.init();
+  const runtime = createRuntime(first.sdk, { logger: quiet, sleep: noSleep });
+  const catalog = new Catalog(runtime, { log: quiet, sleep: noSleep });
+  const before = first.sdk.streams;
+  await catalog.start();
+  // ממתינים לטעינת השרדים מהמטמון שרצה במקביל.
+  await catalog.loadCachedShards();
+  assert.equal(first.sdk.streams - before, 1, 'רק המניפסט נבדק: שרד שכבר נטען מהמטמון אינו יורד שוב');
+});
+
+test('_loadJob מדלג על קובץ שכבר נטען מהמטמון בגיבוב זהה, אלא אם force', async () => {
+  const first = setup();
+  await first.catalog.init();
+  const runtime = createRuntime(first.sdk, { logger: quiet, sleep: noSleep });
+  const catalog = new Catalog(runtime, { log: quiet, sleep: noSleep });
+  await catalog.loadCache();
+  await catalog.loadCachedShards();
+  const shard = first.manifest.shards[0];
+  const job = { kind: 'shard', id: shard.id, path: shard.path, entry: shard, cachePath: 'issues/' + shard.id + '.json' };
+  const before = first.sdk.streams;
+  await catalog._loadJob(job);
+  assert.equal(first.sdk.streams, before, 'כבר בזיכרון בגיבוב תואם: בלי רשת');
+  await catalog._loadJob({ ...job, force: true });
+  assert.equal(first.sdk.streams - before, 1, 'force מוריד שוב');
+});
