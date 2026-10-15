@@ -431,3 +431,20 @@ export function analyzeTitle(text, { expect = [], parasha = true } = {}) {
     title: joinTokens(tokens.filter((_, i) => !drop.has(i))).replace(TRIM_RE, ''),
   };
 }
+
+/**
+ * Lenient scan for week labels from a source ("חקת - קרח", "שבועות - נשא"):
+ * every parasha name counts, ambiguity is irrelevant because the text is
+ * known to be a week name. Returns { slugs:Set, events:[slug] }.
+ */
+export function weekLabelParts(text) {
+  const tokens = tokenize(stripFileNoise(text));
+  const slugs = new Set();
+  for (let i = 0; i < tokens.length; i++) {
+    const abbr = COMBO_ABBR.find(([a]) => a === tokens[i].n);
+    if (abbr) { abbr[1].forEach((s) => slugs.add(s)); continue; }
+    const p = matchAt(tokens, i);
+    if (p) { slugs.add(p.slug); i += p.words.length - 1; }
+  }
+  return { slugs, events: detectEvents(tokens).map((e) => e.slug) };
+}
