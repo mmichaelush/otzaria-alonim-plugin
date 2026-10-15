@@ -1,0 +1,15 @@
+{
+  "name": "otzaria-alonim-catalog",
+  "version": "1.0.0",
+  "private": true,
+  "type": "module",
+  "description": "Builds the static catalog consumed by the Otzaria Alonim plugin",
+  "engines": { "node": ">=22" },
+  "scripts": {
+    "test": "node --test \"test/*.test.js\"",
+    "build": "node build.mjs --out out"
+  },
+  "dependencies": {
+    "@hebcal/core": "^5.9.0"
+  }
+}

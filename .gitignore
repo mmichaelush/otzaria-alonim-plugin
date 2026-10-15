@@ -5,3 +5,4 @@ build/
 *.otzplugin
 *.log
 tools/preview/out/
+.claude/

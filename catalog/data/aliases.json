@@ -1,0 +1,6 @@
+{
+  "schema": 1,
+  "comment": "merge: titles of the same series under different names (canonical + aliases). noMerge: titles that must never be merged with a similarly named series.",
+  "merge": [],
+  "noMerge": []
+}

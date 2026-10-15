@@ -26,7 +26,7 @@
 - **גרסה:** `plugin/manifest.json` הוא המקור. `minAppVersion` = הגרסה שבה נוסף ה-API החדש ביותר שבשימוש (היום 0.9.98).
 - **לפני קומיט:**
   - `node --check` לכל קובץ JS;
-  - `node --test catalog/test plugin/test`;
+  - `node --test "catalog/test/*.test.js" "plugin/test/*.test.js"`;
   - `node tools/preview/smoke.mjs` (כל מסך בדפדפן אמיתי; נכשל על שגיאת קונסול);
   - הוולידטור הרשמי של החנות על `plugin/`.
 - **לא מפרסמים:** אין push, אין PR לאוצריא, אין פנייה לבעלי אתרים, אין פרסום לחנות בלי בקשה מפורשת של בעל הפרויקט.
