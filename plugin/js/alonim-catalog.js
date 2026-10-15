@@ -60,6 +60,8 @@
       /** נתיב → sha שכבר נשלח לאינדקס בהפעלה הזו. */
       this.emitted = new Map();
       this.shardPromises = new Map();
+      /** נתיב מטמון ← טעינה בריצה (`_loadJob`). */
+      this._jobs = new Map();
       this.dataListeners = new Set();
       this.statusListeners = new Set();
       this.status = {
@@ -261,7 +263,7 @@
     async start() {
       await this.loadCache();
       const syncing = this.sync();
-      this.loadCachedShards();
+      this.loadCachedShards().catch((error) => this.log.warn('cached shards failed', error));
       return syncing;
     }
 
@@ -273,9 +275,12 @@
     /** מסנכרן בבת אחת, ובלי כפילות: קריאה בזמן סנכרון מחזירה את הרץ. */
     sync(options) {
       if (this.syncing) return this.syncing;
-      this.syncing = this._sync(options || {}).finally(() => {
-        this.syncing = null;
-      });
+      // לעולם לא נדחה: קריאה בלי await (טיימר ניסיון חוזר, חזרה לרשת) לא תיצור דחייה שאיש אינו תופס.
+      this.syncing = this._sync(options || {})
+        .catch((error) => this._fail(error))
+        .finally(() => {
+          this.syncing = null;
+        });
       return this.syncing;
     }
 
@@ -375,9 +380,12 @@
       };
       await Promise.all(Array.from({ length: PARALLEL }, worker));
 
+      // הושהה באמצע: קבצים לא הורדו ולא נכשלו. לא מתעדים הצלחה, וחזרה מההשהיה מסנכרנת מחדש.
+      const interrupted = cursor < needed.length;
+      this.interrupted = interrupted;
       await this._write('manifest.json', JSON.stringify(manifest));
-      if (!failed && !this.suspended) this.meta.catalogVersion = manifest.catalogVersion || 0;
-      if (!failed) {
+      if (!failed && !interrupted) this.meta.catalogVersion = manifest.catalogVersion || 0;
+      if (!failed && !interrupted) {
         this.meta.lastOkAt = this.now();
         this._setStatus({ lastOkAt: this.meta.lastOkAt });
       }
@@ -390,6 +398,10 @@
           error: firstError && (firstError.code || 'network'),
         });
         this._scheduleRetry();
+        return false;
+      }
+      if (interrupted) {
+        this._setStatus({ phase: 'idle', error: null });
         return false;
       }
       this.retryStep = 0;
@@ -405,7 +417,18 @@
       return true;
     }
 
-    async _loadJob(job) {
+    /** הורדה/טעינה של קובץ אחד; קריאות מקבילות לאותו קובץ (סנכרון + שנה לפי דרישה) חולקות ריצה אחת. */
+    _loadJob(job) {
+      const key = job.cachePath;
+      let running = this._jobs.get(key);
+      if (!running) {
+        running = this._loadJobNow(job).finally(() => this._jobs.delete(key));
+        this._jobs.set(key, running);
+      }
+      return running;
+    }
+
+    async _loadJobNow(job) {
       const sha = job.entry.sha256 || '';
       // התכנון נעשה לפני ש-loadCachedShards סיים: קובץ שנטען מהמטמון בינתיים אינו יורד שוב.
       if (!job.force && !this._stale(job)) return;
@@ -497,8 +520,9 @@
     /** חזרה מהשהיה: סנכרון אם עברו יותר מ-10 דקות. */
     resume() {
       this.suspended = false;
-      if (this.now() - (this.status.lastCheckAt || 0) > 10 * 60 * 1000) this.sync();
-      else this.loadCachedShards();
+      if (this.interrupted || this.now() - (this.status.lastCheckAt || 0) > 10 * 60 * 1000)
+        this.sync();
+      else this.loadCachedShards().catch((error) => this.log.warn('cached shards failed', error));
     }
 
     // -------------------------------------------------- שרדים לפי דרישה
@@ -520,8 +544,18 @@
     }
 
     /** טוען את לוח הארכיון (מהמטמון או מהרשת). `true` כשהוא בזיכרון. */
-    async ensureWeeksArchive() {
-      if (this.weeksArchiveLoaded()) return true;
+    ensureWeeksArchive() {
+      if (this.weeksArchiveLoaded()) return Promise.resolve(true);
+      // קריאות כפולות (פתיחה חוזרת של הבורר) חולקות הורדה אחת.
+      if (!this._archivePromise) {
+        this._archivePromise = this._ensureWeeksArchive().finally(() => {
+          this._archivePromise = null;
+        });
+      }
+      return this._archivePromise;
+    }
+
+    async _ensureWeeksArchive() {
       const entry = this.weeksArchiveEntry();
       if (!entry) return false;
       const job = {
@@ -550,7 +584,12 @@
     /** מחכה שכל שרדי השנה יהיו בזיכרון: מהמטמון, ואם אין — מהרשת. */
     async ensureYear(hy) {
       const jobs = this.shardsOfYear(hy).map((entry) => this.ensureShard(entry));
-      await Promise.all(jobs);
+      try {
+        await Promise.all(jobs);
+      } catch (error) {
+        // ensureShard אינו נדחה בכוונה; כאן רק נגד שינוי עתידי, כי הקוראים אינם מחכים לתוצאה.
+        this.log.warn('ensureYear ' + hy + ' failed', error);
+      }
     }
 
     ensureShard(entry) {
@@ -570,6 +609,7 @@
           await this._evictIfNeeded();
           return true;
         } catch (error) {
+          this.log.warn('shard ' + entry.id + ' download failed, trying the cache', error);
           return this._loadCached(path, 'shard', entry.id);
         } finally {
           this.shardPromises.delete(entry.id);
@@ -583,14 +623,16 @@
     async loadCold(onProgress) {
       const cold = this.coldShards().filter((x) => !this.emitted.has('issues/' + x.id + '.json'));
       let done = 0;
+      let failed = 0;
       for (const shard of cold) {
         if (this.suspended) break;
-        await this.ensureShard(shard);
+        // שרד שלא נטען (רשת נפלה, אין מטמון) אינו "נטען": ההודעה למשתמש אומרת שחלק חסר.
+        if (!(await this.ensureShard(shard))) failed++;
         done++;
         if (onProgress) onProgress(done, cold.length);
         await this.sleep(PACE_MS);
       }
-      return done === cold.length;
+      return done === cold.length && !failed;
     }
 
     /** כמה שרדים קרים עוד לא נטענו, וכמה גיליונות בהם (לפי המניפסט). */
@@ -658,6 +700,18 @@
         this._parsed.set(path, hit);
         return hit;
       }
+      // בקשות מקבילות לאותו קובץ (פתיחה + הכנה מראש להדפסה) חולקות קריאה ופענוח אחד (עד כ-9MB).
+      this._parsing = this._parsing || new Map();
+      if (!this._parsing.has(path)) {
+        this._parsing.set(
+          path,
+          this._loadParsedMap(path).finally(() => this._parsing.delete(path)),
+        );
+      }
+      return this._parsing.get(path);
+    }
+
+    async _loadParsedMap(path) {
       let text = await this._read(path);
       if (text === null && this.online() !== false) {
         try {
