@@ -39,7 +39,9 @@ if git ls-remote --exit-code --heads "$REMOTE" "$BRANCH" >/dev/null 2>&1; then
 fi
 
 # A fresh repository holding exactly the new content in a single commit.
-VERSION="$(node -p "require(process.argv[1]).catalogVersion" "$(cd "$OUT" && pwd)/manifest.json" 2>/dev/null || echo unknown)"
+# catalogVersion without needing node: the manifest is canonical JSON
+VERSION="$(sed -n 's/.*"catalogVersion": *\([0-9][0-9]*\).*/\1/p' "$OUT/manifest.json" | head -n 1)"
+VERSION="${VERSION:-unknown}"
 mkdir "$WORK/new"
 cp -R "$OUT"/. "$WORK/new"/
 rm -rf "$WORK/new/.git"
