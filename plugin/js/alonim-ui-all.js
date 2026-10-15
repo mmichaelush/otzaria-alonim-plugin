@@ -211,6 +211,7 @@
     }
 
     destroy() {
+      this.destroyed = true;
       for (const off of this.unsub) off();
       this.selectionBar.destroy();
       this.list.destroy();
@@ -432,6 +433,7 @@
       this.pending = true;
       requestAnimationFrame(() => {
         this.pending = false;
+        if (this.destroyed) return;
         const reset = this.wantReset;
         this.wantReset = false;
         this.run(!reset);

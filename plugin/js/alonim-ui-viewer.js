@@ -49,7 +49,7 @@
     open(viewer) {
       // המיקוד חוזר למי שפתח את הצפיין (לא לפתיחה קודמת, וגם לא בין קודם/הבא).
       if (!this.state) this.returnFocus = /** @type {HTMLElement|null} */ (document.activeElement);
-      this.releaseBlob();
+      this.releaseFile();
       this.state = { ...viewer, phase: 'loading', error: '', file: null, job: null };
       this.token = viewer.token;
       this.app.shell.dataset.mode = 'viewer';
@@ -58,14 +58,21 @@
       this.load();
     }
 
-    /** משחרר את ה-Blob של הקובץ הפתוח (הזיכרון חוזר רק אחרי revoke). */
-    releaseBlob() {
-      const file = this.state && this.state.file;
-      if (file && file.blobUrl) this.app.files.releaseBlobUrl(file.blobUrl);
+    /**
+     * משחרר את מה שהצפיין החזיק: ה-Blob (הזיכרון חוזר רק אחרי revoke) וה-token של קובץ מהתיקייה.
+     * קובץ מרוחק נשאר במטמון של `Files`. הדפסה שעוד פתוחה על הקובץ: השחרור אחריה.
+     */
+    releaseFile() {
+      const s = this.state;
+      const file = s && s.file;
+      if (!file) return;
+      if (file.blobUrl) this.app.files.releaseBlobUrl(file.blobUrl);
+      if (s.printing) s.releaseAfterPrint = true;
+      else this.app.files.releaseFile(file);
     }
 
     close() {
-      this.releaseBlob();
+      this.releaseFile();
       this.state = null;
       this.token++;
       this.host.hidden = true;
@@ -110,7 +117,11 @@
           s.job = job;
           this.drawBody();
         });
-        if (token !== this.token) return;
+        if (token !== this.token) {
+          // הצפיין נסגר (או עבר לגיליון אחר) בזמן הטעינה: אין מי שישחרר את ההענקה.
+          this.app.files.releaseFile(file);
+          return;
+        }
         s.file = file;
         s.reason = '';
         // תצוגה ישירה (מארח חדש) לא מעתיקה את הקובץ לזיכרון; Blob כן, ולכן יש לו תקרת גודל.
@@ -447,12 +458,13 @@
      */
     async print(options) {
       const s = this.state;
-      if (!s || this.printing) return;
-      this.printing = true;
+      if (!s || s.printing) return;
+      s.printing = true;
       try {
         await this.printRoutes(s, Boolean(options && options.auto));
       } finally {
-        this.printing = false;
+        s.printing = false;
+        if (s.releaseAfterPrint && s.file) this.app.files.releaseFile(s.file);
       }
     }
 

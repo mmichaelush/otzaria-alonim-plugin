@@ -45,11 +45,13 @@
       this.pending = true;
       requestAnimationFrame(() => {
         this.pending = false;
-        if (this.host && this.host.isConnected) this.render();
+        if (!this.destroyed && this.host && this.host.isConnected) this.render();
       });
     }
 
     destroy() {
+      // `host` הוא העמודה המשותפת: ציור אחרי destroy היה דורס את המסך שהחליף אותנו.
+      this.destroyed = true;
       for (const off of this.unsub || []) off();
     }
 

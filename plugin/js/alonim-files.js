@@ -26,6 +26,8 @@
   /** קובץ מרוחק שהוענק: כמה זמן משתמשים בו בלי לבקש שוב, וכמה מחזיקים. */
   const REMOTE_TTL_MS = 10 * 60 * 1000;
   const REMOTE_KEEP = 6;
+  /** כמה עבודות שהסתיימו נשארות בתור (הורדה אוטומטית יכולה להצטבר). */
+  const KEEP_FINISHED = 200;
 
   const sleepDefault = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
   const trimSlash = (p) => String(p || '').replace(/[\\/]+$/, '');
@@ -76,6 +78,8 @@
       this.caps = o.caps || null;
       /** מזהה גיליון ← קובץ מרוחק שהמארח הוריד לתיקיית מטמון פרטית: `{ token, url, name, size, at }`. */
       this.remote = new Map();
+      /** מזהה גיליון ← `openRemote` בריצה (חולקים הורדה). */
+      this.remotePending = new Map();
       this.fetchImpl = o.fetch || (typeof root.fetch === 'function' ? root.fetch.bind(root) : null);
       /** מזהה קצר ← `{ path, size, modified, name }`. */
       this.disk = new Map();
@@ -230,6 +234,7 @@
     async _scan() {
       const found = new Map();
       let partial = false;
+      const folderToken = this.folder.token;
       try {
         const root = await this._list('');
         partial = Boolean(root.truncated);
@@ -262,12 +267,15 @@
           : /no longer exists/i.test(message) || error.code === 'error.not_found'
             ? 'missing'
             : 'error';
+        // המשתמש החליף או שכח את התיקייה באמצע הסריקה: התוצאה של התיקייה הישנה אינה רלוונטית.
+        if (!this.hasFolder || this.folder.token !== folderToken) return this.diskState;
         this.log.warn('disk scan failed: ' + status, error);
         this.diskState = { ...this.diskState, status };
         if (status === 'revoked') this.disk = new Map();
         this._emitDisk();
         return this.diskState;
       }
+      if (!this.hasFolder || this.folder.token !== folderToken) return this.diskState;
       this.disk = found;
       let bytes = 0;
       for (const e of found.values()) bytes += e.size;
@@ -407,8 +415,20 @@
       job.status = status;
       job.error = error;
       job.endedAt = this.now();
+      this._pruneFinished();
       this._emit();
       job._finish(job);
+    }
+
+    /** עבודות שהסתיימו נשמרות להצגה בתור; לא יותר מ-KEEP_FINISHED (כל אחת מחזיקה את נכסי הגיליון). */
+    _pruneFinished() {
+      const finished = this.list().filter(
+        (j) => j.status === 'done' || j.status === 'cancelled' || j.status === 'failed',
+      );
+      for (const job of finished.slice(0, Math.max(0, finished.length - KEEP_FINISHED)))
+        this.jobs.delete(job.id);
+      if (this.order.length > this.jobs.size)
+        this.order = this.order.filter((id) => this.jobs.has(id));
     }
 
     async _run(job, delay) {
@@ -561,6 +581,8 @@
         if (!file || !file.url) return null;
         const controller = typeof AbortController === 'function' ? new AbortController() : null;
         const timer = controller ? setTimeout(() => controller.abort(), 4000) : null;
+        // ה-token נדרש רק לבדיקה הזו.
+        const release = () => this.releaseToken(file.token);
         try {
           const res = await this.fetchImpl(file.url, {
             headers: { Range: 'bytes=0-7' },
@@ -570,8 +592,10 @@
           return String.fromCharCode(...bytes) === '%PDF-';
         } finally {
           if (timer) clearTimeout(timer);
+          release();
         }
       } catch (error) {
+        this.log.debug('pdf header read skipped', error);
         return null;
       }
     }
@@ -632,10 +656,21 @@
      * `{ url, token, name, size, remote: true }`. אותה בדיקת allowlist כמו הורדה.
      * זורק `UnsupportedError` כשהיכולת חסרה (הקורא נופל להורדה), ו-[FileError] אחרת.
      */
-    async openRemote(item) {
+    openRemote(item) {
       const cached = this.remote.get(item.id);
       if (cached && this.now() - cached.at < REMOTE_TTL_MS)
-        return { ...cached, remote: true, saved: false };
+        return Promise.resolve({ ...cached, remote: true, saved: false });
+      // פתיחה והכנה מראש (הדפסה, קודם/הבא) לאותו גיליון חולקות הורדה אחת: אחרת כל ענקת קובץ שנייה
+      // הייתה דורסת את הראשונה ב-`remote`, וה-token של הראשונה לא היה מבוטל לעולם.
+      let pending = this.remotePending.get(item.id);
+      if (!pending) {
+        pending = this._openRemote(item).finally(() => this.remotePending.delete(item.id));
+        this.remotePending.set(item.id, pending);
+      }
+      return pending.then((entry) => ({ ...entry, remote: true, saved: false }));
+    }
+
+    async _openRemote(item) {
       const { asset, reason } = pickAsset(
         item,
         this.preferredSource(item),
@@ -681,9 +716,13 @@
         this.releaseToken(data.token);
         throw new FileError('not_pdf');
       }
+      // ענקה שפגה (TTL) מוחלפת: מבטלים את הישנה, כדי שלא תישאר מוענקת עד סגירת התוסף.
+      const old = this.remote.get(item.id);
+      if (old) this.releaseToken(old.token);
+      this.remote.delete(item.id);
       this.remote.set(item.id, entry);
       this._pruneRemote();
-      return { ...entry, remote: true, saved: false };
+      return entry;
     }
 
     /**
@@ -692,8 +731,13 @@
      */
     async _looksLikePdf(url) {
       if (!this.fetchImpl) return true;
+      const controller = typeof AbortController === 'function' ? new AbortController() : null;
+      const timer = controller ? setTimeout(() => controller.abort(), 5000) : null;
       try {
-        const res = await this.fetchImpl(url, { headers: { Range: 'bytes=0-1023' } });
+        const res = await this.fetchImpl(url, {
+          headers: { Range: 'bytes=0-1023' },
+          signal: controller && controller.signal,
+        });
         if (!res || !res.ok) return true;
         let head;
         const reader =
@@ -709,6 +753,8 @@
       } catch (error) {
         this.log.debug('pdf header check skipped', error);
         return true;
+      } finally {
+        if (timer) clearTimeout(timer);
       }
     }
 
@@ -724,6 +770,16 @@
     /** מבטל הענקת קובץ (fs.revokeFile); כשל אינו מפריע. */
     releaseToken(token) {
       if (token) this.runtime.callSoft('fs.revokeFile', { token });
+    }
+
+    /**
+     * משחרר את מה ש-`openForReading` החזיר כשהצפיין (או ההדפסה) סיים. קובץ מרוחק נשאר במטמון
+     * (`remote`, לשימוש חוזר, ומתבטל ב-LRU/pagehide); ה-token של קובץ מהתיקייה אישי לפתיחה הזו,
+     * ולכן מבוטל כאן. בלי זה כל פתיחה השאירה הענקה במארח עד סגירת התוסף.
+     */
+    releaseFile(file) {
+      if (!file || file.remote) return;
+      this.releaseToken(file.token);
     }
 
     /** מבטל את כל ההענקות של קבצים מרוחקים (סגירת התוסף, ניקוי). */
@@ -796,11 +852,11 @@
     }
 
     /**
-     * כתובת Blob לצפיין. שרת הקבצים של אוצריא שולח `X-Frame-Options: SAMEORIGIN`,
-     * ודף התוסף הוא `file://` (ממקור אחר), ולכן `<iframe src=url>` נחסם. `fetch`
-     * מותר (CORS), וכתובת `blob:` אינה נושאת את הכותרת. זורק [FileError].
+     * כתובת Blob לצפיין (מארח ישן). שרת הקבצים של אוצריא ב-0.9.98 שולח `X-Frame-Options:
+     * SAMEORIGIN`, ודף התוסף הוא `file://` (ממקור אחר), ולכן `<iframe src=url>` נחסם. `fetch`
+     * מותר (CORS), וכתובת `blob:` אינה נושאת את הכותרת. במארח חדש אין צורך: ה-iframe ישיר.
+     * זורק [FileError].
      */
-    /** כתובת להצגה ב-iframe. מהמארח החדש — הכתובת ישירות; אחרת Blob (ראו README: X-Frame-Options). */
     async readBlobUrl(file) {
       const urlApi = root.URL;
       if (!this.fetchImpl || !urlApi || typeof urlApi.createObjectURL !== 'function')

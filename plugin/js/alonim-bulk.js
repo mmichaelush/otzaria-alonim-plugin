@@ -136,13 +136,17 @@
     const full = app.files.hasFolder && app.files.isDownloaded(item) ? item : await app.full(item);
     if (!full) throw Object.assign(new Error('missing_data'), { code: 'missing_data' });
     const file = await app.files.openForReading(full);
-    if (!file.token) throw Object.assign(new Error('no_token'), { code: 'failed' });
-    const result = await app.files.printToken(
-      file.token,
-      [item.seriesTitle || item.title, Core.weekLabel(item)].filter(Boolean).join(' · '),
-    );
-    if (result.printed) app.state.logEvent('printed', item);
-    return result;
+    try {
+      if (!file.token) throw Object.assign(new Error('no_token'), { code: 'failed' });
+      const result = await app.files.printToken(
+        file.token,
+        [item.seriesTitle || item.title, Core.weekLabel(item)].filter(Boolean).join(' · '),
+      );
+      if (result.printed) app.state.logEvent('printed', item);
+      return result;
+    } finally {
+      app.files.releaseFile(file);
+    }
   }
 
   /**
@@ -154,7 +158,7 @@
       if (!app.files || !app.files.canReadRemote) return;
       if (app.files.hasFolder && app.files.isDownloaded(item)) return;
       const full = await app.full(item);
-      if (full) await app.files.openForReading(full);
+      if (full) app.files.releaseFile(await app.files.openForReading(full));
     } catch (error) {
       if (app.log) app.log.debug('print prefetch failed', error);
     }

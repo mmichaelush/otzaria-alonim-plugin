@@ -175,7 +175,10 @@
       }
       // הציור הראשון לא מחכה לרשת: המטמון קודם, והסנכרון ברקע.
       this.catalog.start().catch((error) => this.log.warn('catalog start failed', error));
-      setTimeout(() => this.files.hasFolder && this.files.scan(), 400);
+      setTimeout(() => {
+        if (this.files.hasFolder)
+          this.files.scan().catch((error) => this.log.warn('initial disk scan failed', error));
+      }, 400);
       if (typeof root.addEventListener === 'function') {
         root.addEventListener('online', () => this.setOnline(true));
         root.addEventListener('offline', () => this.setOnline(false));
@@ -366,12 +369,25 @@
       if (item._full) return item;
       this.fullCache = this.fullCache || new Map();
       if (this.fullCache.has(item.id)) return this.fullCache.get(item.id);
-      const full = await this.catalog.hydrate(item);
-      if (full) {
-        this.fullCache.set(item.id, full);
-        if (this.fullCache.size > 40) this.fullCache.delete(this.fullCache.keys().next().value);
+      // בקשות מקבילות לאותו גיליון (פתיחה + הכנה מראש להדפסה) חולקות קריאה אחת.
+      this.fullPending = this.fullPending || new Map();
+      if (!this.fullPending.has(item.id)) {
+        this.fullPending.set(
+          item.id,
+          this.catalog
+            .hydrate(item)
+            .then((full) => {
+              if (full) {
+                this.fullCache.set(item.id, full);
+                if (this.fullCache.size > 40)
+                  this.fullCache.delete(this.fullCache.keys().next().value);
+              }
+              return full;
+            })
+            .finally(() => this.fullPending.delete(item.id)),
+        );
       }
-      return full;
+      return this.fullPending.get(item.id);
     }
 
     /** היום, לפי שעון המכשיר. נקודה אחת, כדי שבדיקות יוכלו להחליף תאריך. */
@@ -455,7 +471,7 @@
     go(tab, options) {
       const o = options || {};
       if (this.selection.on) this.setSelecting(false);
-      this.closeViewer(true);
+      this.closeViewer();
       this.view.route = { tab, series: o.series || null };
       if (o.mineTab) this.view.mine.tab = o.mineTab;
       if (o.section) this.view.settings.section = o.section;
@@ -576,13 +592,12 @@
       this.openIssue(item, ctx, { print: true });
     }
 
-    closeViewer(silent) {
+    closeViewer() {
       this.view.viewerMode = '';
       if (!this.viewer) return;
       this.viewer = null;
       this.viewerToken++;
-      if (!silent) this.emit('viewer', null);
-      else this.emit('viewer', null);
+      this.emit('viewer', null);
     }
 
     showDetails(item, ctx) {
@@ -625,7 +640,13 @@
      * `null` כשהם אינם זמינים: מודיעים, ואפשר לנסות שוב או לפתוח באתר.
      */
     async queueSave(item, src) {
-      const full = await this.full(item);
+      let full = null;
+      try {
+        full = await this.full(item);
+      } catch (error) {
+        // הקוראים אינם תופסים (חלקם בלולאה בלי await): כשל נרשם ומטופל כ"אין פרטים".
+        this.log.warn('full details failed for ' + item.id, error);
+      }
       if (!full) {
         this.toast(this.fileErrorText('missing_data'), { error: true });
         return null;
