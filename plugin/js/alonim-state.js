@@ -17,6 +17,10 @@
   const MAX_FAVORITES = 5000;
   const MAX_LISTS = 50;
   const MAX_PRESETS = 30;
+  const MAX_HISTORY = 300;
+  const MAX_SEARCHES = 25;
+  const MAX_SERIES_VIEWS = 12;
+  const HISTORY_KINDS = ['opened', 'read', 'downloaded', 'printed'];
   /** פער שאחריו כניסה נחשבת ביקור חדש (עבור חדשים מאז הביקור האחרון). */
   const VISIT_GAP_MS = 6 * 3600 * 1000;
   const MAX_LIST_ENTRIES = 500;
@@ -38,6 +42,10 @@
     autoCount: 0,
     folder: null,
     welcomeSeen: false,
+    /** שמירת היסטוריה מקומית (נפתחו, נקראו, הורדו, הודפסו, חיפושים). */
+    history: true,
+    /** לשונית פתיחה: week | all | series | mine. */
+    startTab: 'week',
   });
 
   const defaults = {
@@ -49,6 +57,7 @@
     lists: () => ({ v: 1, items: [] }),
     opened: () => ({ v: 1, items: [] }),
     views: () => ({ v: 1, tabs: {}, presets: [], lastSeen: 0, visitBase: 0 }),
+    history: () => ({ v: 1, events: [], searches: [], series: [] }),
   };
 
   const isObject = (v) => v !== null && typeof v === 'object' && !Array.isArray(v);
@@ -101,6 +110,8 @@
       out.autoDay = typeof p.autoDay === 'string' ? p.autoDay.slice(0, 10) : '';
       out.autoCount = Math.max(0, Math.round(num(p.autoCount, 0)));
       out.welcomeSeen = p.welcomeSeen === true;
+      out.history = p.history !== false;
+      out.startTab = ['week', 'all', 'series', 'mine'].includes(p.startTab) ? p.startTab : 'week';
       out.folder =
         isObject(p.folder) && typeof p.folder.token === 'string' && p.folder.token
           ? { token: str(p.folder.token, 200), name: str(p.folder.name, 200), path: str(p.folder.path, 600) }
@@ -187,6 +198,24 @@
       }
       out.lastSeen = num(raw.lastSeen, 0);
       out.visitBase = num(raw.visitBase, 0);
+      return out;
+    },
+    history(raw) {
+      const out = defaults.history();
+      if (!isObject(raw)) return out;
+      for (const e of (Array.isArray(raw.events) ? raw.events : []).slice(0, MAX_HISTORY)) {
+        const snap = cleanSnap(e);
+        if (snap && HISTORY_KINDS.includes(e.k)) out.events.push({ ...snap, k: e.k, t: num(e.t, 0) });
+      }
+      const seen = new Set();
+      for (const s of (Array.isArray(raw.searches) ? raw.searches : []).slice(0, MAX_SEARCHES)) {
+        if (!isObject(s) || typeof s.q !== 'string' || !s.q.trim() || seen.has(s.q)) continue;
+        seen.add(s.q);
+        out.searches.push({ q: str(s.q, 300), t: num(s.t, 0) });
+      }
+      for (const s of (Array.isArray(raw.series) ? raw.series : []).slice(0, MAX_SERIES_VIEWS)) {
+        if (isObject(s) && typeof s.id === 'string' && s.id) out.series.push({ id: str(s.id, 40), t: num(s.t, 0) });
+      }
       return out;
     },
     opened(raw) {
@@ -359,6 +388,7 @@
 
     /** גיליון נפתח לקריאה: נכנס ל"המשך קריאה". */
     addOpened(item) {
+      if (!this.historyOn) return;
       const list = this.data.opened.items.filter((o) => o.id !== item.id);
       list.unshift({ ...snapOf(item), t: this.now() });
       this.data.opened.items = list.slice(0, MAX_OPENED);
@@ -435,6 +465,95 @@
         }
       }
       if (changed) this._touch('series', 'rules');
+    }
+
+    // ----------------------------------------------------- היסטוריה
+
+    get historyOn() {
+      return this.data.prefs.history !== false;
+    }
+
+    /** רושם אירוע (`opened|read|downloaded|printed`); פעולה כפולה באותה דקה נספרת פעם אחת. */
+    logEvent(kind, item) {
+      if (!this.historyOn || !HISTORY_KINDS.includes(kind) || !item || !item.id) return;
+      const now = this.now();
+      const events = this.data.history.events;
+      const last = events[0];
+      if (last && last.id === item.id && last.k === kind && now - last.t < 60000) return;
+      events.unshift({ ...snapOf(item), k: kind, t: now });
+      if (events.length > MAX_HISTORY) events.length = MAX_HISTORY;
+      this._touch('history');
+    }
+
+    /** האירועים, מהחדש לישן; [kind] מסנן לפי סוג. */
+    historyEvents(kind) {
+      const all = this.data.history.events;
+      return kind ? all.filter((e) => e.k === kind) : all;
+    }
+
+    removeEvent(event) {
+      const events = this.data.history.events;
+      const at = events.indexOf(event);
+      if (at < 0) return;
+      events.splice(at, 1);
+      this._touch('history');
+    }
+
+    /** מוחק את כל האירועים. מחזיר את הרשימה הקודמת (לביטול). */
+    clearEvents() {
+      const old = this.data.history.events;
+      this.data.history.events = [];
+      this._touch('history');
+      return old;
+    }
+
+    restoreEvents(events) {
+      this.data.history.events = (Array.isArray(events) ? events : []).concat(this.data.history.events).sort((a, b) => b.t - a.t).slice(0, MAX_HISTORY);
+      this._touch('history');
+    }
+
+    /** חיפוש שהושלם: ייחודי, האחרון ראשון. */
+    addSearch(query) {
+      const q = String(query || '').trim();
+      if (!this.historyOn || q.length < 2) return;
+      const list = this.data.history.searches.filter((s) => s.q !== q);
+      list.unshift({ q: str(q, 300), t: this.now() });
+      this.data.history.searches = list.slice(0, MAX_SEARCHES);
+      this._touch('history');
+    }
+
+    get searches() {
+      return this.data.history.searches;
+    }
+
+    removeSearch(query) {
+      this.data.history.searches = this.data.history.searches.filter((s) => s.q !== query);
+      this._touch('history');
+    }
+
+    clearSearches() {
+      this.data.history.searches = [];
+      this._touch('history');
+    }
+
+    /** סדרה שנצפתה (דף הסדרה): "נצפו לאחרונה". */
+    viewSeries(id) {
+      if (!this.historyOn || !id) return;
+      const list = this.data.history.series.filter((s) => s.id !== id);
+      list.unshift({ id, t: this.now() });
+      this.data.history.series = list.slice(0, MAX_SERIES_VIEWS);
+      this._touch('history');
+    }
+
+    recentSeries() {
+      return this.data.history.series;
+    }
+
+    /** מוחק הכול: אירועים, חיפושים, סדרות שנצפו והמשך קריאה. */
+    clearHistory() {
+      this.data.history = defaults.history();
+      this.data.opened = defaults.opened();
+      this._touch('history', 'opened');
     }
 
     // ------------------------------------------ מצב מסכים, הגדרות וביקורים
