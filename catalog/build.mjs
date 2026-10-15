@@ -14,7 +14,7 @@ import { createHttp, HostBlockedError } from './lib/http.mjs';
 import { enrich, buildAliasIndex } from './lib/enrich.mjs';
 import { mergeAll } from './lib/merge.mjs';
 import { loadPrev, itemsFromPrev } from './lib/prev.mjs';
-import { writeCatalog, stableStringify, sha256 } from './lib/shards.mjs';
+import { writeCatalog, stableStringify, sha256, prune } from './lib/shards.mjs';
 import { dayOf } from './lib/dates.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
@@ -121,7 +121,7 @@ export async function runBuild(o) {
   });
 
   // ---- manifest: unchanged content keeps the previous file byte for byte ----
-  const comparable = (m) => stableStringify({ files: m.files, shards: m.shards, sources: m.sources.map(({ checkedAt, lastOkAt, ...rest }) => rest) });
+  const comparable = (m) => stableStringify(prune({ files: m.files, shards: m.shards, sources: m.sources.map(({ checkedAt, lastOkAt, ...rest }) => rest) }));
   const draft = { schema: 1, minPluginVersion: MIN_PLUGIN_VERSION, sources, files, shards };
   const heartbeatMs = (o.heartbeatHours ?? 24) * 3600 * 1000;
   let manifestText;

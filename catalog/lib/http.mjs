@@ -227,7 +227,7 @@ export function createHttp({
     const hit = await cacheGet(url, accept);
     if (hit) { stats.cached++; return hit; }
     const r = await rawFetch(url, { accept, headers });
-    if (r.status === 200) await cachePut(url, accept, r);
+    await cachePut(url, accept, r); // 200, 404 and 410 only: rawFetch throws on everything else
     return r;
   }
 

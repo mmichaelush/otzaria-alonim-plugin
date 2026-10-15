@@ -10,7 +10,7 @@ import { resolveWeekLabel, expectedSlugs, dayOf } from './dates.mjs';
 export const sha1 = (s) => createHash('sha1').update(s).digest('hex');
 
 // Words that name a kind of publication, not which one: removed from the series key.
-const GENERIC = new Set(['עלון', 'עלונ', 'גליון', 'גיליון', 'גליונות', 'גיליונות', 'עלונים', 'שבועי', 'לשבת', 'פרשת', 'פרשה', 'שבת', 'שנה']
+const GENERIC = new Set(['עלון', 'גליון', 'גיליון', 'שבועי', 'לשבת', 'פרשת', 'פרשה']
   .map((w) => normalizeKey(w)));
 
 /** The part of a series title that identifies it (generic words, numbers, years, parasha names removed). */

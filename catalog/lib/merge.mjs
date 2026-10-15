@@ -85,7 +85,8 @@ function buildIssue(cluster, { now, prevAdded }) {
     pages: first(items, (i) => i.pages),
     added,
     assets,
-    _base: `${lead.series.id}|${lead.hy ?? ''}|${slugs.join('+') || lead.event || lead.date || ''}|${no ?? ''}|${variant}`,
+    _base: `${lead.series.id}|${lead.hy ?? ''}|${slugs.join('+') || lead.event || lead.date || ''}|${no ?? ''}`,
+    _variant: variant,
     _first: `${lead.src}:${lead.ext}`,
   };
   return issue;
@@ -109,9 +110,9 @@ export function mergeAll(items, { now, prevAdded = null, aliasIndex = null } = {
   const counts = new Map();
   for (const i of issues) counts.set(i._base, (counts.get(i._base) || 0) + 1);
   for (const i of issues) {
-    const base = counts.get(i._base) > 1 ? `${i._base}|${i._first}` : i._base;
+    const base = counts.get(i._base) > 1 ? `${i._base}|${i._variant}|${i._first}` : i._base;
     i.id = `i_${sha1(base).slice(0, 12)}`;
-    delete i._base; delete i._first;
+    delete i._base; delete i._first; delete i._variant;
   }
 
   // ---- series ----
