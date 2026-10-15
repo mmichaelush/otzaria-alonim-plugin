@@ -233,6 +233,8 @@
 
     setWeeks(list) {
       this.weeks = (Array.isArray(list) ? list : []).filter((w) => w && w.date).sort((a, b) => (a.date < b.date ? -1 : 1));
+      this._derived = null;
+      this.version++;
     }
 
     resolveSeriesId(id) {
@@ -790,6 +792,35 @@
         for (const i of this.byYearParasha.get(week.hy + '|' + p) || []) set.add(i);
       }
       return [...set].filter((i) => includeHidden || this.vis[i] === 1);
+    }
+
+    /**
+     * שורות שבוע לתאריכים שמחוץ ללוח (`weeks.json` מכסה כשנתיים): נגזרות
+     * מהגיליונות המתוארכים שנטענו. כך אפשר לדפדף גם בשנים שאין להן לוח.
+     */
+    derivedWeeks() {
+      if (this._derived && this._derivedVersion === this.version) return this._derived;
+      const first = this.weeks.length ? dayOf(this.weeks[0].date) : Infinity;
+      const last = this.weeks.length ? dayOf(this.weeks[this.weeks.length - 1].date) : -Infinity;
+      const rows = [];
+      for (const [day, list] of this.byDay) {
+        if (day >= first && day <= last) continue;
+        const i = list[0];
+        const parasha = [this.parashot.get(this.p1[i]), this.parashot.get(this.p2[i])].filter(Boolean);
+        const event = this.events.get(this.evc[i]) || null;
+        const dow = new Date(day * DAY_MS).getUTCDay();
+        if (dow !== 6 && !event) continue; // יום חול בלי אירוע: אינו שבוע
+        rows.push({ date: dateOfDay(day), hy: this.hyc[i] || 0, parasha, parashaIL: parasha, event, shabbat: dow === 6, derived: true });
+      }
+      this._derived = rows.sort((a, b) => (a.date < b.date ? -1 : 1));
+      this._derivedVersion = this.version;
+      return this._derived;
+    }
+
+    /** לוח + שורות נגזרות, ממוינים לפי תאריך. */
+    allWeeks() {
+      const derived = this.derivedWeeks();
+      return derived.length ? this.weeks.concat(derived).sort((a, b) => (a.date < b.date ? -1 : 1)) : this.weeks;
     }
 
     weekFor(dateText) {
