@@ -126,5 +126,7 @@ export function eventLabel(slug, month) {
  */
 export function hebrewDateString(hd) {
   const m = MONTHS[hd.getMonthName()];
-  return `${gematriya(hd.getDate())} ב${m.he} ${gematriya(hd.getFullYear() % 1000)}`;
+  // year % 1000 is 0 only in years 5000/6000, which gematriya() rejects: spell the thousands then.
+  const year = hd.getFullYear() % 1000 || hd.getFullYear();
+  return `${gematriya(hd.getDate())} ב${m.he} ${gematriya(year)}`;
 }

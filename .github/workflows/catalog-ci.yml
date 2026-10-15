@@ -6,11 +6,13 @@ on:
   push:
     paths:
       - 'catalog/**'
+      - 'plugin/js/alonim-hebcal.js'
       - 'docs/CATALOG_FORMAT.md'
       - '.github/workflows/catalog-ci.yml'
   pull_request:
     paths:
       - 'catalog/**'
+      - 'plugin/js/alonim-hebcal.js'
       - 'docs/CATALOG_FORMAT.md'
       - '.github/workflows/catalog-ci.yml'
 

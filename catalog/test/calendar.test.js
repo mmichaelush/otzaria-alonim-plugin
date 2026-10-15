@@ -155,7 +155,8 @@ test('weekday event rows: dates, labels and multi-day events', () => {
   // Shabbat before Rosh Chodesh Cheshvan: Bereshit, with Mevarchim only as a secondary event
   assert.equal(at('2026-10-10').event, null);
   assert.deepEqual(at('2026-10-10').events, ['shabbat-mevarchim']);
-  // Chanukah: one weekday row on 25 Kislev; the Shabbatot inside carry the event
+  // Chanukah: one weekday row on its first candle-lighting, the evening of 24 Kislev (2026-12-04, Friday;
+  // the first day, 25 Kislev, is that Shabbat); the Shabbatot inside carry the event
   assert.equal(at('2026-12-04').event, 'chanukah');
   assert.equal(rows.filter((r) => r.event === 'chanukah' && !r.shabbat).length, 1);
   assert.equal(at('2026-12-05').event, 'chanukah');
