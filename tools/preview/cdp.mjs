@@ -131,10 +131,10 @@ export class Page {
     writeFileSync(file, Buffer.from(res.data, 'base64'));
   }
 
-  async key(key, modifiers) {
+  async key(key, modifiers, physical) {
     const map = { Enter: 13, Escape: 27, ArrowDown: 40, ArrowUp: 38, ArrowLeft: 37, ArrowRight: 39, Tab: 9, Home: 36, End: 35, PageDown: 34, PageUp: 33 };
     const code = map[key] || key.toUpperCase().charCodeAt(0);
-    const base = { key, code: key.length === 1 ? 'Key' + key.toUpperCase() : key, windowsVirtualKeyCode: code, modifiers: modifiers || 0 };
+    const base = { key, code: physical || (key.length === 1 ? 'Key' + key.toUpperCase() : key), windowsVirtualKeyCode: code, modifiers: modifiers || 0 };
     await this.send('Input.dispatchKeyEvent', { type: 'keyDown', ...base, text: key.length === 1 ? key : undefined });
     await this.send('Input.dispatchKeyEvent', { type: 'keyUp', ...base });
   }

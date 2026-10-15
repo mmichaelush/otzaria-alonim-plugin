@@ -473,7 +473,7 @@
     "לפני {n} ימים": "{n} days ago",
     "לשוניות התוסף": "Plugin tabs",
     "סנכרון": "Sync",
-    "חיפוש (Ctrl+K)": "Search (Ctrl+K)",
+    "חיפוש (Ctrl+/)": "Search (Ctrl+/)",
     "מעדכן: {done} מתוך {total}": "Updating: {done} of {total}",
     "ללא חיבור · הנתונים השמורים": "Offline · saved data",
     "הקטלוג חסום · הנתונים השמורים": "Catalog blocked · saved data",

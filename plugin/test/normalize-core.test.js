@@ -114,3 +114,14 @@ test('כתובות: הווקטורים המשותפים עם הקטלוג (url-v
   for (const [input, expected] of v.decodeNonAscii) assert.equal(Core.decodeNonAscii(input), expected, input);
   for (const c of v.resolve) assert.deepEqual(Core.resolveAssetUrls(c.asset, c.source), c.expect, c.name);
 });
+
+test('keyIs: אות לטינית לפי key, ובפריסה עברית לפי המקש הפיזי (code)', () => {
+  assert.equal(Core.keyIs({ key: 'k', code: 'KeyK' }, 'k'), true);
+  assert.equal(Core.keyIs({ key: 'K', code: 'KeyK' }, 'k'), true);
+  assert.equal(Core.keyIs({ key: 'ל', code: 'KeyK' }, 'k'), true, 'פריסה עברית: ל על המקש K');
+  assert.equal(Core.keyIs({ key: 'ל', code: 'KeyK' }, 'd'), false);
+  // Dvorak: המקש הפיזי KeyK מפיק 't', ולכן אינו K
+  assert.equal(Core.keyIs({ key: 't', code: 'KeyK' }, 'k'), false);
+  assert.equal(Core.keyIs({ key: 'Enter', code: 'Enter' }, 'k'), false);
+  assert.equal(Core.keyIs({}, 'k'), false);
+});

@@ -133,10 +133,10 @@
         if (event.key === 'Enter') {
           event.preventDefault();
           open();
-        } else if (event.key === 'd') app.download(item);
-        else if (event.key === 's' || event.key === 'f') app.toggleFavorite(item);
-        else if (event.key === 'p') app.print(item, opts.ctx);
-        else if (event.key === 'i') app.showDetails(item, opts.ctx);
+        } else if (Core.keyIs(event, 'd')) app.download(item);
+        else if (Core.keyIs(event, 's') || Core.keyIs(event, 'f')) app.toggleFavorite(item);
+        else if (Core.keyIs(event, 'p')) app.print(item, opts.ctx);
+        else if (Core.keyIs(event, 'i')) app.showDetails(item, opts.ctx);
       },
     };
 

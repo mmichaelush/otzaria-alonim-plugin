@@ -105,11 +105,11 @@ async function flows(browser) {
   };
   const check = (name, ok, detail) => (ok ? console.log('✔ flow: ' + name) : fail('flow: ' + name, detail || 'failed'));
 
-  // חיפוש מיידי + Ctrl+K + Esc
+  // חיפוש מיידי + Ctrl+/ + Esc
   let page = await open('page=week');
-  await page.key('k', 2);
+  await page.key('/', 2, 'Slash');
   await page.sleep(300);
-  check('Ctrl+K עובר לחיפוש וממקד', await page.eval("document.querySelector('.main-tab[aria-selected=true]').dataset.tab === 'all' && document.activeElement.classList.contains('search-input')"));
+  check('Ctrl+/ עובר לחיפוש וממקד', await page.eval("document.querySelector('.main-tab[aria-selected=true]').dataset.tab === 'all' && document.activeElement.classList.contains('search-input')"));
   await page.type('נח');
   await page.sleep(200);
   check('הקלדה מסננת', await page.eval("document.querySelector('.results-count').textContent.includes('12')"), await page.eval("document.querySelector('.results-count').textContent"));
@@ -117,6 +117,20 @@ async function flows(browser) {
   await page.key('Escape');
   await page.sleep(200);
   check('Esc מנקה חיפוש', await page.eval("document.querySelector('.search-input').value === ''"));
+
+  // פריסה עברית: ל על המקש הפיזי K. Ctrl+K אינו חיפוש (באוצריא הוא "החלף שולחן עבודה"); קיצורי הכרטיס לפי המקש הפיזי.
+  await page.eval('document.activeElement.blur()');
+  await page.key('ל', 2, 'KeyK');
+  await page.sleep(200);
+  check('Ctrl+K (גם בפריסה עברית) אינו תופס את המיקוד', await page.eval("!document.activeElement.classList.contains('search-input')"));
+  await page.eval("document.querySelector('.search-input').focus()");
+  await page.key('ArrowDown');
+  await page.sleep(150);
+  await page.key('ם', 0, 'KeyP');
+  await page.sleep(500);
+  check('קיצור P בפריסה עברית מדפיס (דיאלוג או צפיין)', await page.eval("!document.querySelector('.viewer').hidden || Boolean(document.querySelector('.print-dialog'))"), await page.eval('document.activeElement.className'));
+  await page.eval('window.__alonimApp.closeViewer && window.__alonimApp.closeViewer(); Array.from(document.querySelectorAll(".dialog-actions button")).forEach((b) => b.click())');
+  await page.sleep(300);
 
   // ניווט מקלדת ברשימה: חץ מטה מהשדה לכרטיס הראשון, Enter פותח צפיין, Esc חוזר
   await page.eval("document.querySelector('.search-input').focus()");

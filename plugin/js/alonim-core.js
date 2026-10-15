@@ -432,6 +432,17 @@
 
   const clone = (value) => JSON.parse(JSON.stringify(value));
 
+  /**
+   * האם המקש הוא האות [letter]. בפריסת מקלדת עברית `event.key` הוא 'ל' ולא 'k',
+   * ולכן מקש שאינו אות לטינית נבדק לפי המקש הפיזי (`event.code`).
+   */
+  function keyIs(event, letter) {
+    const key = String(event.key || '');
+    const wanted = String(letter).toLowerCase();
+    if (/^[a-z]$/i.test(key)) return key.toLowerCase() === wanted;
+    return event.code === 'Key' + wanted.toUpperCase();
+  }
+
   const api = {
     PLUGIN_ID,
     PLUGIN_VERSION,
@@ -469,6 +480,7 @@
     isSiteUrl,
     resolveAssetUrls,
     encodeNonAscii,
+    keyIs,
     decodeNonAscii,
     sanitizeFileName,
     idFragment,

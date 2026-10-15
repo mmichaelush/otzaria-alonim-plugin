@@ -337,7 +337,7 @@
       this.go('series', { series: this.index.resolveSeriesId(seriesId) });
     }
 
-    /** Ctrl+K: חיפוש. עובר ל"כל העלונים" וממקד את השדה. */
+    /** Ctrl+/ או /: חיפוש. עובר ל"כל העלונים" וממקד את השדה. */
     focusSearch() {
       if (this.view.route.tab !== 'all' || this.viewer) this.go('all');
       this.emit('focus-search');
@@ -524,7 +524,8 @@
       const key = event.key;
       const target = event.target;
       const typing = target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT' || target.isContentEditable);
-      if ((event.ctrlKey || event.metaKey) && !event.altKey && (key === 'k' || key === 'K')) {
+      // לא Ctrl+K: באוצריא זה "החלף שולחן עבודה" (ברירת המחדל שלה), והחלון שלה גונב את המיקוד.
+      if ((event.ctrlKey || event.metaKey) && !event.altKey && (key === '/' || event.code === 'Slash')) {
         event.preventDefault();
         if (!Ui.topDialog()) this.focusSearch();
         return true;
