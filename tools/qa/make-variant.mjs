@@ -35,3 +35,14 @@ sub(
 );
 await writeFile(corePath, core);
 console.log(`QA variant written to ${out} (id ${manifest.id}, server ${origin})`);
+
+// פרוב QA (יומן קונסול, תזמונים, הרצת JS מרחוק): נכנס רק לעותק, לא למוצר.
+if (!process.argv.includes('--no-probe')) {
+  const probe = (await readFile(new URL('./qa-probe.js', import.meta.url), 'utf8')).replace('__PORT__', port);
+  await writeFile(join(out, 'js', 'qa-probe.js'), probe);
+  const indexPath = join(out, 'index.html');
+  const html = await readFile(indexPath, 'utf8');
+  if (!html.includes('<script src="js/alonim-i18n.js">')) throw new Error('index.html script anchor not found');
+  await writeFile(indexPath, html.replace('<script src="js/alonim-i18n.js">', '<script src="js/qa-probe.js"></script>\n    <script src="js/alonim-i18n.js">'));
+  console.log('probe injected');
+}

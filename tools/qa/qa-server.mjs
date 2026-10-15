@@ -2,7 +2,7 @@
 // 127.0.0.1, כדי לבדוק באוצריא אמיתית (ללא אישור allowlist וללא פגיעה באתרי המקור).
 //   node tools/qa/qa-server.mjs [--catalog catalog/out] [--port 39811]
 import { createServer } from 'node:http';
-import { readFile } from 'node:fs/promises';
+import { readFile, appendFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
 
 const arg = (name, fallback) => {
@@ -12,6 +12,14 @@ const arg = (name, fallback) => {
 const root = resolve(arg('--catalog', 'catalog/out'));
 const port = Number(arg('--port', '39811'));
 const origin = `http://127.0.0.1:${port}`;
+const qaLog = resolve(arg('--qa-log', 'tools/qa/out/qa-console.log'));
+
+// ערוץ שליטה ל-qa-probe.js: הפרוב עושה long-poll ל-/qa/poll, ו-POST ל-/qa/exec מוסר לו קוד.
+const queue = [];
+const waiters = [];
+const results = new Map();
+let nextId = 1;
+const readBody = (req) => new Promise((ok) => { let b = ''; req.on('data', (c) => (b += c)); req.on('end', () => ok(b)); });
 
 const PNG = Buffer.from('iVBORw0KGgoAAAANSUhEUgAAAAEAAAABCAYAAAAfFcSJAAAADUlEQVR42mP8z8BQDwAEhQGAhKmMIQAAAABJRU5ErkJggg==', 'base64');
 
@@ -54,11 +62,42 @@ function rewriteManifest(text) {
   return JSON.stringify(m);
 }
 
+async function qaRoute(path, url, req, res) {
+  const body = req.method === 'POST' ? await readBody(req) : '';
+  if (path === '/qa/log') {
+    const lines = JSON.parse(body || '[]').map((e) => JSON.stringify(e)).join(String.fromCharCode(10)) + String.fromCharCode(10);
+    await appendFile(qaLog, lines);
+    return res.writeHead(200, { 'Content-Type': 'application/json' }).end('{}');
+  }
+  if (path === '/qa/poll') {
+    const take = () => queue.shift();
+    const cmd = take();
+    return res.writeHead(200, { 'Content-Type': 'application/json' }).end(cmd ? JSON.stringify(cmd) : '');
+  }
+  if (path === '/qa/result') {
+    const id = url.searchParams.get('id');
+    const r = results.get(id);
+    if (r) { results.delete(id); r(JSON.parse(body)); }
+    return res.writeHead(200, { 'Content-Type': 'application/json' }).end('{}');
+  }
+  if (path === '/qa/exec') {
+    const id = String(nextId++);
+    const done = new Promise((ok) => { results.set(id, ok); setTimeout(() => ok({ ok: false, error: 'timeout waiting for page' }), Number(url.searchParams.get('timeout') || 60000)); });
+    const cmd = { id, code: body };
+    queue.push(cmd);
+    return res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' }).end(JSON.stringify(await done));
+  }
+  return res.writeHead(404).end();
+}
+
 createServer(async (req, res) => {
+  const t0 = Date.now();
+  res.on('close', () => console.log(new Date().toISOString(), req.method, req.url, res.statusCode, Date.now() - t0 + 'ms', req.headers.range || ''));
   try {
     const url = new URL(req.url, origin);
     const path = decodeURIComponent(url.pathname);
     res.setHeader('Access-Control-Allow-Origin', '*');
+    if (path.startsWith('/qa/')) return await qaRoute(path, url, req, res);
     if (path.startsWith('/data/')) {
       const rel = path.slice(6);
       if (rel.includes('..')) throw Object.assign(new Error('bad'), { status: 400 });
