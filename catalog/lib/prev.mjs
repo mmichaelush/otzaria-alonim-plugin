@@ -6,6 +6,8 @@ import { join } from 'node:path';
 import { tokenize } from './parasha.mjs';
 import { seriesIdentity } from './enrich.mjs';
 import { fromWire } from './wire.mjs';
+import { dayOf } from './dates.mjs';
+import { daysBetween } from './calendar.mjs';
 
 const readJson = async (dir, rel) => JSON.parse(await readFile(join(dir, rel), 'utf8'));
 const UNNAMED_SUFFIX = ' (ללא שם סדרה)';
@@ -80,4 +82,51 @@ export function itemsFromPrev(prev, { aliasIndex, skipSources = new Set() }) {
     }
   }
   return { items, prevAdded, cidByKey, archiveByKey };
+}
+
+/** How long an old issue id stays in `previousIds` (days). */
+export const PREVIOUS_ID_TTL_DAYS = 120;
+/** At most this many old ids are kept; the oldest drop first. */
+export const MAX_PREVIOUS_IDS = 3;
+
+/**
+ * Keeps user state alive when an issue id changes (a better analysis found its week,
+ * a copy joined or left). Compares the new issues with the previous catalog by their
+ * copies (`src:ext`): a new issue whose copies were in an issue with another id lists
+ * that id in `previousIds` (newest first, at most MAX_PREVIOUS_IDS) and gets `idChangedAt`.
+ * When the id did not change, `previousIds` and `idChangedAt` carry over from the previous
+ * catalog, so the list survives any number of runs. Entries older than PREVIOUS_ID_TTL_DAYS
+ * are dropped together with `idChangedAt`.
+ *
+ * @param {object[]} issues      this run's issues (mutated: previousIds, idChangedAt)
+ * @param {object[]} prevIssues  the previous catalog's issues (on-disk form is fine)
+ * @param {string} now           ISO timestamp of this run
+ */
+export function applyPreviousIds(issues, prevIssues, now) {
+  const prevByKey = new Map();
+  for (const p of prevIssues) for (const a of p.assets || []) prevByKey.set(`${a.src}:${a.ext}`, p);
+  const today = dayOf(now);
+  for (const issue of issues) {
+    const parents = new Map();
+    for (const a of issue.assets) {
+      const p = prevByKey.get(`${a.src}:${a.ext}`);
+      if (p) parents.set(p.id, p);
+    }
+    const changed = [...parents.values()].filter((p) => p.id !== issue.id).sort((x, y) => (x.id < y.id ? -1 : 1));
+    const same = parents.get(issue.id);
+    // newest first: ids that just changed, then what the same-id issue (or the changed ones) already carried
+    const ids = [];
+    const push = (id) => { if (id && id !== issue.id && !ids.includes(id)) ids.push(id); };
+    let changedAt = null;
+    for (const p of changed) push(p.id);
+    if (changed.length) changedAt = now;
+    for (const p of [same, ...changed]) {
+      for (const id of p?.previousIds || []) push(id);
+      if (p?.idChangedAt && !changed.length && (!changedAt || p.idChangedAt > changedAt)) changedAt = p.idChangedAt;
+    }
+    const expired = changedAt && !changed.length && daysBetween(dayOf(changedAt), today) > PREVIOUS_ID_TTL_DAYS;
+    if (!ids.length || expired) { delete issue.previousIds; delete issue.idChangedAt; continue; }
+    issue.previousIds = ids.slice(0, MAX_PREVIOUS_IDS);
+    issue.idChangedAt = (changedAt || now).slice(0, 10);
+  }
 }

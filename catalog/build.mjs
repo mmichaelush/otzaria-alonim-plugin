@@ -19,7 +19,7 @@ import { connectors as allConnectors } from './connectors/index.mjs';
 import { createHttp } from './lib/http.mjs';
 import { buildAliasIndex } from './lib/enrich.mjs';
 import { mergeAll } from './lib/merge.mjs';
-import { loadPrev, itemsFromPrev } from './lib/prev.mjs';
+import { loadPrev, itemsFromPrev, applyPreviousIds } from './lib/prev.mjs';
 import { writeCatalog, sha256 } from './lib/shards.mjs';
 import { dayOf } from './lib/dates.mjs';
 import { bulkDaysOf } from './lib/archive.mjs';
@@ -70,6 +70,8 @@ export async function runBuild(o) {
   // New data wins over reconstructed data for the same copy.
   const items = [...prevState.items.filter((i) => !seen.has(`${i.src}:${i.ext}`)), ...fresh];
   const { series, issues } = mergeAll(items, { now, prevAdded: prevState.prevAdded, aliasIndex, bulkDays: bulkDaysOf(fresh) });
+
+  if (prev) applyPreviousIds(issues, prev.issues, now);
 
   if (o.explain) return { explain: explain(o.explain, { items, issues, series }), results };
 
