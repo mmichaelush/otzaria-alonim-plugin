@@ -2,6 +2,7 @@
 // האינדקס, חיפוש בהקלדה, צמתי DOM בגלילה וזיכרון. על הקטלוג הסינתטי (30K+) או על
 // האמיתי (`--real`, אחרי build-preview.mjs --catalog <dir>).
 //   node tools/preview/perf.mjs [--real]
+// מסיים בקוד 1 כשתקציב מופר (BUDGETS), כדי שנסיגה בביצועים תיכשל בבדיקה ולא תתגלה במשתמש.
 import { dirname, join } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { Browser } from './cdp.mjs';
@@ -10,6 +11,19 @@ const here = dirname(fileURLToPath(import.meta.url));
 const real = process.argv.includes('--real');
 const file = real ? 'preview-real.html' : 'preview-large.html';
 const base = pathToFileURL(join(here, 'out', file)).href;
+/** תקציבי ביצועים (ms אלא אם נאמר אחרת). מדידה על המחשב של המפתח; התקציב נדיב פי 2-3 מהמדידה. */
+const BUDGETS = {
+  firstCardFirstVisitMs: 1500,
+  firstCardSecondVisitMs: 2500,
+  typingEndToEndMs: 100,
+  searchMs: 40,
+  facetCountsMs: 100,
+  multiFilterSearchMs: 40,
+  filterPanelOpenMs: 200,
+  weekPickerOpenMs: 100,
+  maxCardsInDom: 60,
+  heapMB: 250,
+};
 const browser = await Browser.launch();
 const out = {};
 try {
@@ -64,6 +78,38 @@ try {
           await page.eval("document.querySelectorAll('[data-item]').length"),
         );
       }
+      // מסננים: ספירות לכל מסנן, חיפוש עם כמה מסננים, ופתיחת החלונות
+      out.filters = await page.eval(`(() => {
+        const a = window.__alonimApp;
+        const time = (fn, n = 3) => { fn(); const t = performance.now(); for (let i = 0; i < n; i++) fn(); return (performance.now() - t) / n; };
+        const f = { lang: ['he', 'yi'], source: ['ladaat', 'tashma'], dateFrom: '2022-01-01', pagesMin: 4 };
+        return {
+          facetCountsMs: Math.round(time(() => a.index.facetCounts('נח', f, a.searchContext(), {})) * 10) / 10,
+          multiFilterSearchMs: Math.round(time(() => a.index.search('נח OR וירא', f, a.searchContext(), { sort: 'date' })) * 10) / 10,
+          groupMs: Math.round(time(() => a.index.groupResults(a.index.search('', {}, {}, {}).idx, 'series')) * 10) / 10,
+        };
+      })()`);
+      const timeOpen = async (click, ready) => {
+        await page.eval(click);
+        const t = Date.now();
+        await page.waitFor(ready, 5000);
+        const ms = Date.now() - t;
+        await page.key('Escape');
+        await page.sleep(300);
+        return ms;
+      };
+      out.filters.filterPanelOpenMs = await timeOpen(
+        "document.querySelector('[data-key=filters]').click()",
+        "document.querySelectorAll('.filter-group').length > 5",
+      );
+      await page.eval("window.__alonimApp.go('week')");
+      await page.sleep(500);
+      out.filters.weekPickerOpenMs = await timeOpen(
+        "document.querySelector('[data-key=jump]').click()",
+        "document.querySelectorAll('.week-row').length > 5",
+      );
+      await page.eval("window.__alonimApp.go('all')");
+      await page.sleep(400);
       out.scroll = {
         maxCardsInDom: maxDom,
         totalNodes: await page.eval('document.getElementsByTagName("*").length'),
@@ -76,3 +122,39 @@ try {
   await browser.close();
 }
 console.log(JSON.stringify(out, null, 2));
+
+const first = out['first visit (simulated network, 40ms per file)'] || {};
+const second = out['second visit (private cache filled)'] || {};
+const worst = (obj, key) => Math.max(...Object.values(obj || {}).map((x) => x[key] || 0));
+const measured = {
+  firstCardFirstVisitMs: first.firstCardMs,
+  firstCardSecondVisitMs: second.firstCardMs,
+  typingEndToEndMs: worst(out.search, 'endToEndMs'),
+  searchMs: worst(out.search, 'searchMs'),
+  facetCountsMs: out.filters && out.filters.facetCountsMs,
+  multiFilterSearchMs: out.filters && out.filters.multiFilterSearchMs,
+  filterPanelOpenMs: out.filters && out.filters.filterPanelOpenMs,
+  weekPickerOpenMs: out.filters && out.filters.weekPickerOpenMs,
+  maxCardsInDom: out.scroll && out.scroll.maxCardsInDom,
+  heapMB: first.heapMB,
+};
+const violations = Object.entries(BUDGETS).filter(
+  ([key, limit]) => measured[key] !== null && measured[key] !== undefined && measured[key] > limit,
+);
+console.log('\nתקציבים (נמדד / מותר):');
+for (const [key, limit] of Object.entries(BUDGETS)) {
+  console.log(
+    '  ' +
+      (violations.some(([k]) => k === key) ? '✖' : '✔') +
+      ' ' +
+      key +
+      ': ' +
+      measured[key] +
+      ' / ' +
+      limit,
+  );
+}
+if (violations.length || (out.errors && out.errors.length)) {
+  console.error('\nתקציב ביצועים הופר או שיש שגיאות קונסול');
+  process.exit(1);
+}
