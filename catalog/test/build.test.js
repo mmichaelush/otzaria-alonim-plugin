@@ -8,6 +8,7 @@ import { fixture, fixtureJson, fakeHttp, HostBlockedError, HttpError } from './h
 import { runBuild } from '../build.mjs';
 import { sha256, stableStringify, splitIssues, writeCatalog, SHARD_MAX_BYTES, prune } from '../lib/shards.mjs';
 import { PARASHA_SLUGS } from '../lib/calendar.mjs';
+import { resolveAssetUrls } from '../lib/urls.mjs';
 
 const NOW = '2026-10-15T08:00:00Z';
 const SILENT = () => {};
@@ -77,8 +78,9 @@ test('a build writes a contract-shaped catalog: manifest, series, weeks, recent,
       assert.ok(i.assets.length >= 1);
       for (const a of i.assets) {
         assert.ok(a.src && a.ext);
-        assert.ok(a.url && a.page, 'every copy has both a direct pdf url and the site page');
-        if (a.url) assert.equal(new URL(a.url).protocol, 'https:');
+        const u = resolveAssetUrls(a, manifest.sources.find((s) => s.id === a.src));
+        assert.ok(u.url && u.page, 'every copy resolves to both a direct pdf url and the site page');
+        for (const f of ['url', 'page', 'thumb']) if (u[f]) { assert.equal(new URL(u[f]).protocol, 'https:'); assert.ok(/^[ -~]+$/.test(u[f]), `resolved url is ASCII: ${u[f]}`); }
       }
       for (const p of i.parasha || []) assert.ok(valid.has(p), p);
       if (!i.hy) assert.equal(i.date, undefined);
@@ -99,7 +101,15 @@ test('a build writes a contract-shaped catalog: manifest, series, weeks, recent,
     assert.deepEqual(noach, { date: '2026-10-17', event: null, hy: 5787, label: 'נח', parasha: ['noach'], parashaIL: ['noach'] });
     // recent: dated issues around now only
     const recent = await readJson(dir, 'recent.json');
-    assert.ok(recent.length > 0 && recent.every((i) => !i.date || (i.date >= '2026-09-01' && i.date <= '2026-11-30')));
+    assert.ok(recent.length > 0 && recent.every((i) => !i.date || (i.date >= '2026-09-26' && i.date <= '2026-10-24')), 'window: 3 Shabbatot back, 1 ahead');
+    assert.ok(recent.every((i) => i.assets.every((a) => a.rawTitle === undefined)), 'rawTitle is not in recent.json');
+    assert.ok(all.some((i) => i.assets.some((a) => a.rawTitle)), 'but it is in the shards');
+    // urls: templates in the manifest, tashma copies carry no url fields
+    const tash = manifest.sources.find((s) => s.id === 'tashma');
+    assert.equal(tash.urlBase, 'https://tashma.co.il/gilyonot/');
+    assert.deepEqual(tash.urlTemplates, { page: '{ext}', thumb: 'thumb/{ext}.png', url: 'file/{ext}' });
+    assert.ok(all.flatMap((i) => i.assets).filter((a) => a.src === 'tashma').every((a) => a.url === undefined && a.page === undefined && a.thumb === undefined));
+    assert.equal(manifest.sources.find((s) => s.id === 'beinenu').urlBase, undefined);
   });
 });
 
@@ -233,4 +243,27 @@ test('publish guard: refuses an empty catalog and one that lost most of the prev
     await writeFile(join(dir, 'x', 'manifest.json'), JSON.stringify(m));
     assert.equal(run(join(dir, 'x'), join(dir, 'good')).status, 1, 'shrunk');
   });
+});
+
+test('recent.json selection: window, no undated tashma files, hard cap that cuts the oldest and least-copied first', async () => {
+  const { selectRecent, recentWindow } = await import('../lib/shards.mjs');
+  assert.deepEqual(recentWindow('2026-10-15'), { from: '2026-09-26', to: '2026-10-24' });
+  const mk = (id, date, srcs, added = '2026-10-10T00:00:00Z') => ({ id, series: 's_1', title: 'T', date, added, assets: srcs.map((s) => ({ src: s, ext: id, rawTitle: 'x'.repeat(50) })) });
+  const issues = [
+    mk('i_old', '2026-09-19', ['ladaat']),
+    mk('i_in1', '2026-09-26', ['ladaat']),
+    mk('i_in2', '2026-10-17', ['ladaat', 'gilyoines']),
+    mk('i_next', '2026-10-24', ['gilyoines']),
+    mk('i_far', '2026-10-31', ['ladaat']),
+    mk('i_undated_tashma', null, ['tashma']),
+    mk('i_undated_alonolam', null, ['alonolam']),
+    mk('i_undated_old', null, ['alonolam'], '2026-08-01T00:00:00Z'),
+  ].map((i) => (i.date ? i : { ...i, date: undefined }));
+  const ids = selectRecent(issues, '2026-10-15').map((i) => i.id);
+  assert.deepEqual(ids.sort(), ['i_in1', 'i_in2', 'i_next', 'i_undated_alonolam']);
+  // cap: room for two issues only; the oldest week goes first
+  const all = selectRecent(issues, '2026-10-15');
+  const size = (id) => Buffer.byteLength(JSON.stringify(all.find((i) => i.id === id))) + 1;
+  const capped = selectRecent(issues, '2026-10-15', size('i_next') + size('i_in2') + 3).map((i) => i.id).sort();
+  assert.deepEqual(capped, ['i_in2', 'i_next'], 'the oldest week and the undated one are cut first');
 });

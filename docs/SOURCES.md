@@ -27,6 +27,15 @@
 (`app.openUrl`) ולכן דורשים רק אימות הדומיין בתוסף. הקטלוג עצמו (`raw.githubusercontent.com/mmichaelush/otzaria-alonim-plugin/data/`)
 הוא ערך נפרד.
 
+**אחסון בקטלוג (דחיסה):** ה-URL שבטבלה הם מה שמתקבל אחרי פענוח; בקבצי הקטלוג הם נשמרים דחוסים, לפי `sources[].urlBase` ו-`sources[].urlTemplates` במניפסט (ראו `docs/CATALOG_FORMAT.md`, "דחיסת URL"). ההגדרות בפועל (15.10.2026):
+
+| מקור | `urlBase` | `urlTemplates` |
+|------|-----------|-----------------|
+| `ladaat` | `https://ladaat.co/gilyonot/uploads/` | `page`: `https://ladaat.co/gilyonot/view/{ext}` |
+| `tashma` | `https://tashma.co.il/gilyonot/` | `url`: `file/{ext}`, `page`: `{ext}`, `thumb`: `thumb/{ext}.png` (לכן בנכס של tashma אין שדות URL כלל) |
+| `gilyoines` | `https://gilyoines.com/storage/` | `page`: `https://gilyoines.com/` |
+| `alonolam` | `https://alonolam.com/wp-content/uploads/` | `page`: `https://alonolam.com/גלריה/` |
+
 **נבדק (HEAD, 15.10.2026, דגימה אחת לכל סוג בכל מקור):** כל ה-PDF, התמונות והדפים שבטבלה החזירו `200` בלי הפניה (`redirect: manual`)
 עם `Content-Type` מתאים (`application/pdf`, `image/png`/`image/jpeg`, `text/html`). **לא נבדק:** תמיכה ב-`Range`/`resume`,
 הורדה מלקוח Dart של אוצריא (כותרות, עוגיות), הגנת hotlinking/Referer, מגבלות קצב על הורדת קבצים, ושכל תמונה ממוזערת קיימת
@@ -126,5 +135,5 @@ cd catalog && npm ci
 node build.mjs --out out                       # רגיל (incremental); בלי --prev מקבלים רק את החדש
 node build.mjs --out out --prev <dir-קודם>      # שומר את כל מה שנמצא קודם
 node build.mjs --out out --full --cache        # סריקת כל הארכיון; --cache שומר תשובות ב-catalog/.cache (פיתוח)
-node --test "test/*.test.js"
+node --test "test/*.test.js"   # מתוך catalog/; מהשורש: node --test "catalog/test/*.test.js"
 ```

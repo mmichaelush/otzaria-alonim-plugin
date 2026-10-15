@@ -5,6 +5,7 @@ import { readFile } from 'node:fs/promises';
 import { join } from 'node:path';
 import { tokenize } from './parasha.mjs';
 import { seriesIdentity } from './enrich.mjs';
+import { fromWire } from './wire.mjs';
 
 const readJson = async (dir, rel) => JSON.parse(await readFile(join(dir, rel), 'utf8'));
 const UNNAMED_SUFFIX = ' (ללא שם סדרה)';
@@ -29,12 +30,15 @@ export async function loadPrev(dir) {
  */
 export function itemsFromPrev(prev, { aliasIndex, skipSources = new Set() }) {
   const seriesById = new Map(prev.series.map((s) => [s.id, s]));
+  const specs = Object.fromEntries((prev.manifest?.sources || []).map((s) => [s.id, { urlBase: s.urlBase, urlTemplates: s.urlTemplates }]));
   const items = [];
   const prevAdded = new Map();
   const cidByKey = new Map();
-  for (const issue of prev.issues) {
-    const s = seriesById.get(issue.series);
+  for (const wireIssue of prev.issues) {
+    const s = seriesById.get(wireIssue.series);
     if (!s) continue;
+    // inherit lang/title/rawTitle and expand urls (the on-disk form is the compact one)
+    const issue = fromWire(wireIssue, s, specs);
     const displayTitle = s.title.endsWith(UNNAMED_SUFFIX) ? s.title.slice(0, -UNNAMED_SUFFIX.length) : s.title;
     for (const asset of issue.assets || []) {
       if (skipSources.has(asset.src)) continue;

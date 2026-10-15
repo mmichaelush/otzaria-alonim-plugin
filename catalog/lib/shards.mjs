@@ -4,34 +4,13 @@ import { mkdir, writeFile, rm } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { issueCompare } from './merge.mjs';
 import { addDays, shabbatOnOrAfter, weeksBetween } from './calendar.mjs';
+import { toWire, assertRoundTrip } from './wire.mjs';
+import { prune, stableStringify } from './json.mjs';
 
 export const SHARD_MAX_BYTES = 3 * 1024 * 1024;
 export const sha256 = (buf) => createHash('sha256').update(buf).digest('hex');
 
-/** Drops null/undefined/""/[] recursively (CATALOG_FORMAT: empty fields are omitted). */
-export function prune(v) {
-  if (Array.isArray(v)) return v.map(prune);
-  if (v && typeof v === 'object') {
-    const out = {};
-    for (const k of Object.keys(v)) {
-      const x = prune(v[k]);
-      if (x === null || x === undefined || x === '' || (Array.isArray(x) && x.length === 0)) continue;
-      out[k] = x;
-    }
-    return out;
-  }
-  return v;
-}
-
-/** JSON with sorted object keys at every depth (arrays keep their order). */
-export function stableStringify(v, indent) {
-  const sort = (x) => {
-    if (Array.isArray(x)) return x.map(sort);
-    if (x && typeof x === 'object') return Object.fromEntries(Object.keys(x).sort().map((k) => [k, sort(x[k])]));
-    return x;
-  };
-  return JSON.stringify(sort(v), null, indent) + '\n';
-}
+export { prune, stableStringify };
 
 const bytesOf = (s) => Buffer.from(s, 'utf8');
 
@@ -52,16 +31,44 @@ export function splitIssues(issues, max = SHARD_MAX_BYTES) {
   return chunks;
 }
 
-/** Cutoff Shabbat for "recent": about 6 weeks back, aligned to weeks so the file changes weekly, not daily. */
+/** Hard cap for recent.json (bytes): the first thing the plugin loads must be small. */
+export const RECENT_MAX_BYTES = 1_500_000;
+
+/** recent.json window: 3 Shabbatot back and 1 ahead, aligned to Shabbat so the file changes weekly, not daily. */
 export function recentWindow(today) {
   const shabbat = shabbatOnOrAfter(today);
-  return { from: addDays(shabbat, -42), to: addDays(shabbat, 21) };
+  return { from: addDays(shabbat, -21), to: addDays(shabbat, 7) };
 }
 
-export function selectRecent(issues, today) {
+/** An issue as stored in recent.json: same object as in the shards, minus the original titles. */
+const recentView = (i) => ({ ...i, assets: i.assets.map(({ rawTitle, ...a }) => a) });
+
+/**
+ * "This week" material: dated issues inside the window, plus undated issues that
+ * were added inside it and have a copy outside tashma (tashma's undated files
+ * are archive material, not news). If the result exceeds `maxBytes` the least
+ * important issues are cut: oldest week first, and within a week the ones with
+ * fewer copies first (then by id). Everything cut is still in the shards.
+ * Returns issues sorted like the shards.
+ */
+export function selectRecent(issues, today, maxBytes = RECENT_MAX_BYTES) {
   const { from, to } = recentWindow(today);
   const fromTs = `${from}T00:00:00Z`;
-  return issues.filter((i) => (i.date ? i.date >= from && i.date <= to : i.added >= fromTs)).sort(issueCompare);
+  const picked = [];
+  for (const i of issues) {
+    if (i.date) { if (i.date >= from && i.date <= to) picked.push([i.date, i]); continue; }
+    if (i.added >= fromTs && i.assets.some((a) => a.src !== 'tashma')) picked.push([i.added.slice(0, 10), i]);
+  }
+  picked.sort(([da, a], [db, b]) => (da < db ? 1 : da > db ? -1 : b.assets.length - a.assets.length || (a.id < b.id ? -1 : 1)));
+  const out = [];
+  let bytes = 2;
+  for (const [, i] of picked) {
+    const v = prune(recentView(i));
+    bytes += Buffer.byteLength(JSON.stringify(v)) + 1;
+    if (bytes > maxBytes) break;
+    out.push(i);
+  }
+  return out.sort(issueCompare).map((i) => prune(recentView(i)));
 }
 
 /** weeks.json range: a year back, a year ahead, aligned to Shabbat. */
@@ -82,8 +89,16 @@ async function put(outDir, rel, text) {
  * Writes series/weeks/recent/issues/* into outDir.
  * Returns the manifest `files` and `shards` sections.
  */
-export async function writeCatalog(outDir, { series, issues, today }) {
+export async function writeCatalog(outDir, { series, issues: memIssues, today, sourceSpecs = {} }) {
   await rm(join(outDir, 'issues'), { recursive: true, force: true });
+  // Wire form (lib/wire.mjs): urls compressed per source, inheritable fields dropped.
+  // Every issue is checked to inflate back to exactly what is in memory.
+  const seriesById = new Map(series.map((x) => [x.id, x]));
+  const issues = memIssues.map((i) => {
+    const w = toWire(i, seriesById.get(i.series), sourceSpecs);
+    assertRoundTrip(i, w, seriesById.get(i.series), sourceSpecs);
+    return w;
+  });
   const files = {};
   const sers = series.map(prune);
   files.series = { ...(await put(outDir, 'series.json', stableStringify(sers))), count: sers.length };
@@ -97,7 +112,7 @@ export async function writeCatalog(outDir, { series, issues, today }) {
   });
   files.weeks = await put(outDir, 'weeks.json', stableStringify(weeks));
 
-  const recent = selectRecent(issues, today).map(prune);
+  const recent = selectRecent(issues, today);
   files.recent = { ...(await put(outDir, 'recent.json', stableStringify(recent))), count: recent.length };
 
   const byYear = new Map();

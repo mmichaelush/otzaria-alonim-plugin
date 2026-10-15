@@ -3,13 +3,19 @@
 //   GET /api/home/getGilyoines/<weekId>/<siteViewId>   any week (ids are not in
 //        /api/home beyond the last 9; 191 is the first with data, March 2026)
 // PDF: /storage/<pdf>. There is no per-gilyon page, so `page` is the site root.
-import { collapse, isoSeconds, medianIso } from './util.mjs';
+import { collapse, isoSeconds, medianIso, safeUrl } from './util.mjs';
 import { langFromName, stripLanguage } from '../lib/parasha.mjs';
 
 export const id = 'gilyoines';
 export const name = 'גיליוינעס';
 export const url = 'https://gilyoines.com/';
 export const mode = 'catalog';
+
+// pdf and cover share /storage/; there is no per-gilyon page, so the site root is the template.
+export const urlSpec = {
+  urlBase: 'https://gilyoines.com/storage/',
+  urlTemplates: { page: 'https://gilyoines.com/' },
+};
 
 const ORIGIN = 'https://gilyoines.com';
 /** First week id with data when this connector was written. */
@@ -30,9 +36,9 @@ export function parseItem(g) {
     weekHint: weekly ? { id: g.week_id, name: collapse(g.week_hebrew_name) } : null,
     timeless: !weekly,
     addedAt: g.created_at ? isoSeconds(g.created_at * 1000) : null,
-    url: `${ORIGIN}/storage/${g.pdf}`,
+    url: safeUrl(`${ORIGIN}/storage/${g.pdf}`),
     page: `${ORIGIN}/`,
-    thumb: g.cover_image ? String(g.cover_image).replace(/\?.*$/, '') : null,
+    thumb: g.cover_image ? safeUrl(String(g.cover_image).replace(/\?.*$/, '')) : null,
     pages: Number.isFinite(g.pages) ? g.pages : null,
     rawMeta: { popular: g.popular ?? null },
   };

@@ -13,6 +13,12 @@ export const name = 'תא שמע';
 export const url = 'https://tashma.co.il/gilyonot';
 export const mode = 'catalog';
 
+// Every url of a tashma copy is derived from its id.
+export const urlSpec = {
+  urlBase: 'https://tashma.co.il/gilyonot/',
+  urlTemplates: { url: 'file/{ext}', page: '{ext}', thumb: 'thumb/{ext}.png' },
+};
+
 const ORIGIN = 'https://tashma.co.il';
 const BASE = `${ORIGIN}/gilyonot`;
 const iso = (v) => (v ? new Date(v).toISOString().replace(/\.\d{3}Z$/, 'Z') : null);

@@ -10,8 +10,14 @@ export const name = 'עלון עולם';
 export const url = 'https://alonolam.com/';
 export const mode = 'catalog';
 
+// Files live under /wp-content/uploads/<year>/<month>/; the page is the gallery (stored decoded).
+export const urlSpec = {
+  urlBase: 'https://alonolam.com/wp-content/uploads/',
+  urlTemplates: { page: 'https://alonolam.com/גלריה/' },
+};
+
 const LIST = 'https://alonolam.com/wp-json/gallery/v1/list';
-const GALLERY_PAGE = 'https://alonolam.com/%d7%92%d7%9c%d7%a8%d7%99%d7%94/';
+const GALLERY_PAGE = 'https://alonolam.com/%D7%92%D7%9C%D7%A8%D7%99%D7%94/';
 // Absolute https URL with the path percent-encoded (the source mixes raw Hebrew and %-escapes).
 const https = (u) => {
   try { return new URL(String(u).replace(/^http:\/\//, 'https://')).href; } catch { return null; }

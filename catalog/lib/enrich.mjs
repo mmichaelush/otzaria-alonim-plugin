@@ -6,6 +6,7 @@ import { normalizeKey } from './normalize.mjs';
 import { analyzeTitle, tokenize, stripFileNoise, stripLanguage, guessLang, weekLabelParts } from './parasha.mjs';
 import { hyOfIso, hyOfTimestamp, findDate, weekRowOf, addDays, daysBetween } from './calendar.mjs';
 import { resolveWeekLabel, expectedSlugs, dayOf } from './dates.mjs';
+import { safeUrl } from '../connectors/util.mjs';
 
 export const sha1 = (s) => createHash('sha1').update(s).digest('hex');
 
@@ -164,13 +165,14 @@ export function enrich(raw, ctx) {
     asset: {
       src: raw.src,
       ext: raw.ext,
-      url: raw.url || undefined,
-      page: raw.page || undefined,
-      thumb: raw.thumb || undefined,
+      // whatever a connector hands over leaves here as a valid, fully escaped URL
+      url: raw.url ? safeUrl(raw.url) : undefined,
+      page: raw.page ? safeUrl(raw.page) : undefined,
+      thumb: raw.thumb ? safeUrl(raw.thumb) : undefined,
       bytes: raw.bytes ?? undefined,
       pages: raw.pages ?? undefined,
       downloads: raw.downloads ?? undefined,
-      rawTitle: raw.rawTitle,
+      rawTitle: raw.rawTitle || title, // a source that gave no name: the display title stands in
     },
     pages: raw.pages ?? null,
     addedAt: raw.addedAt || null,

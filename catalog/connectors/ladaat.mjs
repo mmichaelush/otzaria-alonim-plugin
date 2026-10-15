@@ -11,6 +11,13 @@ export const name = 'לדעת';
 export const url = 'https://ladaat.co/gilyonot/';
 export const mode = 'catalog';
 
+// How asset URLs are compressed in the catalog (lib/urls.mjs). The base is the longest
+// prefix shared by every pdf and thumbnail; the view page is derived from the id.
+export const urlSpec = {
+  urlBase: 'https://ladaat.co/gilyonot/uploads/',
+  urlTemplates: { page: 'https://ladaat.co/gilyonot/view/{ext}' },
+};
+
 const BASE = 'https://ladaat.co/gilyonot/';
 const PAGE_LIMIT = 500;
 

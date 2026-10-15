@@ -19,3 +19,13 @@ export function medianIso(list) {
   const xs = list.filter(Boolean).sort();
   return xs.length ? xs[Math.floor(xs.length / 2)] : null;
 }
+
+/** Percent-encodes characters that are not valid in a URL (non-ASCII, space, quotes, brackets of HTML ...) and leaves existing escapes alone. */
+export function safeUrl(u) {
+  let out = '';
+  for (const ch of String(u)) {
+    const c = ch.codePointAt(0);
+    out += c > 126 || c < 33 || '"<>`{}|^'.includes(ch) || ch === String.fromCharCode(92) ? encodeURIComponent(ch) : ch;
+  }
+  return out;
+}

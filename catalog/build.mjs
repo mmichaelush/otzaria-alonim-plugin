@@ -16,6 +16,7 @@ import { mergeAll } from './lib/merge.mjs';
 import { loadPrev, itemsFromPrev } from './lib/prev.mjs';
 import { writeCatalog, stableStringify, sha256, prune } from './lib/shards.mjs';
 import { dayOf } from './lib/dates.mjs';
+import { usableSpec } from './lib/urls.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const MIN_PLUGIN_VERSION = '0.1.0';
@@ -109,7 +110,14 @@ export async function runBuild(o) {
   // ---- write ----
   const out = resolve(o.out);
   await mkdir(out, { recursive: true });
-  const { files, shards } = await writeCatalog(out, { series, issues, today });
+  // URL compression specs: a connector's template is used only if every copy of that source has the field.
+  const sourceSpecs = {};
+  for (const c of connectors) {
+    const assets = issues.flatMap((i) => i.assets.filter((a) => a.src === c.id));
+    const spec = c.urlSpec && assets.length ? usableSpec(c.urlSpec, assets) : null;
+    if (spec) sourceSpecs[c.id] = spec;
+  }
+  const { files, shards } = await writeCatalog(out, { series, issues, today, sourceSpecs });
 
   const counts = {};
   for (const i of issues) for (const a of i.assets) counts[a.src] = (counts[a.src] || 0) + 1;
@@ -117,7 +125,7 @@ export async function runBuild(o) {
   const sources = connectors.map((c) => {
     const r = resById.get(c.id);
     const p = prevSources.get(c.id);
-    const base = { id: c.id, name: c.name, url: c.url, mode: c.mode, issueCount: counts[c.id] || 0 };
+    const base = { id: c.id, name: c.name, url: c.url, mode: c.mode, issueCount: counts[c.id] || 0, ...(sourceSpecs[c.id] || {}) };
     if (!r) return { ...base, status: p?.status || 'disabled', checkedAt: p?.checkedAt, lastOkAt: p?.lastOkAt, note: p?.note || 'לא נבדק בריצה זו' };
     return { ...base, status: r.status, checkedAt: now, lastOkAt: r.status === 'ok' ? now : p?.lastOkAt, note: r.note || '' };
   });
