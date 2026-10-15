@@ -63,7 +63,7 @@ function rewriteManifest(text) {
     s.urlBase = `${origin}/files/${s.id}/`;
     for (const k of Object.keys(s.urlTemplates || {})) {
       // דף האתר נשאר באתר האמיתי (נפתח בדפדפן), לא בשרת המקומי.
-      if (k === 'page') { if (!/^https:///.test(s.urlTemplates[k]) && origBases.get(s.id)) s.urlTemplates[k] = origBases.get(s.id) + s.urlTemplates[k]; continue; }
+      if (k === 'page') { if (!/^https:\/\//.test(s.urlTemplates[k]) && origBases.get(s.id)) s.urlTemplates[k] = origBases.get(s.id) + s.urlTemplates[k]; continue; }
       if (/^https:\/\//.test(s.urlTemplates[k])) s.urlTemplates[k] = s.urlTemplates[k].replace(/^https:\/\/[^/]+\/[^{]*/, '');
     }
   }
