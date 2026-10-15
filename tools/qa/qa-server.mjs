@@ -64,21 +64,22 @@ function rewriteManifest(text) {
 
 async function qaRoute(path, url, req, res) {
   const body = req.method === 'POST' ? await readBody(req) : '';
+  if (path === '/qa/hello') return res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' }).end('<!doctype html><meta charset=utf-8><body style="font:24px sans-serif;background:#cfe">hello from QA server (html in iframe)</body>');
   if (path === '/qa/log') {
     const lines = JSON.parse(body || '[]').map((e) => JSON.stringify(e)).join(String.fromCharCode(10)) + String.fromCharCode(10);
     await appendFile(qaLog, lines);
-    return res.writeHead(200, { 'Content-Type': 'application/json' }).end('{}');
+    return res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' }).end('{}');
   }
   if (path === '/qa/poll') {
     const take = () => queue.shift();
     const cmd = take();
-    return res.writeHead(200, { 'Content-Type': 'application/json' }).end(cmd ? JSON.stringify(cmd) : '');
+    return res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' }).end(cmd ? JSON.stringify(cmd) : '');
   }
   if (path === '/qa/result') {
     const id = url.searchParams.get('id');
     const r = results.get(id);
     if (r) { results.delete(id); r(JSON.parse(body)); }
-    return res.writeHead(200, { 'Content-Type': 'application/json' }).end('{}');
+    return res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' }).end('{}');
   }
   if (path === '/qa/exec') {
     const id = String(nextId++);

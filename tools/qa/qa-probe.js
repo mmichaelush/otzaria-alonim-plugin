@@ -94,6 +94,36 @@
   window.addEventListener('pagehide', () => push('lifecycle', { event: 'pagehide' }));
   document.addEventListener('visibilitychange', () => push('lifecycle', { event: 'visibility ' + document.visibilityState }));
 
+  // עקבות SDK: כל קריאה לאוצריא (חוץ מערוץ ה-QA עצמו) עם משך ותוצאה
+  function traceSdk() {
+    const o = window.Otzaria;
+    if (!o || o.__qaWrapped || typeof o.call !== 'function') return;
+    const orig = o.call.bind(o);
+    const brief = (params) => {
+      try {
+        const copy = { ...(params || {}) };
+        for (const k of Object.keys(copy)) if (typeof copy[k] === 'string' && copy[k].length > 160) copy[k] = copy[k].slice(0, 160) + '…';
+        return copy;
+      } catch (e) { return null; }
+    };
+    o.call = function (method, params) {
+      if (method === 'network.fetchStream' && params && String(params.url).includes('/qa/')) return orig(method, params);
+      const started = performance.now();
+      const result = orig(method, params);
+      if (result && typeof result.then === 'function') {
+        result.then(
+          (res) => push('sdk', { method, params: brief(params), ms: Math.round(performance.now() - started), ok: !(res && res.success === false), error: res && res.error ? res.error : undefined, data: res && res.data !== undefined && method !== 'network.fetchStream' ? JSON.stringify(res.data).slice(0, 200) : undefined }),
+          (err) => push('sdk', { method, params: brief(params), ms: Math.round(performance.now() - started), ok: false, thrown: String(err && err.message || err) }),
+        );
+      } else {
+        push('sdk', { method, params: brief(params), stream: true });
+      }
+      return result;
+    };
+    o.__qaWrapped = true;
+  }
+  const waitTrace = setInterval(() => { if (window.Otzaria) { traceSdk(); clearInterval(waitTrace); } }, 5);
+
   // לולאת פקודות
   async function loop() {
     while (!window.Otzaria) await new Promise((r) => setTimeout(r, 100));
