@@ -199,3 +199,22 @@ test('files: קובץ שירד תחת מזהה קודם עדיין נחשב כה
   });
   assert.equal(files.fragmentOf(item), 'nnnnnnnn', 'אם יש גם קובץ תחת המזהה החדש — הוא גובר');
 });
+
+test('index: מזהה שהוחלף באמצע הפעלה — השורה הישנה הופכת לחדשה (אין שני כרטיסים), ושורה ישנה לא חוזרת', () => {
+  const index = new CatalogIndex();
+  index.setSeries([{ id: 's1', title: 'עלון', lang: 'he' }]);
+  const base = { series: 's1', title: 'x', hy: 5787, date: '2026-10-17', assets: [] };
+  index.addIssues([{ ...base, id: 'i_aaaaaaaaaaaa' }], 'x');
+  const n = index.n;
+  index.addIssues(
+    [{ ...base, id: 'i_bbbbbbbbbbbb', previousIds: ['i_aaaaaaaaaaaa'], idChangedAt: '2026-10-15' }],
+    'x',
+  );
+  assert.equal(index.n, n, 'אותה שורה, לא נוספה שורה');
+  assert.ok(index.get('i_bbbbbbbbbbbb'), 'המזהה החדש נמצא');
+  assert.equal(index.get('i_aaaaaaaaaaaa').id, 'i_bbbbbbbbbbbb', 'מזהה ישן נפתר לגיליון הנוכחי');
+  assert.equal(index.search('', {}, {}, {}).total, 1, 'גיליון אחד בתוצאות');
+  // קובץ ישן שנטען אחרי כן לא מחזיר את הישן
+  index.addIssues([{ ...base, id: 'i_aaaaaaaaaaaa' }], 'old');
+  assert.equal(index.n, n, 'הישן לא חזר');
+});

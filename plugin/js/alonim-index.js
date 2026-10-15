@@ -448,7 +448,24 @@
       const sorted = new Set(this._orders.keys());
       for (const raw of Array.isArray(list) ? list : []) {
         if (!raw || typeof raw.id !== 'string') continue;
+        // מזהה שהוחלף כבר ידוע וחדש קיים: שורה ישנה מקובץ ישן אינה מתעוררת מחדש.
+        const successor = this.issueAlias.get(raw.id);
+        if (successor && successor !== raw.id && this.idToI.has(successor)) continue;
         let i = this.idToI.get(raw.id);
+        // גיליון שמזההו השתנה (`previousIds`): השורה הישנה, אם כבר באינדקס, הופכת לחדש במקומה, כדי
+        // שבאותה הפעלה לא יופיעו שני כרטיסים לאותו גיליון (נמצא בבדיקה חיה).
+        if (i === undefined && Array.isArray(raw.previousIds)) {
+          for (const old of raw.previousIds) {
+            const at = this.idToI.get(old);
+            if (at === undefined) continue;
+            i = at;
+            this.idToI.delete(old);
+            this.idToI.set(raw.id, i);
+            this.ids[i] = raw.id;
+            this._fragMap = null;
+            break;
+          }
+        }
         const fresh = i === undefined;
         if (fresh) {
           i = this.n++;
@@ -847,7 +864,7 @@
     }
 
     get(id) {
-      const i = this.idToI.get(id);
+      const i = this.idToI.get(this.resolveIssueId(id));
       return i === undefined ? null : this.item(i);
     }
 
