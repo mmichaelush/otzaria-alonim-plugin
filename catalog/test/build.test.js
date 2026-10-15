@@ -94,7 +94,7 @@ test('a build writes a contract-shaped catalog: manifest, series, weeks, recent,
     assert.ok(weeks.length > 100);
     for (let k = 1; k < weeks.length; k++) assert.ok(weeks[k - 1].date < weeks[k].date);
     const noach = weeks.find((w) => w.date === '2026-10-17');
-    assert.deepEqual(noach, { date: '2026-10-17', event: null, hy: 5787, label: 'נח', parasha: ['noach'], parashaIL: ['noach'] });
+    assert.deepEqual(noach, { date: '2026-10-17', event: null, hebrew: 'ו׳ בחשוון תשפ״ז', hy: 5787, label: 'נח', parasha: ['noach'], parashaIL: ['noach'] });
     // recent: dated issues around now only
     const recent = await readJson(dir, 'recent.json');
     assert.ok(recent.length > 0 && recent.every((i) => !i.date || (i.date >= '2026-09-26' && i.date <= '2026-10-24')), 'window: 3 Shabbatot back, 1 ahead');

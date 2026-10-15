@@ -1,8 +1,9 @@
 // Jewish calendar layer (wraps @hebcal/core): Hebrew year of a date, weekly
-// parasha per Shabbat (diaspora and Israel) and festival days.
+// parasha per Shabbat (diaspora and Israel), festivals, fasts and Rosh Chodesh.
 // All dates are ISO "YYYY-MM-DD" strings in the local civil calendar; we never
 // go through UTC because that shifts midnight dates in Israel's timezone.
-import { HDate, Sedra, HebrewCalendar, flags } from '@hebcal/core';
+import { HDate, Sedra, HebrewCalendar } from '@hebcal/core';
+import { EVENT_HE, EVENT_PRIORITY, SECONDARY_EVENTS, eventOfDesc, eventLabel, hebrewDateString } from './events.mjs';
 
 export const PARASHA_SLUGS = [
   'bereshit', 'noach', 'lech-lecha', 'vayera', 'chayei-sara', 'toldot', 'vayetzei', 'vayishlach', 'vayeshev',
@@ -58,54 +59,8 @@ export function hyOfTimestamp(ts) {
   return hyOfIso(parts);
 }
 
-// Event slugs (CATALOG_FORMAT weeks.json). Hebrew names are used for labels.
-export const EVENT_HE = {
-  'rosh-hashana': 'ראש השנה',
-  'shabbat-shuva': 'שבת שובה',
-  'yom-kippur': 'יום כיפור',
-  sukkot: 'סוכות',
-  'shemini-atzeret': 'שמיני עצרת',
-  chanukah: 'חנוכה',
-  'tu-bishvat': 'ט״ו בשבט',
-  'shabbat-shirah': 'שבת שירה',
-  'shabbat-shekalim': 'שבת שקלים',
-  'shabbat-zachor': 'שבת זכור',
-  purim: 'פורים',
-  'shabbat-parah': 'שבת פרה',
-  'shabbat-hachodesh': 'שבת החודש',
-  'shabbat-hagadol': 'שבת הגדול',
-  pesach: 'פסח',
-  'lag-baomer': 'ל״ג בעומר',
-  shavuot: 'שבועות',
-  'shabbat-chazon': 'שבת חזון',
-  'tisha-bav': 'תשעה באב',
-  'shabbat-nachamu': 'שבת נחמו',
-};
-// Higher wins when one Shabbat carries several events.
-const EVENT_PRIORITY = [
-  'rosh-hashana', 'yom-kippur', 'sukkot', 'shemini-atzeret', 'pesach', 'shavuot', 'chanukah', 'purim', 'tisha-bav',
-  'shabbat-shuva', 'shabbat-hagadol', 'shabbat-zachor', 'shabbat-parah', 'shabbat-hachodesh', 'shabbat-shekalim',
-  'shabbat-chazon', 'shabbat-nachamu', 'shabbat-shirah', 'tu-bishvat', 'lag-baomer',
-];
-
-function eventOfDesc(desc) {
-  if (/^Erev |^Shushan Purim|^Pesach Sheni|^Purim (Katan|Meshulash)|^Leil Selichot|^Chag HaBanot|Rosh Hashana LaBehemot/.test(desc)) return null;
-  if (/^Rosh Hashana/.test(desc)) return 'rosh-hashana';
-  if (desc === 'Yom Kippur') return 'yom-kippur';
-  if (/^Sukkot/.test(desc)) return 'sukkot';
-  if (desc === 'Shmini Atzeret' || desc === 'Simchat Torah') return 'shemini-atzeret';
-  if (/^Chanukah/.test(desc)) return 'chanukah';
-  if (/^Pesach/.test(desc)) return 'pesach';
-  if (/^Shavuot/.test(desc)) return 'shavuot';
-  if (desc === 'Purim') return 'purim';
-  if (desc === "Tish'a B'Av") return 'tisha-bav';
-  if (desc === 'Tu BiShvat') return 'tu-bishvat';
-  if (desc === 'Lag BaOmer') return 'lag-baomer';
-  const sp = { 'Shabbat Shuva': 'shabbat-shuva', 'Shabbat Shekalim': 'shabbat-shekalim', 'Shabbat Zachor': 'shabbat-zachor',
-    'Shabbat Parah': 'shabbat-parah', 'Shabbat HaChodesh': 'shabbat-hachodesh', 'Shabbat HaGadol': 'shabbat-hagadol',
-    'Shabbat Shirah': 'shabbat-shirah', 'Shabbat Chazon': 'shabbat-chazon', 'Shabbat Nachamu': 'shabbat-nachamu' };
-  return sp[desc] || null;
-}
+/** "כ״ז בחשוון תשפ״ז" for a civil date. */
+export const hebrewDateOf = (iso) => hebrewDateString(new HDate(parseIso(iso)));
 
 const PARASHA_HE_LABEL = {
   bereshit: 'בראשית', noach: 'נח', 'lech-lecha': 'לך לך', vayera: 'וירא', 'chayei-sara': 'חיי שרה', toldot: 'תולדות',
@@ -123,7 +78,12 @@ export const parashaLabel = (slugs) => (slugs || []).map(parashaLabelHe).join('�
 
 const yearCache = new Map();
 
-/** Day-by-day facts for one Hebrew year: { [iso]: { events:Set, shabbat, parasha, parashaIL } }. */
+/**
+ * Day-by-day facts for one Hebrew year (Tishrei to Elul):
+ * Map<iso, { events:Set<slug>, rcMonth?, shabbat, chag, parasha, parashaIL }>.
+ * Events follow the diaspora calendar; Israel differs only in the second day of
+ * festivals, which is why `parashaIL` is kept separately for Shabbatot.
+ */
 function yearFacts(hy) {
   if (yearCache.has(hy)) return yearCache.get(hy);
   const facts = new Map();
@@ -133,16 +93,32 @@ function yearFacts(hy) {
     return f;
   };
   const events = HebrewCalendar.calendar({
-    year: hy, isHebrewYear: true, sedrot: false, il: false, noMinorFast: true, noModern: true, noRoshChodesh: true,
+    year: hy, isHebrewYear: true, sedrot: false, il: false, noMinorFast: false, noModern: true, noRoshChodesh: false,
     noSpecialShabbat: false, candlelighting: false,
   });
+  const rcFirst = new Map(); // Hebcal month -> first Rosh Chodesh day
   for (const ev of events) {
-    const slug = eventOfDesc(ev.getDesc());
-    if (slug) get(isoOfHDate(ev.getDate())).events.add(slug);
+    const e = eventOfDesc(ev.getDesc());
+    if (!e) continue;
+    const iso = isoOfHDate(ev.getDate());
+    const f = get(iso);
+    f.events.add(e.slug);
+    if (e.month) {
+      f.rcMonth = e.month;
+      if (!rcFirst.has(e.month) || iso < rcFirst.get(e.month)) rcFirst.set(e.month, iso);
+    }
   }
-  // Lag BaOmer and Tu BiShvat are "modern" in hebcal's flags on some versions; add them explicitly.
+  // Hebcal's "modern" flag hides Lag BaOmer / Tu BiShvat on some versions; add them explicitly.
   for (const [mm, dd, slug] of [['Shvat', 15, 'tu-bishvat'], ['Iyyar', 18, 'lag-baomer']]) {
     get(isoOfHDate(new HDate(dd, mm, hy))).events.add(slug);
+  }
+  // Ten Days of Repentance (3-9 Tishrei, between the days that are events of their own).
+  for (let d = 3; d <= 9; d++) get(isoOfHDate(new HDate(d, 'Tishrei', hy))).events.add('aseret-yemei-teshuva');
+  // Shabbat Mevarchim: the last Shabbat before each Rosh Chodesh.
+  for (const first of rcFirst.values()) {
+    const d = parseIso(first);
+    do { d.setDate(d.getDate() - 1); } while (d.getDay() !== 6);
+    get(isoOfGreg(d)).events.add('shabbat-mevarchim');
   }
   const sedraD = new Sedra(hy, false);
   const sedraIL = new Sedra(hy, true);
@@ -162,13 +138,14 @@ function yearFacts(hy) {
   return facts;
 }
 
+/** The highest-priority event of a set; secondary ones (Mevarchim, Ten Days) never win. */
 function pickEvent(events) {
-  for (const e of EVENT_PRIORITY) if (events.has(e)) return e;
+  for (const e of EVENT_PRIORITY) if (events.has(e) && !SECONDARY_EVENTS.has(e)) return e;
   return null;
 }
 
-function labelFor(parasha, parashaIL, event) {
-  const evHe = event ? EVENT_HE[event] : '';
+function labelFor(parasha, parashaIL, event, month) {
+  const evHe = event ? eventLabel(event, month) : '';
   const part = (p) => parashaLabel(p) || evHe;
   const d = part(parasha), il = part(parashaIL);
   let label = d;
@@ -178,24 +155,51 @@ function labelFor(parasha, parashaIL, event) {
   return label;
 }
 
+const rowsCache = new Map();
+
 /**
- * weeks.json rows for a Hebrew year: every Shabbat, plus one row for the first
- * day of each festival that does not fall on Shabbat (shabbat:false). Rows are
- * sorted by date.
+ * @typedef {object} WeekRow  one line of weeks.json
+ * @property {string} date          ISO date (a Shabbat, or the first day of a festival/fast/Rosh Chodesh)
+ * @property {number} hy            Hebrew year of `date`
+ * @property {string} hebrew        Hebrew date, "כ״ז בחשוון תשפ״ז"
+ * @property {string[]} parasha     diaspora reading (empty on festival Shabbatot and weekday rows)
+ * @property {string[]} parashaIL   Israel reading
+ * @property {string} label         display label (Hebrew)
+ * @property {string|null} event    primary event slug (lib/events.mjs), or null
+ * @property {string[]} [events]    every event of that day when there are several
+ * @property {boolean} shabbat      false for weekday rows
+ * @property {string} [rcMonth]     internal: Hebcal month of a Rosh Chodesh (not written)
+ */
+
+/**
+ * Rows of one Hebrew year, sorted by date: every Shabbat, plus a row for each
+ * weekday on which an event begins (first day of a festival, a fast, Rosh Chodesh).
+ * Multi-day events (Chanukah, Chol HaMoed) get a row on their first day only.
+ * @param {number} hy
+ * @returns {WeekRow[]}
  */
 export function weeksOfYear(hy) {
+  if (rowsCache.has(hy)) return rowsCache.get(hy);
   const facts = yearFacts(hy);
   const rows = [];
   for (const iso of [...facts.keys()].sort()) {
     const f = facts.get(iso);
-    const event = pickEvent(f.events);
+    const prev = facts.get(addDays(iso, -1));
+    const all = EVENT_PRIORITY.filter((e) => f.events.has(e));
+    const base = { date: iso, hy: hyOfIso(iso), hebrew: hebrewDateOf(iso), ...(f.rcMonth ? { rcMonth: f.rcMonth } : {}) };
+    const extra = all.length && !(all.length === 1 && all[0] === pickEvent(f.events)) ? { events: all } : {};
     if (f.shabbat) {
-      rows.push({ date: iso, hy: hyOfIso(iso), parasha: f.parasha, parashaIL: f.parashaIL, label: labelFor(f.parasha, f.parashaIL, event), event, shabbat: true });
-    } else if (event && !facts.get(addDays(iso, -1))?.events.has(event)) {
-      // Only the first day of a multi-day festival gets its own row.
-      rows.push({ date: iso, hy: hyOfIso(iso), parasha: [], parashaIL: [], label: EVENT_HE[event], event, shabbat: false });
+      const event = pickEvent(f.events);
+      rows.push({ ...base, parasha: f.parasha, parashaIL: f.parashaIL, label: labelFor(f.parasha, f.parashaIL, event, f.rcMonth), event, ...extra, shabbat: true });
+      continue;
     }
+    // Weekday: a row where an event starts (it was not already running the day before).
+    const starting = new Set([...f.events].filter((e) => !prev?.events.has(e) && !SECONDARY_EVENTS.has(e)));
+    const event = pickEvent(starting);
+    if (!event) continue;
+    rows.push({ ...base, parasha: [], parashaIL: [], label: eventLabel(event, f.rcMonth), event, ...extra, shabbat: false });
   }
+  rowsCache.set(hy, rows);
   return rows;
 }
 
@@ -209,14 +213,18 @@ export function weeksBetween(from, to) {
   return rows.filter((r) => !seen.has(r.date) && seen.add(r.date)).sort((a, b) => (a.date < b.date ? -1 : 1));
 }
 
+/** Whether a row is, or carries, an event. */
+export const rowHasEvent = (row, slug) => row.event === slug || (row.events ? row.events.includes(slug) : false);
+
 /**
  * The Shabbat (or festival day) an item belongs to, from a parasha/event and a
  * Hebrew year. Returns an ISO date or null when it is not unique.
  * `slugs` are parasha slugs; matching prefers the diaspora reading.
+ * For `event: 'rosh-chodesh'` pass `month` (a Hebcal month name, see MONTHS in events.mjs).
  */
-export function findDate({ hy, slugs = [], event = null }) {
+export function findDate({ hy, slugs = [], event = null, month = null }) {
   if (!hy) return null;
-  const rows = [...weeksOfYear(hy)];
+  const rows = weeksOfYear(hy);
   if (slugs.length) {
     const key = [...slugs].sort().join(',');
     const exact = rows.filter((r) => r.shabbat && [...r.parasha].sort().join(',') === key);
@@ -229,16 +237,24 @@ export function findDate({ hy, slugs = [], event = null }) {
     return null;
   }
   if (event) {
-    const hit = rows.filter((r) => r.event === event);
-    // First occurrence: the first Shabbat/festival row of that event in the year.
-    if (hit.length) return hit[0].date;
+    const isRc = event === 'rosh-chodesh';
+    if (isRc && !month) return null;
+    const hit = rows.filter((r) => rowHasEvent(r, event) && (!isRc || r.rcMonth === month));
+    // The row where the event starts wins over a Shabbat inside it.
+    const starting = hit.filter((r) => r.event === event);
+    if (starting.length) return starting[0].date;
+    if (hit.length && !isRc) return hit[0].date;
   }
   return null;
 }
 
+const rowIndexCache = new Map();
 /** The row for a date, if any (used to fill event/label). */
 export function weekRowOf(iso) {
-  return weeksOfYear(hyOfIso(iso)).find((r) => r.date === iso) || null;
+  const hy = hyOfIso(iso);
+  let idx = rowIndexCache.get(hy);
+  if (!idx) { idx = new Map(weeksOfYear(hy).map((r) => [r.date, r])); rowIndexCache.set(hy, idx); }
+  return idx.get(iso) || null;
 }
 
 /** Nearest Shabbat on or after an ISO date. */
@@ -248,4 +264,4 @@ export function shabbatOnOrAfter(iso) {
   return isoOfGreg(d);
 }
 
-export { flags };
+export { EVENT_HE };

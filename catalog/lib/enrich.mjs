@@ -75,7 +75,7 @@ export function enrich(raw, ctx) {
       const f = sane(analyzeTitle(ctxTitle, { expect }));
       if (!a.slugs.length && f.slugs.length) { a = { ...a, slugs: f.slugs }; fromFolder = true; }
       if (!a.hy && f.hy) a = { ...a, hy: f.hy };
-      if (!a.events.length && f.events.length) a = { ...a, events: f.events };
+      if (!a.events.length && f.events.length) a = { ...a, events: f.events, rcMonth: f.rcMonth };
     }
   }
 
@@ -108,7 +108,7 @@ export function enrich(raw, ctx) {
       date = findDate({ hy, slugs });
       if (date) how = 'parasha-year';
     } else if (hy && a.events.length) {
-      date = findDate({ hy, event: a.events[0] });
+      date = findDate({ hy, event: a.events[0], month: a.events[0] === 'rosh-chodesh' ? a.rcMonth : null });
       if (date) how = 'event-year';
     }
   }

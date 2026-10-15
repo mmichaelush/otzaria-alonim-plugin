@@ -272,37 +272,77 @@ export function detectParasha(tokens, { expect = [] } = {}) {
 
 // ---- events (special Shabbatot and festivals) ----------------------------
 
+// Phrases that name an event in a title (normalized by normalizeKey, so quotes and
+// maqaf do not matter). The longest phrase at a position wins, which is why
+// "חול המועד סוכות" beats "סוכות" and "שושן פורים" beats "פורים".
 const EVENT_PHRASES = [
   ['rosh-hashana', ['ראש השנה']],
+  ['tzom-gedaliah', ['צום גדליה']],
   ['yom-kippur', ['יום כיפור', 'יום הכיפורים', 'יום כיפורים', 'יו"כ']],
   ['shabbat-shuva', ['שבת שובה', 'שבת תשובה']],
-  ['sukkot', ['סוכות', 'הושענא רבה']],
-  ['shemini-atzeret', ['שמיני עצרת', 'שמחת תורה']],
+  ['sukkot', ['סוכות']],
+  ['chol-hamoed-sukkot', ['חול המועד סוכות', 'חוה"מ סוכות']],
+  ['hoshana-raba', ['הושענא רבה']],
+  ['shemini-atzeret', ['שמיני עצרת']],
+  ['simchat-torah', ['שמחת תורה']],
   ['chanukah', ['חנוכה']],
+  ['asara-btevet', ['עשרה בטבת']],
   ['shabbat-shirah', ['שבת שירה']],
   ['shabbat-shekalim', ['שבת שקלים']],
   ['shabbat-zachor', ['שבת זכור']],
+  ['taanit-esther', ['תענית אסתר']],
   ['purim', ['פורים']],
+  ['shushan-purim', ['שושן פורים']],
   ['shabbat-parah', ['שבת פרה']],
   ['shabbat-hachodesh', ['שבת החודש', 'שבת החדש']],
   ['shabbat-hagadol', ['שבת הגדול']],
   ['pesach', ['פסח', 'ליל הסדר']],
+  ['chol-hamoed-pesach', ['חול המועד פסח', 'חוה"מ פסח']],
+  ['shvii-shel-pesach', ['שביעי של פסח', 'אחרון של פסח']],
   ['shavuot', ['שבועות']],
+  ['shiva-asar-btammuz', ['י"ז בתמוז', 'שבעה עשר בתמוז']],
   ['shabbat-chazon', ['שבת חזון']],
   ['tisha-bav', ['תשעה באב', 'ט באב']],
   ['shabbat-nachamu', ['שבת נחמו']],
   ['tu-bishvat', ['טו בשבט']],
   ['lag-baomer', ['לג בעומר']],
+  ['rosh-chodesh', ['ראש חודש']],
 ].map(([slug, vs]) => ({ slug, phrases: vs.map((v) => normalizeKey(v).split(' ')) }));
 
-/** Events mentioned in the tokens, in text order: [{slug, from, to}]. */
+// Hebrew month names as they follow "ראש חודש" (Hebcal month names, see lib/events.mjs).
+const MONTH_WORDS = new Map([
+  ['תשרי', 'Tishrei'], ['חשוון', 'Cheshvan'], ['חשון', 'Cheshvan'], ['מרחשוון', 'Cheshvan'], ['מרחשון', 'Cheshvan'],
+  ['כסלו', 'Kislev'], ['טבת', 'Tevet'], ['שבט', "Sh'vat"], ['אדר', 'Adar'], ['ניסן', 'Nisan'], ['אייר', 'Iyyar'],
+  ['סיוון', 'Sivan'], ['סיון', 'Sivan'], ['תמוז', 'Tamuz'], ['אב', 'Av'], ['מנחם אב', 'Av'], ['אלול', 'Elul'],
+].map(([w, m]) => [normalizeKey(w), m]));
+
+/**
+ * Events mentioned in the tokens, in text order: [{slug, from, to, month?}].
+ * "ראש חודש חשוון" carries the month so the date can be found.
+ */
 export function detectEvents(tokens) {
   const out = [];
   for (let i = 0; i < tokens.length; i++) {
+    let best = null;
     for (const e of EVENT_PHRASES) {
-      const hit = e.phrases.find((ph) => ph.every((w, k) => tokens[i + k]?.n === w));
-      if (hit) { out.push({ slug: e.slug, from: i, to: i + hit.length }); i += hit.length - 1; break; }
+      for (const ph of e.phrases) {
+        if (ph.every((w, k) => tokens[i + k]?.n === w) && (!best || ph.length > best.len)) best = { slug: e.slug, len: ph.length };
+      }
     }
+    if (!best) continue;
+    const hit = { slug: best.slug, from: i, to: i + best.len };
+    if (best.slug === 'rosh-chodesh') {
+      const m = MONTH_WORDS.get(tokens[hit.to]?.n);
+      if (m) {
+        hit.month = m;
+        hit.to += 1;
+        // leap years: "אדר א׳" / "אדר ב׳"
+        const suffix = m === 'Adar' ? { 'א': 'Adar I', 'ב': 'Adar II' }[tokens[hit.to]?.n] : null;
+        if (suffix) { hit.month = suffix; hit.to += 1; }
+      }
+    }
+    out.push(hit);
+    i = hit.to - 1;
   }
   return out;
 }
@@ -499,6 +539,7 @@ export function analyzeTitle(text, { expect = [], parasha = true } = {}) {
   return {
     slugs: par ? par.slugs : [],
     events: events.map((e) => e.slug),
+    rcMonth: events.find((e) => e.slug === 'rosh-chodesh')?.month ?? null,
     hy,
     no: no ? no.no : null,
     noStrong: no ? no.strong : false,

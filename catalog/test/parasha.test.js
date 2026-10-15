@@ -141,3 +141,24 @@ test('years split by underscore or space, and the number nine that looks like a 
   assert.equal(analyzeTitle('פרשת נצבים וילך תשע').hy, 5770);
   assert.equal(analyzeTitle('גליון תשע"ז').hy, 5777);
 });
+
+test('events: festivals, fasts and Rosh Chodesh with its month; the longest phrase wins', () => {
+  const ev = (t) => analyzeTitle(t).events;
+  assert.deepEqual(ev('חול המועד סוכות'), ['chol-hamoed-sukkot']);
+  assert.deepEqual(ev('חוה"מ פסח תשפו'), ['chol-hamoed-pesach']);
+  assert.deepEqual(ev('שביעי של פסח'), ['shvii-shel-pesach']);
+  assert.deepEqual(ev('פסח'), ['pesach']);
+  assert.deepEqual(ev('שושן פורים'), ['shushan-purim']);
+  assert.deepEqual(ev('תענית אסתר פורים'), ['taanit-esther', 'purim']);
+  assert.deepEqual(ev('הושענא רבה'), ['hoshana-raba']);
+  assert.deepEqual(ev('שמיני עצרת - שמחת תורה'), ['shemini-atzeret', 'simchat-torah']);
+  assert.deepEqual(ev('י"ז בתמוז'), ['shiva-asar-btammuz']);
+  assert.deepEqual(ev('עשרה בטבת'), ['asara-btevet']);
+  assert.deepEqual(ev('צום גדליה'), ['tzom-gedaliah']);
+  const rc = analyzeTitle('ראש חודש חשוון תשפז');
+  assert.deepEqual(rc.events, ['rosh-chodesh']);
+  assert.equal(rc.rcMonth, 'Cheshvan');
+  assert.equal(analyzeTitle('ראש חודש אדר ב').rcMonth, 'Adar II');
+  assert.equal(analyzeTitle('ראש חודש').rcMonth, null);
+  assert.deepEqual(analyzeTitle('פרשת נח').events, []);
+});

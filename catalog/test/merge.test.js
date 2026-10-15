@@ -188,3 +188,21 @@ test('re-reading the previous catalog is a fixed point, even with ties and a re-
     prev = next;
   }
 });
+
+test('events: a festival title with a year gets the festival date of that Hebrew year; Rosh Chodesh needs its month', () => {
+  const it = (title, extra = {}) => enrich(raw({ src: 'tashma', ext: title, rawTitle: title, seriesHint: { title: 'X' }, addedAt: null, ...extra }), { now: NOW, aliasIndex: noAliases });
+  const chanukah = it('חנוכה תשפז');
+  assert.equal(chanukah.date, '2026-12-04');
+  assert.equal(chanukah.event, 'chanukah');
+  assert.equal(it('פורים תשפו').date, '2026-03-03');
+  assert.equal(it('סוכות תשפז').date, '2026-09-26');
+  const rc = it('ראש חודש חשוון תשפז');
+  assert.equal(rc.date, '2026-10-11');
+  assert.equal(rc.event, 'rosh-chodesh');
+  assert.equal(it('ראש חודש תשפז').date, null);
+  // the source's own date wins, and the row supplies the event: ladaat files Yom Kippur under 2026-09-21
+  const yk = enrich(raw({ src: 'ladaat', ext: '1', rawTitle: 'X יום הכיפורים', seriesHint: { title: 'X' }, dateHint: '2026-09-21' }), { now: NOW, aliasIndex: noAliases });
+  assert.equal(yk.event, 'yom-kippur');
+  assert.equal(yk.hy, 5787);
+  assert.deepEqual(yk.slugs, []);
+});
