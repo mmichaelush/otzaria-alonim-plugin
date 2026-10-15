@@ -330,6 +330,36 @@
     return allowed.some((h) => host === h || host.endsWith('.' + h));
   }
 
+  // ------------------------------------------- כתובות הנכסים מהקטלוג
+
+  /** מקודד רק תווים שאינם ASCII (עברית בנתיב); מה שכבר מקודד נשאר. */
+  const encodeNonAscii = (text) => text.replace(/[^\u0000-\u007F]+/g, (chunk) => encodeURIComponent(chunk));
+
+  const URL_FIELDS = ['url', 'page', 'thumb'];
+
+  /**
+   * המקום היחיד שבו כתובות הנכסים נבנות מהקטלוג (חוזה הדחיסה: `sources[]
+   * .urlTemplates` עם `{ext}` ו-`sources[].urlBase`). שדה מוחלט (`https://…`)
+   * נשאר; שדה חסר נבנה מתבנית המקור; שדה יחסי מתחבר ל-`urlBase`. תווים שאינם
+   * ASCII מקודדים כאן ורק כאן. מחזיר `{ url?, page?, thumb? }`.
+   */
+  function resolveAssetUrls(asset, source) {
+    const a = asset || {};
+    const templates = (source && source.urlTemplates) || {};
+    const out = {};
+    for (const field of URL_FIELDS) {
+      let value = a[field];
+      if ((value === undefined || value === null || value === '') && typeof templates[field] === 'string') {
+        value = templates[field].replace(/\{ext\}/g, a.ext === undefined || a.ext === null ? '' : String(a.ext));
+      } else if (typeof value === 'string' && value && !/^https?:\/\//i.test(value)) {
+        const base = source && (typeof source.urlBase === 'string' ? source.urlBase : source.urlBase && source.urlBase[field]);
+        if (base) value = String(base) + value;
+      }
+      if (typeof value === 'string' && value) out[field] = encodeNonAscii(value);
+    }
+    return out;
+  }
+
   // ------------------------------------------------------- שמות קבצים
 
   // תווים שאסורים בשם קובץ ב-Windows, תווי בקרה, וסימני כיוון שמבלבלים את
@@ -416,6 +446,8 @@
     matchesPrefix,
     isDownloadUrl,
     isSiteUrl,
+    resolveAssetUrls,
+    encodeNonAscii,
     sanitizeFileName,
     idFragment,
     downloadPath,

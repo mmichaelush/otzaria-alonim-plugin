@@ -77,7 +77,17 @@
       this.drawBody();
       const platformOk = !app.platform || IFRAME_PDF_PLATFORMS.includes(app.platform);
       try {
-        const file = await app.files.openForReading(s.item, (job) => {
+        // הכתובות אינן באינדקס שבזיכרון: קוראים אותן מקובץ השרד לפני ההורדה.
+        // קובץ שכבר בתיקייה נפתח בלי הכתובות (גם כשהקטלוג אינו זמין).
+        const full = app.files.isDownloaded(s.item) ? s.item : await app.full(s.item);
+        if (token !== this.token) return;
+        if (!full) {
+          s.phase = 'error';
+          s.error = 'missing_data';
+          this.drawBody();
+          return;
+        }
+        const file = await app.files.openForReading(full, (job) => {
           s.job = job;
           this.drawBody();
         });
@@ -293,8 +303,9 @@
       const { app } = this;
       const item = this.state.item;
       if (!app.files.isDownloaded(item)) {
-        const done = await app.files.enqueue(item, 'save').done;
-        if (done.status !== 'done') return { ok: false, reason: 'not_saved' };
+        const job = await app.queueSave(item);
+        const done = job && (await job.done);
+        if (!done || done.status !== 'done') return { ok: false, reason: 'not_saved' };
       }
       const outcome = await app.files.openInReader(item);
       if (outcome.ok) app.toast(t('נפתח בקורא של אוצריא'));

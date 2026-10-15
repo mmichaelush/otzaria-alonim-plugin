@@ -61,8 +61,15 @@
       }
       let i = weeks.findIndex((w) => w.date === this.app.view.weekDate);
       if (i < 0) {
+        // ברירת המחדל: השבת הקרובה (שורות חג שאינן שבת אינן ברירת מחדל).
+        const isShabbat = (k) => weeks[k] && weeks[k].shabbat !== false;
         i = index.weekFor(Core.ymd(today));
-        if (i > 0 && !index.forWeek(weeks[i]).length && index.forWeek(weeks[i - 1]).length) i--;
+        while (i < weeks.length - 1 && !isShabbat(i)) i++;
+        if (i > 0 && !index.forWeek(weeks[i]).length) {
+          let k = i - 1;
+          while (k > 0 && !isShabbat(k)) k--;
+          if (index.forWeek(weeks[k]).length) i = k;
+        }
       }
       return { ...weeks[i], i };
     }

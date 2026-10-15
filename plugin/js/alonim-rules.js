@@ -79,7 +79,7 @@
     return { ok: true, rules: out, dropped };
   }
 
-  const SOURCES_OF = (item) => (item.assets || []).map((a) => a.src);
+  const SOURCES_OF = (item) => item.srcs || (item.assets || []).map((a) => a.src);
 
   /**
    * מהדר את הכללים לפונקציית החלטה. [ctx]: `{ seriesTitle(item) }` — שם הסדרה
@@ -104,7 +104,7 @@
     // האינדקס מחשב את הנרמול פעם אחת לגיליון (`_ns`, `_nall`, `_nc`): החלטה
     // על 50,000 גיליונות אינה מנרמלת מחדש בכל שינוי כלל.
     const textOf = (item) => {
-      if (item._ns !== undefined) return { series: item._ns, all: item._nall };
+      if (item._ns !== undefined) return { series: item._ns, all: item._nall !== undefined ? item._nall : normalizeKey((item.seriesTitle || '') + ' ' + (item.title || '')) };
       const series = ctx && ctx.seriesTitle ? ctx.seriesTitle(item) : item.seriesTitle || '';
       return { series: normalizeKey(series), all: normalizeKey(series + ' ' + (item.title || '')) };
     };

@@ -151,6 +151,9 @@
     } else if (s.phase === 'downloading') {
       text = t('מעדכן: {done} מתוך {total}', { done: s.done, total: s.total });
       busy = true;
+    } else if (this.coldLoading) {
+      text = t('טוען שנים ישנות: {done} מתוך {total}', this.coldLoading);
+      busy = true;
     } else if (this.online === false || s.phase === 'offline') {
       text = t('ללא חיבור · הנתונים השמורים');
     } else if (s.phase === 'error' || s.phase === 'partial') {

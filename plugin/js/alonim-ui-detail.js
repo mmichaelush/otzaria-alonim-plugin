@@ -26,7 +26,13 @@
 
   // ------------------------------------------------------------- פרטים
 
-  function showDetails(app, item, ctx) {
+  /**
+   * פרטי גיליון. הכתובות אינן באינדקס שבזיכרון: קוראים אותן מקובץ השרד
+   * (`app.full`). אם אי אפשר, מציגים בלי פעולות שדורשות כתובת.
+   */
+  async function showDetails(app, item, ctx) {
+    const hydrated = await app.full(item);
+    const view = hydrated || item;
     const state = app.cardState(item);
     const decision = app.index.decision(item);
     const series = app.index.seriesById.get(item.series);
@@ -34,10 +40,10 @@
     const meta = Cards.metaParts(item).join(' · ');
     const preferred = app.state.preferredSource(item.series);
 
-    const assetRows = item.assets.map((asset) => {
+    const assetRows = view.assets.map((asset) => {
       const info = app.sourceInfo(asset.src);
-      const downloadable = asset.url && Core.isDownloadUrl(asset.url);
-      const limited = !asset.url || info.mode === 'link' || info.status === 'blocked';
+      const downloadable = Boolean(hydrated && asset.url && Core.isDownloadUrl(asset.url));
+      const limited = hydrated ? !asset.url || info.mode === 'link' || info.status === 'blocked' : Boolean(asset.noUrl) || info.mode === 'link';
       const facts = [asset.pages ? t('{n} עמ׳', { n: asset.pages }) : '', Core.formatBytes(asset.bytes), asset.downloads ? t('{n} הורדות', { n: Core.formatCount(asset.downloads) }) : ''].filter(Boolean).join(' · ');
       return el(
         'li',
@@ -51,18 +57,21 @@
           limited ? Ui.chip(t('קישור לאתר בלבד'), { kind: 'warn', icon: 'open_24_regular' }) : null,
           el('span', { class: 'asset-facts' }, facts),
           limited && info.note ? el('p', { class: 'asset-note', dir: 'auto' }, info.note) : null,
-          !downloadable && asset.url && !limited ? el('p', { class: 'asset-note' }, t('כתובת הקובץ טרם אושרה באוצריא: אפשר לפתוח באתר המקור.')) : null,
+          hydrated && !downloadable && asset.url && !limited ? el('p', { class: 'asset-note' }, t('כתובת הקובץ טרם אושרה באוצריא: אפשר לפתוח באתר המקור.')) : null,
+          !hydrated ? el('p', { class: 'asset-note' }, t('פרטי הכתובות אינם זמינים כרגע.')) : null,
         ),
         el(
           'div',
           { class: 'asset-actions' },
           downloadable ? Ui.button('tonal', t('הורדה מהמקור הזה'), () => { dlg.close(); app.download(item, asset.src); }, { icon: 'arrow_download_24_regular', className: 'button-small' }) : null,
-          item.assets.length > 1 && preferred !== asset.src ? Ui.button('text', t('הפוך למועדף'), () => { app.state.setSeries(item.series, { src: asset.src }); dlg.close(); showDetails(app, item, ctx); }, { className: 'button-small' }) : null,
+          view.assets.length > 1 && preferred !== asset.src ? Ui.button('text', t('הפוך למועדף'), () => { app.state.setSeries(item.series, { src: asset.src }); dlg.close(); showDetails(app, item, ctx); }, { className: 'button-small' }) : null,
           Ui.button('text', t('באתר המקור'), () => app.openSite(asset), { icon: 'open_24_regular', className: 'button-small' }),
         ),
       );
     });
 
+    // תמונה ממוזערת: רק אם המשתמש הפעיל, ורק מכתובת מותרת (פונה לאתר המקור).
+    const cover = hydrated && app.state.prefs.thumbs && app.online !== false ? ((view.assets.find((a) => a.thumb && Core.isDownloadUrl(a.thumb)) || {}).thumb || '') : '';
     const facts = el(
       'dl',
       { class: 'facts' },
@@ -87,6 +96,7 @@
       body: el(
         'div',
         { class: 'details' },
+        cover ? el('img', { class: 'details-cover', src: cover, alt: '', referrerpolicy: 'no-referrer', loading: 'lazy' }) : null,
         el('p', { class: 'details-meta', dir: 'auto' }, meta),
         el('div', { class: 'details-chips' }, [state.isNew ? Ui.chip(t('חדש'), { kind: 'new' }) : null, state.downloaded ? Ui.chip(t('הורד'), { kind: 'done', icon: 'checkmark_24_regular' }) : null, state.hidden ? Ui.chip(t('מוסתר'), { kind: 'hidden', icon: 'eye_off_24_regular' }) : null]),
         reasonLine,
@@ -95,9 +105,9 @@
           Ui.button('tonal', state.downloaded ? t('הורד') : t('הורדה'), () => { dlg.close(); app.download(item); }, { icon: state.downloaded ? 'checkmark_circle_24_filled' : 'arrow_download_24_regular', disabled: state.downloaded }),
           Ui.button('tonal', t('הדפסה'), () => { dlg.close(); app.print(item, ctx); }, { icon: 'document_pdf_24_regular' }),
         ),
-        el('h3', { class: 'details-section' }, t('העותקים הזמינים'), el('span', { class: 'section-count' }, String(item.assets.length))),
-        item.assets.length ? el('ul', { class: 'asset-list' }, assetRows) : el('p', { class: 'asset-note' }, t('אין עותקים בקטלוג לגיליון הזה.')),
-        item.assets.length > 1 ? el('p', { class: 'asset-note' }, t('יש עותקים נוספים. ההורדה והקריאה משתמשות במקור המועדף של הסדרה, ואם אין — בעותק הראשון.')) : null,
+        el('h3', { class: 'details-section' }, t('העותקים הזמינים'), el('span', { class: 'section-count' }, String(view.assets.length))),
+        view.assets.length ? el('ul', { class: 'asset-list' }, assetRows) : el('p', { class: 'asset-note' }, t('אין עותקים בקטלוג לגיליון הזה.')),
+        view.assets.length > 1 ? el('p', { class: 'asset-note' }, t('יש עותקים נוספים. ההורדה והקריאה משתמשות במקור המועדף של הסדרה, ואם אין — בעותק הראשון.')) : null,
         facts,
         el(
           'div',

@@ -283,7 +283,7 @@
       let n = 0;
       for (const item of items) {
         if (app.files.isDownloaded(item)) continue;
-        app.files.enqueue(item, 'save');
+        app.queueSave(item);
         n++;
       }
       app.toast(t('{n} גיליונות נוספו להורדה', { n }));
@@ -301,10 +301,8 @@
       }
       if (state.status === 'unknown') files.scan();
       const problem = state.status === 'revoked' ? t('הגישה לתיקייה בוטלה. בחרו אותה מחדש בהגדרות.') : state.status === 'missing' ? t('התיקייה אינה זמינה כרגע (כונן מנותק?). אפשר לנסות שוב אחרי שתחזור.') : state.status === 'error' ? t('לא הצלחנו לקרוא את התיקייה. אפשר לנסות שוב.') : '';
-      const byFragment = new Map();
-      for (const item of app.index.items) byFragment.set(Core.idFragment(item.id), item);
       const entries = [...files.disk.entries()].sort((a, b) => String(b[1].modified).localeCompare(String(a[1].modified)));
-      const items = entries.map(([fragment, e]) => byFragment.get(fragment) || pseudoItem({ id: 'i_' + fragment, ti: e.name.replace(/ \[[0-9a-f]{8}\]\.pdf$/i, ''), st: '', s: '', hy: 0, d: '', p: [], ev: '' }));
+      const items = entries.map(([fragment, e]) => app.index.byFragment(fragment) || pseudoItem({ id: 'i_' + fragment, ti: e.name.replace(/ \[[0-9a-f]{8}\]\.pdf$/i, ''), st: '', s: '', hy: 0, d: '', p: [], ev: '' }));
       const header = el(
         'div',
         { class: 'list-header' },

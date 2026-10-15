@@ -107,7 +107,7 @@ test('כללים: חסימה מפורשת > הרשאה מפורשת > כלל ס�
   assert.equal(idx.isVisible(sample), true, 'הרשאה על גיליון גוברת על כלל שם');
 
   idx.setRules({ ...base, mode: 'whitelist', rules: [rule('show', 'lang', 'yi')] });
-  for (const it of idx.items) assert.equal(idx.isVisible(it), it.lang === 'yi');
+  for (let i = 0; i < idx.size; i++) assert.equal(idx.isVisible(idx.item(i)), idx.item(i).lang === 'yi');
 
   idx.setRules(set());
   assert.equal(idx.search('', {}, {}, {}).total, 600);
@@ -142,15 +142,16 @@ test('סימולציה: כמה גיליונות ייעלמו ודוגמאות, �
   const { series, issues } = SMALL();
   const idx = build(issues, series);
   const lang = idx.item(0).lang;
-  const expected = idx.items.filter((it) => it.lang === lang).length;
+  let expected = 0;
+  for (let i = 0; i < idx.size; i++) if (idx.item(i).lang === lang) expected++;
   const rules = Rules.emptyRules();
-  const sim = Rules.simulate(rules, { action: 'hide', field: 'lang', value: lang }, idx.items, { seriesTitle: (it) => it.seriesTitle }, 3);
+  const sim = idx.simulate({ action: 'hide', field: 'lang', value: lang }, 3);
   assert.equal(sim.hides, expected);
   assert.equal(sim.examples.length, 3);
   assert.equal(rules.rules.length, 0);
-  const none = Rules.simulate(rules, { action: 'hide', field: 'lang', value: 'xx' }, idx.items, null);
+  const none = idx.simulate({ action: 'hide', field: 'lang', value: 'xx' });
   assert.equal(none.hides, 0);
-  assert.equal(Rules.simulate(rules, { action: 'bogus', field: 'lang', value: 'x' }, idx.items, null).total, 0);
+  assert.equal(idx.simulate({ action: 'bogus', field: 'lang', value: 'x' }).total, 0);
 });
 
 test('sanitize: סכימה, גרסה גבוהה, כללים פגומים נזרקים', () => {

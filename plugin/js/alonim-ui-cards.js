@@ -41,7 +41,7 @@
     const list = item.assets.slice(0, max || 3);
     for (const a of list) {
       const info = app.sourceInfo(a.src);
-      const limited = !a.url || info.mode === 'link' || info.status === 'blocked';
+      const limited = a.noUrl || info.mode === 'link' || info.status === 'blocked';
       chips.push(Ui.chip(info.name, { kind: limited ? 'warn' : 'source', icon: limited ? 'open_24_regular' : null, title: limited ? t('{name}: קישור לאתר המקור בלבד', { name: info.name }) : info.name }));
     }
     if (item.assets.length > list.length) chips.push(Ui.chip('+' + (item.assets.length - list.length), { title: t('עותקים נוספים') }));
@@ -140,7 +140,6 @@
       },
     };
 
-    const thumb = state.thumb ? el('img', { class: 'card-thumb', src: state.thumb, alt: '', loading: 'lazy', decoding: 'async', referrerpolicy: 'no-referrer' }) : null;
 
     if (mode === 'row') {
       return el(
@@ -156,7 +155,6 @@
     return el(
       'article',
       attrs,
-      thumb,
       el(
         'div',
         { class: 'card-main' },

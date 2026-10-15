@@ -270,6 +270,14 @@
       if (v.includeHidden) {
         parts.push(el('button', { type: 'button', class: 'link-button', onclick: () => { v.includeHidden = false; this.schedule(); } }, t('הסתר שוב את המוסתרים')));
       }
+      const cold = app.catalog.coldPending();
+      if (cold.shards && !v.filters.hy && !app.coldLoading) {
+        parts.push(el('button', { type: 'button', class: 'link-button', onclick: () => app.loadCold() }, t('כולל את השנים האחרונות בלבד. לטעינת {n} גיליונות ישנים נוספים', { n: Core.formatCount(cold.issues) })));
+      }
+      if (app.coldLoading) parts.push(el('span', {}, t('טוען שנים ישנות: {done} מתוך {total}', app.coldLoading)));
+      if (v.filters.hy && app.catalog.shardsOfYear(v.filters.hy).some((x) => !app.catalog.emitted.has('issues/' + x.id + '.json'))) {
+        parts.push(el('span', {}, t('טוען את שנת {y}…', { y: Core.hyLetters(v.filters.hy) })));
+      }
       const active = this.activeFilterCount();
       if (active || v.query) {
         parts.push(el('button', { type: 'button', class: 'link-button', onclick: () => this.reset() }, t('איפוס')));
@@ -329,13 +337,17 @@
       const setFilter = (key, value) => {
         if (value) v.filters[key] = value;
         else delete v.filters[key];
+        if (key === 'hy' && value) app.catalog.ensureYear(Number(value));
         this.schedule();
         this.updateCount();
       };
       const opt = (value, label) => ({ value, label });
       const all = (label) => opt('', label);
       const parashot = Object.keys(Core.PARASHOT).filter((p) => facets.parashot.has(p)).map((p) => opt(p, Core.parashaName(p) + ' (' + facets.parashot.get(p) + ')'));
-      const years = [...facets.years.keys()].sort((a, b) => b - a).map((y) => opt(String(y), Core.hyLetters(y) + ' (' + facets.years.get(y) + ')'));
+      // שנים: גם אלה שעוד לא נטענו (לפי המניפסט); בחירה בשנה כזו טוענת אותה.
+      const manifestYears = app.catalog.yearCounts();
+      const yearSet = new Set([...facets.years.keys(), ...manifestYears.keys()]);
+      const years = [...yearSet].sort((a, b) => b - a).map((y) => opt(String(y), Core.hyLetters(y) + ' (' + (facets.years.get(y) || manifestYears.get(y)) + ')'));
       const langs = Core.LANG_CODES.filter((l) => facets.langs.has(l)).map((l) => opt(l, Core.langName(l) + ' (' + facets.langs.get(l) + ')'));
       const sources = app.allSources().filter((s) => facets.sources.has(s.id)).map((s) => opt(s.id, s.name + ' (' + facets.sources.get(s.id) + ')'));
       const circles = [...facets.circles.keys()].sort().map((c) => opt(c, c + ' (' + facets.circles.get(c) + ')'));
@@ -638,7 +650,6 @@
       const { app } = this;
       const q = A.Index.parseQuery(app.view.seriesPage.query);
       const all = app.index.issuesOfSeries(this.seriesId, true);
-      const hay = (it) => app.index.hay[it._i];
       const matched = all.filter((i) => {
         if (!q.clauses.length) return true;
         return q.clauses.every((cl) => cl.alts.some((term) => (term.neg ? !app.index._termHit(i, term) : app.index._termHit(i, term))));
@@ -655,7 +666,6 @@
         this.rowsDesc[this.rowsDesc.length - 1].count++;
         this.rowsDesc.push({ item, k });
       });
-      void hay;
       this.listHost.querySelector('.state-card, .skeleton-list')?.remove();
       const loading = app.catalog.shards.length > app.catalog.status.shardsLoaded && !this.pageItems.length;
       this.list.root.hidden = !this.rowsDesc.length;

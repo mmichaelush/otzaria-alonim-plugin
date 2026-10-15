@@ -1,7 +1,11 @@
 // אינדקס בזיכרון על כל הגיליונות שנטענו: חיפוש, סינון, מיון, קיבוץ ושאילתות
-// מתקדמות. טהור: בלי DOM ובלי SDK. היעד: חיפוש על 50,000 גיליונות בפחות מ-50ms,
-// ולכן כל גיליון מקבל מחרוזת חיפוש מנורמלת אחת (`hay`), וההתאמה היא `includes`
-// של ' ' + מילה: התחלת מילה, בלי לפרק לטוקנים בזמן החיפוש.
+// מתקדמות. טהור: בלי DOM ובלי SDK.
+//
+// רזה בכוונה (הקטלוג האמיתי: 123 אלף גיליונות): עמודות של מספרים במקום אובייקט
+// לגיליון, מחרוזת חיפוש אחת (`hay`) לגיליון, ואין כתובות. מה שנדרש להורדה
+// ולפתיחה (url, page, thumb) נשאר בקבצי השרד ונקרא רק לפי דרישה
+// (`Catalog.hydrate`). `item(i)` בונה אובייקט גיליון לפי דרישה, עם מטמון קטן, ולכן
+// מי שמחזיק גיליון לא מחזיק עותק של העמודות. היעד: חיפוש <50ms.
 (function (root) {
   'use strict';
 
@@ -15,6 +19,8 @@
 
   const FIELDS = ['series', 'year', 'parasha', 'lang', 'source', 'circle'];
   const SORTS = ['relevance', 'new', 'date', 'alpha', 'size'];
+  const DAY_MS = 86400000;
+  const MATERIALIZED_MAX = 800;
 
   // ---------------------------------------------------------- שאילתות
 
@@ -34,15 +40,14 @@
       const known = FIELDS.includes(field);
       const quoted = m[3] !== undefined ? m[3] : m[4];
       let body = quoted !== undefined ? quoted : m[5];
-      let neg = m[1] === '-';
-      let useField = known ? field : '';
+      const useField = known ? field : '';
+      // "http:x" אינו שדה: נשאר טקסט רגיל.
       if (field && !known) body = (field + ':' + (body || '')).trim();
-      if (!known && field && quoted === undefined) neg = m[1] === '-';
       if (quoted === undefined && !useField && /^(OR|\|)$/.test(body)) {
         raw.push({ or: true });
         continue;
       }
-      raw.push({ field: useField, body, neg, phrase: quoted !== undefined && /\s/.test(quoted.trim()) });
+      raw.push({ field: useField, body, neg: m[1] === '-', phrase: quoted !== undefined && /\s/.test(quoted.trim()) });
     }
     const clauses = [];
     const tokens = [];
@@ -54,8 +59,7 @@
       }
       const term = makeTerm(part);
       if (!term) continue;
-      if (!term.neg && !term.field) for (const w of term.norm.split(' ')) if (w) tokens.push(w);
-      if (!term.neg && term.field === 'series') for (const w of term.norm.split(' ')) if (w) tokens.push(w);
+      if (!term.neg && (!term.field || term.field === 'series')) for (const w of term.norm.split(' ')) if (w) tokens.push(w);
       if (pendingOr && clauses.length) clauses[clauses.length - 1].alts.push(term);
       else clauses.push({ alts: [term] });
       pendingOr = false;
@@ -80,47 +84,140 @@
     return term;
   }
 
+  /** ערכים דינמיים (שפה, פרשה, אירוע) כמספרים קטנים בעמודה. */
+  class Dict {
+    constructor(initial) {
+      this.list = [''];
+      this.map = new Map();
+      for (const v of initial || []) this.id(v);
+    }
+
+    /** מספר לערך (מ-1; 0 = חסר). */
+    id(value) {
+      if (!value) return 0;
+      let n = this.map.get(value);
+      if (n === undefined) {
+        n = this.list.length;
+        this.list.push(value);
+        this.map.set(value, n);
+      }
+      return n;
+    }
+
+    get(n) {
+      return this.list[n] || '';
+    }
+  }
+
+  const dayOf = (text) => {
+    if (!text) return 0;
+    const m = /^(\d{4})-(\d{2})-(\d{2})/.exec(text);
+    return m ? Math.floor(Date.UTC(Number(m[1]), Number(m[2]) - 1, Number(m[3])) / DAY_MS) : 0;
+  };
+  const dateOfDay = (day) => (day ? new Date(day * DAY_MS).toISOString().slice(0, 10) : null);
+
   // ----------------------------------------------------------- אינדקס
 
   class CatalogIndex {
     /** [names]: `{ source(id) → שם }` לשמות מקורות בחיפוש. */
     constructor(names) {
       this.names = names || {};
-      this.items = [];
-      this.byId = new Map();
-      this.seriesById = new Map();
-      this.seriesAlias = new Map();
-      this.weeks = [];
-      this.sourceBits = new Map();
-      this.bySeries = new Map();
-      this.byDate = new Map();
-      this.byYearParasha = new Map();
+      this.n = 0;
+      this.idToI = new Map();
+      // עמודות
+      this.ids = [];
+      this.sidx = [];
+      this.hyc = [];
+      this.dayc = [];
+      this.addedc = [];
+      this.noc = [];
+      this.p1 = [];
+      this.p2 = [];
+      this.evc = [];
+      this.langc = [];
+      this.maskc = [];
+      this.titlec = [];
+      this.astart = [];
+      this.acount = [];
+      this.shardc = [];
       this.hay = [];
-      this.version = 0;
-      this._orders = new Map();
-      this._facets = null;
-      this._compiled = Rules.compile(Rules.emptyRules(), null);
-      this._rules = Rules.emptyRules();
       this.vis = [];
       this.nodl = [];
       this.pin = [];
+      // נכסים (שטוחים): מקור, גודל ב-KB, עמודים, הורדות, בלי קישור ישיר
+      this.aSrc = [];
+      this.aKb = [];
+      this.aPages = [];
+      this.aDl = [];
+      this.aNoUrl = [];
+      this.titles = [''];
+      this.titleMap = new Map();
+      this.langs = new Dict();
+      this.parashot = new Dict(Object.keys(Core.PARASHOT));
+      this.events = new Dict(Object.keys(Core.EVENTS));
+      this.shardIds = new Dict();
+      this.sourceBits = new Map();
+      this.sourceNames = [];
+      // סדרות: כולל "מקום שמור" לסדרה שעוד לא נטענה
+      this.seriesArr = [];
+      this.seriesIdx = new Map();
+      this.seriesById = new Map();
+      this.seriesAlias = new Map();
+      this.weeks = [];
+      this.pending = [];
+      this.bySeries = new Map();
+      this.byDay = new Map();
+      this.byYearParasha = new Map();
+      this._orders = new Map();
+      this._facets = null;
+      this._mat = new Map();
+      this._fragMap = null;
+      this._partCache = new Map();
+      this._rules = Rules.emptyRules();
+      this._compiled = Rules.compile(this._rules, null);
+      this.version = 0;
       this.lastBuildMs = 0;
+      this.needRegroup = false;
     }
 
-    // ------------------------------------------------------- בנייה
+    get size() {
+      return this.n;
+    }
+
+    // --------------------------------------------------------- סדרות
+
+    _seriesSlot(id) {
+      let k = this.seriesIdx.get(id);
+      if (k === undefined) {
+        k = this.seriesArr.length;
+        this.seriesArr.push({ id, title: '', _norm: '', _ntitle: '', _skey: '', _nc: '', circle: '', lang: '', placeholder: true });
+        this.seriesIdx.set(id, k);
+      }
+      return k;
+    }
 
     setSeries(list) {
       this.seriesById.clear();
       this.seriesAlias.clear();
       for (const s of Array.isArray(list) ? list : []) {
         if (!s || !s.id) continue;
-        s._norm = skey([s.title].concat(s.aliases || []).join(' '));
-        s._ntitle = norm(s.title);
-        this.seriesById.set(s.id, s);
+        const k = this._seriesSlot(s.id);
+        const slot = this.seriesArr[k];
+        Object.assign(slot, s);
+        slot.placeholder = false;
+        slot._ntitle = norm(s.title);
+        slot._skey = skey(s.title);
+        slot._norm = skey([s.title].concat(s.aliases || []).join(' '));
+        slot._nc = norm(s.circle || '');
+        this.seriesById.set(s.id, slot);
         for (const old of s.previousIds || []) this.seriesAlias.set(old, s.id);
       }
-      // כותרות הסדרות נכנסות לחיפוש של גיליונות שכבר נטענו.
-      for (let i = 0; i < this.items.length; i++) this._derive(this.items[i], i);
+      // גיליונות שנטענו לפני הסדרה שלהם מקבלים עכשיו את הכותרת.
+      const pending = this.pending;
+      this.pending = [];
+      for (const i of pending) this._derive(i);
+      this._rebuildGroups();
+      this._applyRules();
       this._invalidate();
     }
 
@@ -132,124 +229,206 @@
       return this.seriesById.has(id) ? id : this.seriesAlias.get(id) || id;
     }
 
+    seriesTitleOf(id) {
+      const s = this.seriesById.get(this.resolveSeriesId(id));
+      return s ? s.title : '';
+    }
+
     _sourceBit(id) {
       let bit = this.sourceBits.get(id);
       if (bit === undefined) {
         bit = this.sourceBits.size < 30 ? this.sourceBits.size : 30;
         this.sourceBits.set(id, bit);
+        this.sourceNames[bit] = id;
+        this._partCache.clear();
       }
       return bit;
     }
 
-    /** מחשב את השדות הנגזרים והמחרוזת לחיפוש. נקרא גם כשנטענות הסדרות. */
-    _derive(item, i) {
-      const series = this.seriesById.get(item.series);
-      item.seriesTitle = series ? series.title : item.title || '';
-      item.circleName = series && series.circle ? series.circle : '';
-      item._ns = norm(item.seriesTitle);
-      // רכיבים נפרדים ממוטמנים: מיליוני כותרות זהות אינן מנורמלות מחדש.
-      const sameTitle = !item.title || item.title === item.seriesTitle;
-      item._nall = sameTitle ? item._ns : item._ns + ' ' + norm(item.title);
-      item._nc = norm(item.circleName);
-      let mask = 0;
-      let names = '';
-      let bytes = 0;
-      let downloads = 0;
-      for (const a of item.assets) {
-        mask |= 1 << this._sourceBit(a.src);
-        names += ' ' + a.src + ' ' + (this.names.source ? this.names.source(a.src) || '' : '');
-        if (a.bytes > bytes) bytes = a.bytes;
-        if (a.downloads > downloads) downloads = a.downloads;
+    // ----------------------------------------------- חלקי מחרוזת חיפוש
+
+    _part(key, build) {
+      let v = this._partCache.get(key);
+      if (v === undefined) {
+        v = build();
+        this._partCache.set(key, v);
       }
-      item._mask = mask;
-      item._bytes = bytes;
-      item._dl = downloads;
-      const parashot = item.parasha.map((p) => Core.PARASHOT[p] || '').join(' ') + ' ' + item.parasha.join(' ');
-      const event = item.event ? (Core.EVENTS[item.event] || '') + ' ' + item.event : '';
-      item._parashaHay = ' ' + skey(parashot + ' ' + event) + ' ';
-      const langHay = ' ' + item.lang + ' ' + skey(Core.LANG_NAMES[item.lang] || '') + ' ';
-      item._langHay = langHay;
-      item._srcHay = ' ' + skey(names) + ' ';
-      const year = item.hy ? ' ' + item.hy + ' ' + skey(Core.hyLetters(item.hy)) + ' ' + (item.hy % 1000) : '';
-      this.hay[i] =
-        ' ' +
-        skey(item.seriesTitle) +
-        ' ' +
-        (sameTitle ? '' : skey(item.title) + ' ') +
-        skey(item.circleName) +
-        ' ' + (item.no ? item.no + ' ' : '') +
-        item._parashaHay.trim() +
-        year +
-        langHay.trimEnd() +
-        item._srcHay.trimEnd() +
-        ' ';
-      item._i = i;
+      return v;
     }
 
-    /** מוסיף או מחליף גיליונות לפי `id`. מחזיר כמה היו חדשים. */
-    addIssues(list) {
+    _parashaHay(p1, p2, ev) {
+      return this._part('p' + p1 + '/' + p2 + '/' + ev, () => {
+        const names = [p1, p2].filter(Boolean).map((p) => (Core.PARASHOT[this.parashot.get(p)] || '') + ' ' + this.parashot.get(p));
+        const event = ev ? (Core.EVENTS[this.events.get(ev)] || '') + ' ' + this.events.get(ev) : '';
+        return ' ' + skey(names.join(' ') + ' ' + event) + ' ';
+      });
+    }
+
+    _yearHay(hy) {
+      return this._part('y' + hy, () => (hy ? ' ' + hy + ' ' + skey(Core.hyLetters(hy)) + ' ' + (hy % 1000) + ' ' : ' '));
+    }
+
+    _langHay(lang) {
+      return this._part('l' + lang, () => ' ' + this.langs.get(lang) + ' ' + skey(Core.LANG_NAMES[this.langs.get(lang)] || '') + ' ');
+    }
+
+    _srcHay(mask) {
+      return this._part('s' + mask, () => {
+        let text = '';
+        for (const [id, bit] of this.sourceBits) if (mask & (1 << bit)) text += ' ' + id + ' ' + (this.names.source ? this.names.source(id) || '' : '');
+        return ' ' + skey(text) + ' ';
+      });
+    }
+
+    _srcsOfMask(mask) {
+      return this._part('m' + mask, () => {
+        const out = [];
+        for (const [id, bit] of this.sourceBits) if (mask & (1 << bit)) out.push(id);
+        return out;
+      });
+    }
+
+    /** מחרוזת החיפוש של גיליון: סדרה, כותרת, חוג, מספר, פרשה, שנה, שפה, מקורות. */
+    _derive(i) {
+      const k = this.sidx[i];
+      const s = this.seriesArr[k];
+      // אין כותרת סדרה עדיין: מחכים ל-setSeries.
+      if (s.placeholder) this.pending.push(i);
+      const title = this.titlec[i] ? this.titles[this.titlec[i]] : '';
+      this.hay[i] =
+        ' ' +
+        s._skey +
+        ' ' +
+        (title ? skey(title) + ' ' : '') +
+        (s.circle ? skey(s.circle) + ' ' : '') +
+        (this.noc[i] ? this.noc[i] + ' ' : '') +
+        this._parashaHay(this.p1[i], this.p2[i], this.evc[i]).slice(1) +
+        this._yearHay(this.hyc[i]).slice(1) +
+        this._langHay(this.langc[i]).slice(1) +
+        this._srcHay(this.maskc[i]).slice(1);
+    }
+
+    // ----------------------------------------------------------- בנייה
+
+    /**
+     * מוסיף או מחליף גיליונות לפי `id`. [shardId]: מאיזה קובץ הגיעו, לקריאת
+     * הפרטים המלאים אחר כך (`recent` לקובץ האחרונים). מחזיר כמה היו חדשים.
+     */
+    addIssues(list, shardId) {
       const started = typeof performance !== 'undefined' ? performance.now() : Date.now();
+      const shard = shardId ? this.shardIds.id(shardId) : 0;
+      const firstNew = this.n;
       let added = 0;
+      const sorted = new Set(this._orders.keys());
       for (const raw of Array.isArray(list) ? list : []) {
         if (!raw || typeof raw.id !== 'string') continue;
-        const item = raw;
-        item.assets = Array.isArray(item.assets) ? item.assets : [];
-        item.parasha = Array.isArray(item.parasha) ? item.parasha : item.parasha ? [item.parasha] : [];
-        item.lang = item.lang || 'he';
-        item._added = item.added ? Date.parse(item.added) || 0 : 0;
-        const d = item.date ? Core.parseYmd(item.date) : null;
-        item._date = d ? d.getTime() : 0;
-        item.series = this.resolveSeriesId(item.series);
-        let i = this.byId.get(item.id);
-        if (i === undefined) {
-          i = this.items.length;
-          this.items.push(item);
-          this.byId.set(item.id, i);
+        let i = this.idToI.get(raw.id);
+        const fresh = i === undefined;
+        if (fresh) {
+          i = this.n++;
+          this.idToI.set(raw.id, i);
+          this.ids[i] = raw.id;
           added++;
         } else {
-          this.items[i] = item;
+          this.needRegroup = true;
+          this._mat.delete(i);
         }
-        this._derive(item, i);
+        const series = this.resolveSeriesId(raw.series || '');
+        this.sidx[i] = this._seriesSlot(series);
+        const parasha = Array.isArray(raw.parasha) ? raw.parasha : raw.parasha ? [raw.parasha] : [];
+        this.hyc[i] = raw.hy || 0;
+        this.dayc[i] = dayOf(raw.date);
+        this.addedc[i] = raw.added ? Math.floor((Date.parse(raw.added) || 0) / 1000) : 0;
+        this.noc[i] = raw.no || 0;
+        this.p1[i] = this.parashot.id(parasha[0]);
+        this.p2[i] = this.parashot.id(parasha[1]);
+        this.evc[i] = this.events.id(raw.event);
+        this.langc[i] = this.langs.id(raw.lang || 'he');
+        const sTitle = this.seriesArr[this.sidx[i]].title;
+        const t = raw.title || '';
+        this.titlec[i] = t && t !== sTitle ? this._titleId(t) : 0;
+        // כותרת סדרה לא ידועה: הכותרת של הגיליון היא כל מה שיש.
+        if (!sTitle && t) this.titlec[i] = this._titleId(t);
+        this.shardc[i] = shard;
+        let mask = 0;
+        const assets = Array.isArray(raw.assets) ? raw.assets : [];
+        this.astart[i] = this.aSrc.length;
+        this.acount[i] = assets.length;
+        for (const a of assets) {
+          const bit = this._sourceBit(a.src);
+          mask |= 1 << bit;
+          this.aSrc.push(bit);
+          this.aKb.push(a.bytes ? Math.round(a.bytes / 1024) : 0);
+          this.aPages.push(a.pages || 0);
+          this.aDl.push(a.downloads || 0);
+          this.aNoUrl.push(a.url ? 0 : 1);
+        }
+        this.maskc[i] = mask;
+        this._derive(i);
+        if (!fresh && assets.length) {
+          // הנכסים של גיליון מוחלף נשמרים בסוף העמודות; הישנים נשארים יתומים (זניח).
+        }
       }
-      this._rebuildGroups();
-      this._applyRules();
-      this._invalidate();
+      if (this.needRegroup || this.bySeries.size === 0) this._rebuildGroups();
+      else this._appendGroups(firstNew);
+      this._applyRulesFrom(firstNew, this.needRegroup);
+      this._mergeOrders(sorted, firstNew);
+      this.needRegroup = false;
+      this._facets = null;
+      this._fragMap = null;
+      this.version++;
       this.lastBuildMs = (typeof performance !== 'undefined' ? performance.now() : Date.now()) - started;
       return added;
     }
 
-    _rebuildGroups() {
-      this.bySeries = new Map();
-      this.byDate = new Map();
-      this.byYearParasha = new Map();
-      for (let i = 0; i < this.items.length; i++) {
-        const it = this.items[i];
-        let arr = this.bySeries.get(it.series);
-        if (!arr) this.bySeries.set(it.series, (arr = []));
-        arr.push(i);
-        if (it.date) {
-          let d = this.byDate.get(it.date);
-          if (!d) this.byDate.set(it.date, (d = []));
+    _titleId(title) {
+      let n = this.titleMap.get(title);
+      if (n === undefined) {
+        n = this.titles.length;
+        this.titles.push(title);
+        this.titleMap.set(title, n);
+      }
+      return n;
+    }
+
+    _groupAdd(i) {
+      const sid = this.seriesArr[this.sidx[i]].id;
+      let arr = this.bySeries.get(sid);
+      if (!arr) this.bySeries.set(sid, (arr = []));
+      arr.push(i);
+      const day = this.dayc[i];
+      if (day) {
+        let d = this.byDay.get(day);
+        if (!d) this.byDay.set(day, (d = []));
+        d.push(i);
+      } else if (this.hyc[i]) {
+        for (const p of [this.p1[i], this.p2[i]]) {
+          if (!p) continue;
+          const key = this.hyc[i] + '|' + this.parashot.get(p);
+          let d = this.byYearParasha.get(key);
+          if (!d) this.byYearParasha.set(key, (d = []));
           d.push(i);
-        } else if (it.hy) {
-          for (const p of it.parasha) {
-            const key = it.hy + '|' + p;
-            let d = this.byYearParasha.get(key);
-            if (!d) this.byYearParasha.set(key, (d = []));
-            d.push(i);
-          }
         }
       }
+    }
+
+    _rebuildGroups() {
+      this.bySeries = new Map();
+      this.byDay = new Map();
+      this.byYearParasha = new Map();
+      for (let i = 0; i < this.n; i++) this._groupAdd(i);
+    }
+
+    _appendGroups(from) {
+      for (let i = from; i < this.n; i++) this._groupAdd(i);
     }
 
     _invalidate() {
       this._orders.clear();
       this._facets = null;
+      this._mat.clear();
+      this._fragMap = null;
       this.version++;
-    }
-
-    get size() {
-      return this.items.length;
     }
 
     // --------------------------------------------------------- כללים
@@ -257,71 +436,174 @@
     setRules(ruleset) {
       this._rules = ruleset || Rules.emptyRules();
       this._applyRules();
-      this._invalidate();
+      this._facets = null;
+      this._mat.clear();
+      this.version++;
+    }
+
+    _scratch() {
+      return { id: '', series: '', lang: '', title: '', srcs: [], _ns: '', _nall: undefined, _nc: '', _i: 0 };
+    }
+
+    _fill(v, i) {
+      const s = this.seriesArr[this.sidx[i]];
+      v.id = this.ids[i];
+      v.series = s.id;
+      v.lang = this.langs.get(this.langc[i]);
+      v.title = this.titlec[i] ? this.titles[this.titlec[i]] : s.title;
+      v.seriesTitle = s.title;
+      v.srcs = this._srcsOfMask(this.maskc[i]);
+      v._ns = s._ntitle;
+      v._nc = s._nc;
+      v._nall = this._needsAll ? norm(s.title + ' ' + v.title) : undefined;
+      v._i = i;
+      return v;
     }
 
     _applyRules() {
-      this._compiled = Rules.compile(this._rules, { seriesTitle: (it) => it.seriesTitle });
-      for (let i = 0; i < this.items.length; i++) {
-        const d = this._compiled.decide(this.items[i]);
+      this._applyRulesFrom(0, true);
+    }
+
+    /** מחשב החלטות. [from]: רק מהאינדקס הזה (גיליונות חדשים), אלא אם [all]. */
+    _applyRulesFrom(from, all) {
+      const seriesTitle = (it) => it.seriesTitle;
+      if (all || from === 0 || this._compiledRules !== this._rules) {
+        this._compiled = Rules.compile(this._rules, { seriesTitle });
+        this._compiledRules = this._rules;
+        this._needsAll = this._rules.rules.some((r) => r.field === 'pattern');
+        from = 0;
+      }
+      const v = this._scratch();
+      for (let i = from; i < this.n; i++) {
+        const d = this._compiled.decide(this._fill(v, i));
         this.vis[i] = d.action === 'show' ? 1 : 0;
         this.nodl[i] = d.noDownload ? 1 : 0;
         this.pin[i] = d.pin ? 1 : 0;
       }
     }
 
-    /** ההחלטה המלאה (עם הסיבה) לגיליון אחד. */
     decision(item) {
-      return this._compiled.decide(item);
+      const i = item._i !== undefined && item._i >= 0 ? item._i : this.idToI.get(item.id);
+      if (i === undefined) return this._compiled.decide({ ...item, srcs: (item.assets || []).map((a) => a.src), seriesTitle: item.seriesTitle });
+      return this._compiled.decide(this._fill(this._scratch(), i));
     }
 
     isVisible(item) {
-      return this.vis[item._i] === 1;
+      const i = item._i !== undefined && item._i >= 0 ? item._i : this.idToI.get(item.id);
+      return i === undefined ? true : this.vis[i] === 1;
+    }
+
+    /** כמה גיליונות ישתנו אם [candidate] יצטרף לכללים. ראו `Rules.simulate`. */
+    simulate(candidate, limit) {
+      const rule = Rules.cleanRule(candidate);
+      if (!rule) return { hides: 0, shows: 0, total: 0, examples: [] };
+      const ruleset = this._rules;
+      const next = { ...ruleset, rules: [...ruleset.rules.filter((r) => r.id !== rule.id), rule] };
+      const seriesTitle = (it) => it.seriesTitle;
+      const before = Rules.compile(ruleset, { seriesTitle });
+      const after = Rules.compile(next, { seriesTitle });
+      const saved = this._needsAll;
+      this._needsAll = next.rules.some((r) => r.field === 'pattern');
+      const v = this._scratch();
+      let hides = 0;
+      let shows = 0;
+      let total = 0;
+      const examples = [];
+      for (let i = 0; i < this.n; i++) {
+        this._fill(v, i);
+        const a = before.decide(v);
+        const b = after.decide(v);
+        if (a.action === b.action && a.noDownload === b.noDownload && a.pin === b.pin) continue;
+        total++;
+        if (a.action === 'show' && b.action === 'hide') hides++;
+        if (a.action === 'hide' && b.action === 'show') shows++;
+        if (examples.length < (limit || 5)) examples.push(this.item(i));
+      }
+      this._needsAll = saved;
+      return { hides, shows, total, examples };
     }
 
     // ----------------------------------------------------------- מיון
+
+    _cmp(key) {
+      const day = this.dayc;
+      const added = this.addedc;
+      const byDate = (a, b) => day[b] - day[a] || added[b] - added[a] || a - b;
+      if (key === 'new') return (a, b) => added[b] - added[a] || byDate(a, b);
+      if (key === 'size') {
+        const maxKb = (i) => {
+          let m = 0;
+          for (let k = this.astart[i]; k < this.astart[i] + this.acount[i]; k++) if (this.aKb[k] > m) m = this.aKb[k];
+          return m;
+        };
+        return (a, b) => maxKb(b) - maxKb(a) || byDate(a, b);
+      }
+      if (key === 'alpha') {
+        const nt = (i) => this.seriesArr[this.sidx[i]]._ntitle;
+        return (a, b) => {
+          const x = nt(a);
+          const y = nt(b);
+          return x < y ? -1 : x > y ? 1 : byDate(a, b);
+        };
+      }
+      return byDate;
+    }
 
     /** סדר האינדקסים לפי מיון, עם מטמון. `relevance` ללא שאילתה = לפי תאריך. */
     _order(sort) {
       const key = sort === 'relevance' ? 'date' : sort;
       let order = this._orders.get(key);
-      if (order) return order;
-      const items = this.items;
-      order = new Int32Array(items.length);
+      if (order && order.length === this.n) return order;
+      order = new Int32Array(this.n);
       for (let i = 0; i < order.length; i++) order[i] = i;
-      const byDate = (a, b) => items[b]._date - items[a]._date || items[b]._added - items[a]._added || a - b;
-      let cmp = byDate;
-      if (key === 'new') cmp = (a, b) => items[b]._added - items[a]._added || byDate(a, b);
-      else if (key === 'size') cmp = (a, b) => items[b]._bytes - items[a]._bytes || byDate(a, b);
-      else if (key === 'alpha') {
-        cmp = (a, b) => (items[a]._ns < items[b]._ns ? -1 : items[a]._ns > items[b]._ns ? 1 : byDate(a, b));
-      }
-      order.sort(cmp);
+      order.sort(this._cmp(key));
       this._orders.set(key, order);
       return order;
+    }
+
+    /** מיזוג גיליונות חדשים לסדרים שכבר מחושבים, במקום מיון מלא בכל שרד. */
+    _mergeOrders(keys, from) {
+      if (!keys.size) return;
+      if (this.needRegroup) {
+        this._orders.clear();
+        return;
+      }
+      for (const key of keys) {
+        const order = this._orders.get(key);
+        if (!order) continue;
+        const cmp = this._cmp(key);
+        const extra = [];
+        for (let i = from; i < this.n; i++) extra.push(i);
+        extra.sort(cmp);
+        const merged = new Int32Array(this.n);
+        let a = 0;
+        let b = 0;
+        let k = 0;
+        while (a < order.length && b < extra.length) merged[k++] = cmp(order[a], extra[b]) <= 0 ? order[a++] : extra[b++];
+        while (a < order.length) merged[k++] = order[a++];
+        while (b < extra.length) merged[k++] = extra[b++];
+        this._orders.set(key, merged);
+      }
     }
 
     // --------------------------------------------------------- חיפוש
 
     _termHit(i, term) {
-      const it = this.items[i];
       switch (term.field) {
         case 'year':
-          if (term.from) return it.hy >= term.from && it.hy <= term.to;
-          return String(it.hy || '').startsWith(term.norm);
+          if (term.from) return this.hyc[i] >= term.from && this.hyc[i] <= term.to;
+          return String(this.hyc[i] || '').startsWith(term.norm);
         case 'series':
-          return (' ' + skey(it.seriesTitle) + ' ').includes(' ' + term.norm);
+          return (' ' + this.seriesArr[this.sidx[i]]._skey + ' ').includes(' ' + term.norm);
         case 'parasha':
-          return it._parashaHay.includes(' ' + term.norm);
+          return this._parashaHay(this.p1[i], this.p2[i], this.evc[i]).includes(' ' + term.norm);
         case 'lang':
-          return it._langHay.includes(' ' + term.norm);
+          return this._langHay(this.langc[i]).includes(' ' + term.norm);
         case 'source':
-          return it._srcHay.includes(' ' + term.norm);
+          return this._srcHay(this.maskc[i]).includes(' ' + term.norm);
         case 'circle':
-          return it._nc.includes(term.norm);
+          return this.seriesArr[this.sidx[i]]._nc.includes(term.norm);
         default:
-          // כל מילה בנפרד כשזה לא ביטוי: "אסיפה נח" = שתי מילים בכל סדר.
-          if (term.phrase) return this.hay[i].includes(' ' + term.norm);
           return this.hay[i].includes(' ' + term.norm);
       }
     }
@@ -329,9 +611,8 @@
     /**
      * מריץ שאילתה. [filters]: `{ parasha, hy, lang, source, circle, series,
      * favorite, downloaded, unread, isNew }`. [ctx]: פרדיקטים למצב המשתמש:
-     * `{ isFavorite(item), isDownloaded(item), isRead(item), isNew(item),
-     * seriesBoost(item) }`. [options]: `{ sort, includeHidden }`.
-     * מחזיר `{ idx, total, hidden, ms }`, כש-`idx` רשימת אינדקסים מסודרת.
+     * `{ isFavorite(item), isDownloaded(item), isRead(item), isNew(item) }`.
+     * [options]: `{ sort, includeHidden }`. מחזיר `{ idx, total, hidden, ms }`.
      */
     search(query, filters, ctx, options) {
       const started = typeof performance !== 'undefined' ? performance.now() : Date.now();
@@ -339,50 +620,51 @@
       const f = filters || {};
       const c = ctx || {};
       const o = options || {};
-      let sort = SORTS.includes(o.sort) ? o.sort : 'relevance';
+      const sort = SORTS.includes(o.sort) ? o.sort : 'relevance';
       const hasText = q.clauses.length > 0;
-      if (sort === 'relevance' && !hasText) sort = 'relevance';
       const order = this._order(sort);
-      const items = this.items;
       const out = [];
       let hidden = 0;
       const bit = f.source && this.sourceBits.has(f.source) ? 1 << this.sourceBits.get(f.source) : 0;
       if (f.source && !bit) return { idx: out, total: 0, hidden: 0, ms: 0, query: q };
+      const langId = f.lang ? this.langs.map.get(f.lang) || -1 : 0;
+      const parId = f.parasha ? this.parashot.map.get(f.parasha) || 0 : 0;
+      const evId = f.parasha ? this.events.map.get(f.parasha) || 0 : 0;
+      if (f.parasha && !parId && !evId) return { idx: out, total: 0, hidden: 0, ms: 0, query: q };
+      const seriesK = f.series ? this.seriesIdx.get(this.resolveSeriesId(f.series)) : -1;
       const scores = hasText && sort === 'relevance' ? new Map() : null;
       const clauses = q.clauses;
+      const needItem = f.favorite || f.downloaded || f.unread || f.isNew;
       for (let k = 0; k < order.length; k++) {
         const i = order[k];
-        const it = items[i];
-        if (f.hy && it.hy !== f.hy) continue;
-        if (f.lang && it.lang !== f.lang) continue;
-        if (bit && !(it._mask & bit)) continue;
-        if (f.parasha && !it.parasha.includes(f.parasha) && it.event !== f.parasha) continue;
-        if (f.circle && it.circleName !== f.circle) continue;
-        if (f.series && it.series !== f.series) continue;
+        if (f.hy && this.hyc[i] !== f.hy) continue;
+        if (langId && this.langc[i] !== langId) continue;
+        if (bit && !(this.maskc[i] & bit)) continue;
+        if (parId || evId) {
+          if (!((parId && (this.p1[i] === parId || this.p2[i] === parId)) || (evId && this.evc[i] === evId))) continue;
+        }
+        if (f.circle && this.seriesArr[this.sidx[i]].circle !== f.circle) continue;
+        if (f.series && this.sidx[i] !== seriesK) continue;
         if (hasText) {
           let ok = true;
           let score = 0;
           for (let ci = 0; ci < clauses.length && ok; ci++) {
             const alts = clauses[ci].alts;
             let hit = false;
-            let negOnly = true;
             for (let ai = 0; ai < alts.length; ai++) {
               const term = alts[ai];
               const matched = this._termHit(i, term);
               if (term.neg) {
                 if (!matched) hit = true;
-              } else {
-                negOnly = false;
-                if (matched) {
-                  hit = true;
-                  if (scores && !term.field) {
-                    score += it._ns.startsWith(term.norm) ? 4 : (' ' + it._ns + ' ').includes(' ' + term.norm + ' ') ? 3 : (' ' + it._nall + ' ').includes(' ' + term.norm) ? 2 : 1;
-                  }
+              } else if (matched) {
+                hit = true;
+                if (scores && !term.field) {
+                  const ns = this.seriesArr[this.sidx[i]]._ntitle;
+                  score += ns.startsWith(term.norm) ? 4 : (' ' + ns + ' ').includes(' ' + term.norm + ' ') ? 3 : (' ' + ns).includes(' ' + term.norm) ? 2 : 1;
                 }
               }
             }
-            if (!hit && !negOnly) ok = false;
-            else if (!hit) ok = false;
+            if (!hit) ok = false;
           }
           if (!ok) continue;
           if (scores) scores.set(i, score);
@@ -391,10 +673,13 @@
           hidden++;
           continue;
         }
-        if (f.favorite && !(c.isFavorite && c.isFavorite(it))) continue;
-        if (f.downloaded && !(c.isDownloaded && c.isDownloaded(it))) continue;
-        if (f.unread && c.isRead && c.isRead(it)) continue;
-        if (f.isNew && !(c.isNew && c.isNew(it))) continue;
+        if (needItem) {
+          const it = this.item(i);
+          if (f.favorite && !(c.isFavorite && c.isFavorite(it))) continue;
+          if (f.downloaded && !(c.isDownloaded && c.isDownloaded(it))) continue;
+          if (f.unread && c.isRead && c.isRead(it)) continue;
+          if (f.isNew && !(c.isNew && c.isNew(it))) continue;
+        }
         out.push(i);
       }
       if (scores && out.length > 1) {
@@ -406,28 +691,80 @@
       return { idx: out, total: out.length, hidden, ms, query: q };
     }
 
-    // -------------------------------------------- קיבוץ ושליפות
+    // -------------------------------------------- גיליון, קיבוץ ושליפות
 
+    /** אובייקט גיליון (בלי כתובות) לפי אינדקס, עם מטמון קטן. */
     item(i) {
-      return this.items[i];
+      let it = this._mat.get(i);
+      if (it) return it;
+      const s = this.seriesArr[this.sidx[i]];
+      const assets = [];
+      for (let k = this.astart[i]; k < this.astart[i] + this.acount[i]; k++) {
+        assets.push({ src: this.sourceNames[this.aSrc[k]], bytes: this.aKb[k] * 1024, pages: this.aPages[k] || undefined, downloads: this.aDl[k] || undefined, noUrl: this.aNoUrl[k] === 1 });
+      }
+      const title = this.titlec[i] ? this.titles[this.titlec[i]] : s.title;
+      const parasha = [this.p1[i], this.p2[i]].filter(Boolean).map((p) => this.parashot.get(p));
+      let bytes = 0;
+      let downloads = 0;
+      for (const a of assets) {
+        if (a.bytes > bytes) bytes = a.bytes;
+        if ((a.downloads || 0) > downloads) downloads = a.downloads;
+      }
+      it = {
+        id: this.ids[i],
+        series: s.id,
+        seriesTitle: s.title || title,
+        title,
+        no: this.noc[i] || null,
+        date: dateOfDay(this.dayc[i]),
+        hy: this.hyc[i] || null,
+        parasha,
+        event: this.events.get(this.evc[i]) || null,
+        lang: this.langs.get(this.langc[i]),
+        pages: assets.length && assets[0].pages ? assets[0].pages : null,
+        added: this.addedc[i] ? new Date(this.addedc[i] * 1000).toISOString() : null,
+        assets,
+        circleName: s.circle || '',
+        _i: i,
+        _ns: s._ntitle,
+        _added: this.addedc[i] * 1000,
+        _date: this.dayc[i] * DAY_MS,
+        _bytes: bytes,
+        _dl: downloads,
+        _shard: this.shardIds.get(this.shardc[i]),
+      };
+      if (this._mat.size >= MATERIALIZED_MAX) this._mat.clear();
+      this._mat.set(i, it);
+      return it;
     }
 
     get(id) {
-      const i = this.byId.get(id);
-      return i === undefined ? null : this.items[i];
+      const i = this.idToI.get(id);
+      return i === undefined ? null : this.item(i);
+    }
+
+    /** האינדקס של גיליון שמזהה הקובץ שלו מסתיים ב-8 התווים האלה (מדיסק). */
+    byFragment(fragment) {
+      if (!this._fragMap) {
+        this._fragMap = new Map();
+        for (let i = 0; i < this.n; i++) this._fragMap.set(Core.idFragment(this.ids[i]), i);
+      }
+      const i = this._fragMap.get(fragment);
+      return i === undefined ? null : this.item(i);
     }
 
     /** גיליונות הסדרה, מהחדש לישן (לפי תאריך, אחר כך זמן הוספה). */
     issuesOfSeries(seriesId, includeHidden) {
       const list = (this.bySeries.get(this.resolveSeriesId(seriesId)) || []).filter((i) => includeHidden || this.vis[i] === 1);
-      const items = this.items;
-      return list.sort((a, b) => items[b]._date - items[a]._date || items[b]._added - items[a]._added || a - b);
+      const day = this.dayc;
+      const added = this.addedc;
+      return list.sort((a, b) => day[b] - day[a] || added[b] - added[a] || a - b);
     }
 
     /** האינדקסים של שבוע: לפי תאריך השבת, או לפי פרשה ושנה כשאין תאריך. */
     forWeek(week, includeHidden) {
       if (!week) return [];
-      const set = new Set(this.byDate.get(week.date) || []);
+      const set = new Set(this.byDay.get(dayOf(week.date)) || []);
       for (const p of (week.parasha || []).concat(week.parashaIL || [])) {
         for (const i of this.byYearParasha.get(week.hy + '|' + p) || []) set.add(i);
       }
@@ -440,14 +777,8 @@
       return weeks.length ? weeks.length - 1 : -1;
     }
 
-    seriesTitleOf(id) {
-      const s = this.seriesById.get(this.resolveSeriesId(id));
-      return s ? s.title : '';
-    }
-
-    /** כל הסדרות, מסודרות א-ב, עם `_norm` לחיפוש. */
+    /** כל הסדרות, מסודרות א-ב (עברית קודם), עם `_norm` לחיפוש. */
     seriesList() {
-      // כותרות בעברית קודם, ואחריהן שאר השפות.
       const rank = (s) => (/^[֐-׿]/.test(s._ntitle) ? 0 : 1);
       return [...this.seriesById.values()].sort((a, b) => rank(a) - rank(b) || (a._ntitle < b._ntitle ? -1 : a._ntitle > b._ntitle ? 1 : 0));
     }
@@ -475,21 +806,28 @@
       const sources = new Map();
       const circles = new Map();
       const bump = (map, key) => map.set(key, (map.get(key) || 0) + 1);
-      for (let i = 0; i < this.items.length; i++) {
+      for (let i = 0; i < this.n; i++) {
         if (this.vis[i] !== 1) continue;
-        const it = this.items[i];
-        if (it.hy) bump(years, it.hy);
-        for (const p of it.parasha) bump(parashot, p);
-        bump(langs, it.lang);
-        for (const a of it.assets) bump(sources, a.src);
-        if (it.circleName) bump(circles, it.circleName);
+        if (this.hyc[i]) bump(years, this.hyc[i]);
+        if (this.p1[i]) bump(parashot, this.parashot.get(this.p1[i]));
+        if (this.p2[i]) bump(parashot, this.parashot.get(this.p2[i]));
+        bump(langs, this.langs.get(this.langc[i]));
+        const mask = this.maskc[i];
+        for (const [id, b] of this.sourceBits) if (mask & (1 << b)) bump(sources, id);
+        const circle = this.seriesArr[this.sidx[i]].circle;
+        if (circle) bump(circles, circle);
       }
       this._facets = { years, parashot, langs, sources, circles };
       return this._facets;
     }
+
+    /** נתיב קבצי השרד שבהם מצוי הגיליון: `recent` או מזהה שרד. */
+    shardOf(item) {
+      return item._shard || '';
+    }
   }
 
-  const api = { CatalogIndex, parseQuery, FIELDS, SORTS };
+  const api = { CatalogIndex, parseQuery, FIELDS, SORTS, dayOf, dateOfDay };
   A.Index = api;
   if (typeof module === 'object' && module.exports) module.exports = api;
 })(typeof self !== 'undefined' ? self : globalThis);

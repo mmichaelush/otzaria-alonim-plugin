@@ -179,6 +179,11 @@
       if (phase === 'downloading') lines.push(Ui.progress(s.total ? (s.done / s.total) * 100 : 0, t('התקדמות הסנכרון'), s.total, s.done));
       if (s.schemaTooNew || s.pluginTooOld) lines.push(el('p', { class: 'setting-warn' }, icon('warning_24_regular'), t('יש גרסה חדשה של התוסף. עדכנו אותו מהחנות של אוצריא.')));
       lines.push(el('p', { class: 'setting-help' }, t('סנכרון אחרון תקין: {when} · נטענו {n} גיליונות ({loaded}/{total} קבצי שנים)', { when: when(s.lastOkAt), n: Core.formatCount(app.index.size), loaded: s.shardsLoaded, total: s.shardsTotal })));
+      const cold = app.catalog.coldPending();
+      if (cold.shards) {
+        lines.push(el('p', { class: 'setting-help' }, t('הקטלוג המלא גדול מכדי לשמור ולהחזיק כולו: נטענות השנים האחרונות. {n} גיליונות ישנים נוספים ({size}) נטענים לפי דרישה.', { n: Core.formatCount(cold.issues), size: Core.formatBytes(cold.bytes) })));
+        lines.push(Ui.button('outlined', t('טעינת השנים הישנות'), () => app.loadCold(), { icon: 'cloud_arrow_down_24_regular', className: 'button-small', busy: Boolean(app.coldLoading), busyLabel: t('טוען…') }));
+      }
       lines.push(Ui.button('tonal', t('סנכרון עכשיו'), () => app.catalog.sync({ force: false }), { icon: 'arrow_sync_24_regular', className: 'button-small', busy: phase === 'checking' || phase === 'downloading', busyLabel: t('מסנכרן…') }));
       return lines;
     }
@@ -328,7 +333,7 @@
         box.replaceChildren(el('p', { class: 'setting-help' }, t('בחרו ערך כדי לראות כמה גיליונות הכלל ישנה.')));
         return;
       }
-      const sim = Rules.simulate(app.state.rules, { action: d.action, field: d.field, value: d.value }, app.index.items, { seriesTitle: (it) => it.seriesTitle }, 4);
+      const sim = app.index.simulate({ action: d.action, field: d.field, value: d.value }, 4);
       let text;
       if (d.action === 'hide' || d.action === 'show') {
         text = d.action === 'hide' ? t('כלל זה יסתיר {n} גיליונות', { n: Core.formatCount(sim.hides) }) : t('כלל זה יציג {n} גיליונות שמוסתרים עכשיו', { n: Core.formatCount(sim.shows) });

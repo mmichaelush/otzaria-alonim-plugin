@@ -44,6 +44,7 @@
     missing_file: N('הקובץ נמחק מהתיקייה. אפשר להוריד אותו שוב.'),
     open_failed: N('אוצריא לא הצליחה לפתוח את הקובץ.'),
     cancelled: N('ההורדה בוטלה.'),
+    missing_data: N('פרטי הגיליון אינם זמינים כרגע (הקטלוג עדיין נטען, או שאין חיבור). אפשר לנסות שוב או לפתוח באתר המקור.'),
     forbidden_folder: N('אוצריא אינה מאפשרת לבחור את התיקייה הזו (תיקיית מערכת או שורש כונן). בחרו תיקייה ייעודית, למשל תחת "מסמכים".'),
     pick_failed: N('בחירת התיקייה נכשלה.'),
   });
@@ -159,6 +160,22 @@
       if (value && was === false) this.catalog.sync();
     }
 
+    /** "שנים ישנות": טוען את השרדים הקרים (לא נטענים אוטומטית, בגלל הנפח). */
+    async loadCold() {
+      if (this.coldLoading) return;
+      const pending = this.catalog.coldPending();
+      if (!pending.shards) return;
+      this.coldLoading = { done: 0, total: pending.shards };
+      this.emit('sync');
+      const ok = await this.catalog.loadCold((done, total) => {
+        this.coldLoading = { done, total };
+        this.emit('sync');
+      });
+      this.coldLoading = null;
+      this.emit('sync');
+      this.toast(ok ? t('שנים ישנות נטענו') : t('חלק מהשנים הישנות לא נטענו. אפשר לנסות שוב.'), { error: !ok });
+    }
+
     suspend() {
       this.suspended = true;
       this.catalog.suspend();
@@ -197,9 +214,9 @@
       } else if (event.kind === 'weeks') {
         this.index.setWeeks(event.data);
       } else {
-        this.index.addIssues(event.data);
+        // האינדקס זוכר מאיזה קובץ הגיליון הגיע, לקריאת הכתובות לפי דרישה.
+        this.index.addIssues(event.data, event.id);
       }
-      this.index.setRules(this.state.rules);
       this.dataVersion++;
       // כמה שרדים ברצף = ציור אחד, לא אחד לכל שרד.
       clearTimeout(this.dataTimer);
@@ -232,14 +249,29 @@
 
     // -------------------------------------------------- מצב כרטיס
 
+    /**
+     * "חדש": נוסף בשבוע האחרון ולא נקרא. ייבוא המוני של ארכיון (tashma) נותן
+     * לגיליונות ישנים `added` חדש, ולכן גיליון עם תאריך שבת ישן אינו חדש.
+     */
     isNew(item) {
-      return item._added > this.newCutoff && !this.state.isRead(item.id);
+      if (!(item._added > this.newCutoff) || this.state.isRead(item.id)) return false;
+      return !item._date || item._date > Date.now() - 70 * DAY_MS;
     }
 
-    thumbOf(item) {
-      if (!this.state.prefs.thumbs || this.online === false) return '';
-      for (const a of item.assets) if (a.thumb && Core.isDownloadUrl(a.thumb)) return a.thumb;
-      return '';
+    /**
+     * הגיליון המלא (עם כתובות): הקטלוג בזיכרון רזה, והכתובות נקראות מקובץ
+     * השרד רק כשצריך להוריד או לפתוח. `null` כשלא נמצא.
+     */
+    async full(item) {
+      if (item._full) return item;
+      this.fullCache = this.fullCache || new Map();
+      if (this.fullCache.has(item.id)) return this.fullCache.get(item.id);
+      const full = await this.catalog.hydrate(item);
+      if (full) {
+        this.fullCache.set(item.id, full);
+        if (this.fullCache.size > 40) this.fullCache.delete(this.fullCache.keys().next().value);
+      }
+      return full;
     }
 
     cardState(item) {
@@ -256,7 +288,6 @@
         hiddenReason: hidden ? A.Rules.reasonText(decision, this.ruleNames(), this.state.rules.mode) : '',
         pinned: decision.pin,
         noDownload: decision.noDownload,
-        thumb: this.thumbOf(item),
       };
     }
 
@@ -383,7 +414,8 @@
       if (decision.noDownload) {
         this.toast(t('לפי כלל סינון, גיליון זה אינו מורד אוטומטית. אפשר לפתוח אותו לקריאה.'), { error: false });
       }
-      const job = this.files.enqueue(item, 'save', src);
+      const job = await this.queueSave(item, src);
+      if (!job) return;
       this.toast(t('מוסיף להורדה: {title}', { title: Core.sanitizeFileName(item.seriesTitle || item.title, 40) }));
       const done = await job.done;
       if (done.status === 'done') {
@@ -391,6 +423,19 @@
       } else if (done.status === 'failed') {
         this.downloadFailed(item);
       }
+    }
+
+    /**
+     * מוסיף לתור ההורדות (שמירה קבועה) אחרי שהפרטים המלאים (הכתובות) נקראו.
+     * `null` כשהם אינם זמינים: מודיעים, ואפשר לנסות שוב או לפתוח באתר.
+     */
+    async queueSave(item, src) {
+      const full = await this.full(item);
+      if (!full) {
+        this.toast(this.fileErrorText('missing_data'), { error: true });
+        return null;
+      }
+      return this.files.enqueue(full, 'save', src);
     }
 
     /** תיבת בירור אחרי כשל: מה קרה, ומה אפשר לעשות. */
@@ -404,9 +449,9 @@
     }
 
     /** פתיחת דף הגיליון/האתר של המקור המועדף. */
-    openSiteFor(item) {
-      const asset = this.pickSiteAsset(item);
-      return this.openSite(asset);
+    async openSiteFor(item) {
+      const full = (await this.full(item)) || item;
+      return this.openSite(this.pickSiteAsset(full));
     }
 
     pickSiteAsset(item) {
@@ -443,15 +488,18 @@
         }
       }
       candidates.sort((a, b) => b._added - a._added);
+      const start = count;
+      const picked = [];
       for (const item of candidates) {
         if (count >= prefs.autoDownloadCap) break;
-        this.files.enqueue(item, 'save');
+        picked.push(item);
         count++;
       }
-      if (count !== (prefs.autoDay === today ? prefs.autoCount : 0)) {
+      if (count !== start) {
         this.state.setPref('autoDay', today);
         this.state.setPref('autoCount', count);
       }
+      for (const item of picked) this.queueSave(item);
     }
 
     // ----------------------------------------------------- אוספים
