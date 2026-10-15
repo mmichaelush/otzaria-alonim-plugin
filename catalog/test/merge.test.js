@@ -230,3 +230,11 @@ test('aliases: the canonical title is the one shown, the others are aliases', ()
   assert.equal(series[0].title, 'אסיפת גליונות');
   assert.deepEqual(series[0].aliases, ['אסיפת גליונות - ליקוט']);
 });
+
+test('a source-dated copy keeps the Israel reading its title names (2026-06-20: diaspora Korach, Israel Chukat)', () => {
+  const at = (rawTitle) => enrich(raw({ src: 'ladaat', ext: rawTitle, rawTitle: `X ${rawTitle}`, seriesHint: { title: 'X' }, dateHint: '2026-06-20' }), { now: NOW, aliasIndex: noAliases });
+  assert.deepEqual(at('חקת').slugs, ['chukat'], 'Israel-only reading named by the title');
+  assert.deepEqual(at('פרשת קרח').slugs, ['korach']);
+  assert.deepEqual(at('פרשת שלח').slugs, ['korach'], 'a name that is neither reading: the diaspora reading of the week');
+  assert.equal(at('חקת').date, '2026-06-20');
+});

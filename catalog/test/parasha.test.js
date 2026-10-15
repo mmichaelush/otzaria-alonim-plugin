@@ -192,3 +192,27 @@ test('relaxed mode (weekly series): ends the title, number, short year or file n
   assert.deepEqual(r('בא לפרעה ואמר'), [], 'a name in the middle of a sentence');
   assert.deepEqual(r('בא ועקב'), [], 'two relaxed candidates: no guess');
 });
+
+test('a Hebrew numeral after גליון is the issue number when another portion names the week (צו=96, נח=58, שלח=338)', () => {
+  const cases = [
+    ['כתר שם טוב - גליון צו - ויחי תשפו', ['vayechi'], 96],
+    ['גליון נ"ח - פרשת תולדות', ['toldot'], 58],
+    ['ובחרת בחיים - גליון שלח - פרשת תולדות תשפו', ['toldot'], 338],
+    ['מכתלי בית הדין - גיליון שלח פרשת כי תשא תשפו', ['ki-tisa'], 338],
+    ['בדרכו אמונה גליון של"ח יארצייט - פר\' כי תשא', ['ki-tisa'], 338],
+    ['חידושו של מקרא גיליון צו - חיי שרה', ['chayei-sara'], 96],
+  ];
+  for (const [title, slugs, no] of cases) {
+    const a = analyzeTitle(title);
+    assert.deepEqual(a.slugs, slugs, title);
+    assert.equal(a.no, no, title);
+  }
+});
+
+test('"גליון צו" with no other portion stays the portion (that is how bulletins are titled); ordinary words are not numbers', () => {
+  assert.deepEqual(analyzeTitle('גליון צו').slugs, ['tzav']);
+  assert.deepEqual(analyzeTitle('גליון שלח').slugs, ['shlach']);
+  assert.equal(analyzeTitle('גליון שני').no, null);
+  assert.equal(analyzeTitle('גליון שבת').no, null);
+  assert.equal(analyzeTitle('קובץ דרישה וחקירה גליון ריד - אמור בהר תשפ"ד').no, 214);
+});

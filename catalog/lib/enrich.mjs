@@ -195,10 +195,12 @@ function applyCalendarRow(date, slugs, how, a, notes, T) {
   const row = weekRowOf(date);
   if (!row) return { slugs, event: a.events[0] ?? null };
   const within = (set) => slugs.length > 0 && slugs.every((x) => set.includes(x));
-  const textDated = how !== 'source-date' && how !== 'week-label';
+  // The source's own date or week label only says WHICH week; the reading of that week still comes from what the
+  // title names. An Israeli source (ladaat) dates by the Israel calendar and titles "חקת" in the week the diaspora
+  // reads Korach: that copy keeps the Israel reading (it was 1,630 of 21,831 ladaat copies, found by tools/audit-dates.mjs).
   let out;
-  if (textDated && within(row.parasha)) out = row.parasha;
-  else if (textDated && within(row.parashaIL)) out = row.parashaIL;
+  if (within(row.parasha)) out = row.parasha;
+  else if (within(row.parashaIL)) out = row.parashaIL;
   else out = row.parasha.length ? row.parasha : row.parashaIL;
   if (how === 'source-date' && a.slugs.length && !a.slugs.every((s) => row.parasha.includes(s) || row.parashaIL.includes(s))) {
     notes.push('title-parasha-differs');

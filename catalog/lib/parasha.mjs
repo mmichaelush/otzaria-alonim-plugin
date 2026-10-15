@@ -297,6 +297,25 @@ export function detectParasha(tokens, { expect = [], relaxed = false } = {}) {
   return { slugs, from, to };
 }
 
+/**
+ * "גליון צו - ויחי", "גיליון נח - פרשת תולדות": a Hebrew numeral right after גליון is the issue number (צו = 96,
+ * נח = 58, שלח = 338), and it only looks like a portion because numerals and portion names share letters.
+ * When the title names ANOTHER portion as well, the numeral reading is the one that explains both words, so the
+ * name is read as the number and the other portion decides the week. With no other portion ("גליון צו" alone)
+ * the name stays a portion: that is how bulletins are usually titled.
+ */
+function detectParashaNotIssueNumber(tokens, opts) {
+  const par = detectParasha(tokens, opts);
+  if (!par || par.slugs.length !== 1 || par.to - par.from !== 1 || par.from === 0) return par;
+  const word = tokens[par.from];
+  if (!GILYON.has(tokens[par.from - 1].n) || !/^[א-ת]{1,3}$/.test(word.n) || NOT_NUMERAL.has(word.n)) return par;
+  const g = gematria(word.n);
+  if (!g || g > 400) return par;
+  // the numeral reading takes the word out of the running (an empty token matches no name)
+  const masked = tokens.map((t, i) => (i === par.from ? { ...t, n: '', w: '' } : t));
+  return detectParasha(masked, opts) || par;
+}
+
 // ---- events (special Shabbatot and festivals) ----------------------------
 
 // Phrases that name an event in a title (normalized by normalizeKey, so quotes and
@@ -430,9 +449,9 @@ export function detectHebrewYear(tokens) {
 // ---- issue number ----------------------------------------------------------
 
 const NO_PREFIX = N(['גליון', 'גיליון', 'גל', 'מס', 'מספר', 'no', 'nr', 'number', 'issue']);
-const GEMATRIA = { ...TENS, ...UNITS, 'ק': 100, 'ר': 200 };
+const GEMATRIA = { ...TENS, ...UNITS, 'ק': 100, 'ר': 200, 'ש': 300, 'ת': 400 };
 const GILYON = N(['גליון', 'גיליון']);
-const NOT_NUMERAL = N(['של', 'על', 'לשבת', 'מיוחד', 'חדש', 'כפול', 'בלבד', 'אחד', 'עם', 'את', 'אל', 'זה', 'לפרשת', 'מס', 'מספר']);
+const NOT_NUMERAL = N(['שני', 'שלי', 'שלו', 'שלם', 'של', 'על', 'לשבת', 'מיוחד', 'חדש', 'כפול', 'בלבד', 'אחד', 'עם', 'את', 'אל', 'זה', 'לפרשת', 'מס', 'מספר']);
 const COUNT_UNITS = N(['ימים', 'עמודים', 'עמוד', 'דקות', 'עמ', 'שקלים']);
 
 function gematria(n) {
@@ -554,7 +573,7 @@ export function analyzeTitle(text, { expect = [], parasha = true, relaxed = fals
   const tokens = tokenize(stripFileNoise(text));
   const yr = detectHebrewYear(tokens);
   const events = detectEvents(tokens);
-  const par = parasha ? detectParasha(tokens, { expect, relaxed }) : null;
+  const par = parasha ? detectParashaNotIssueNumber(tokens, { expect, relaxed }) : null;
   const drop = new Set();
   let hy = yr ? yr.hy : null;
   if (par) {
