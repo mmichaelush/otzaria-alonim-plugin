@@ -168,3 +168,23 @@ test('a year far in the future is a misreading and is ignored', () => {
   const ok = enrich(raw({ src: 'tashma', ext: '2', rawTitle: 'פרשת נח תשפח', seriesHint: { title: 'X' }, addedAt: null }), { now: NOW, aliasIndex: noAliases });
   assert.equal(ok.hy, 5788); // next year is fine (issues are published ahead)
 });
+
+test('re-reading the previous catalog is a fixed point, even with ties and a re-observed copy', () => {
+  // an ambiguous week (two unnumbered ladaat issues, one gilyoines copy) must not flip between runs
+  const l1 = raw({ src: 'ladaat', ext: '1', rawTitle: 'מעדני שבת נח', seriesHint: { title: 'מעדני שבת' }, dateHint: '2026-10-17' });
+  const l2 = raw({ src: 'ladaat', ext: '2', rawTitle: 'מעדני שבת נח', seriesHint: { title: 'מעדני שבת' }, dateHint: '2026-10-17' });
+  const g = raw({ src: 'gilyoines', ext: '3', rawTitle: 'מעדני שבת', seriesHint: { title: 'מעדני שבת' }, weekHint: { id: 224, name: 'נח', refTime: '2026-09-29T19:43:00Z' } });
+  const all = [l1, l2, g, ladaatAsifat, tashmaAsifat, gilAsifat];
+  const first = build(all);
+  let prev = { series: first.series, issues: first.issues };
+  for (let round = 0; round < 3; round++) {
+    const { items, prevAdded, cidByKey } = itemsFromPrev(prev, { aliasIndex: noAliases });
+    // the connectors report one copy again (fresh item replaces the reconstructed one)
+    const fresh = enrich(l1, { now: NOW, aliasIndex: noAliases });
+    fresh.cid = cidByKey.get('ladaat:1');
+    const next = mergeAll([...items.filter((i) => !(i.src === 'ladaat' && i.ext === '1')), fresh], { now: NOW, prevAdded, aliasIndex: noAliases });
+    assert.deepEqual(next.issues, first.issues, `round ${round}`);
+    assert.deepEqual(next.series, first.series, `round ${round}`);
+    prev = next;
+  }
+});

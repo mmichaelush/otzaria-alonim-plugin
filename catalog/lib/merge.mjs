@@ -42,8 +42,19 @@ function score(cluster, it) {
 /** Clusters one group's items into issues. */
 export function clusterItems(items) {
   const sorted = [...items].sort((a, b) => rank(a.src) - rank(b.src) || (a.ext < b.ext ? -1 : a.ext > b.ext ? 1 : 0));
+  // Copies that a previous run already joined stay together (`cid` = the earlier issue id):
+  // re-reading the catalog must not reshuffle decisions, or every run would be a new commit.
   const clusters = [];
+  const byCid = new Map();
+  const loose = [];
   for (const it of sorted) {
+    if (!it.cid) { loose.push(it); continue; }
+    let c = byCid.get(it.cid);
+    if (!c) { c = { items: [] }; byCid.set(it.cid, c); clusters.push(c); }
+    if (c.items.some((x) => x.src === it.src)) loose.push(it); // never two copies of one source in an issue
+    else c.items.push(it);
+  }
+  for (const it of loose) {
     const cands = clusters.filter((c) => compatible(c, it));
     let target = null;
     if (cands.length) {
@@ -63,7 +74,6 @@ function buildIssue(cluster, { now, prevAdded }) {
   const items = [...cluster.items].sort((a, b) => rank(a.src) - rank(b.src) || (a.ext < b.ext ? -1 : 1));
   const lead = items[0];
   const no = first(items.filter((i) => i.noStrong), (i) => i.no) ?? first(items, (i) => i.no);
-  const variant = first(items, (i) => i.variant) || '';
   const slugs = lead.slugs;
   const assets = items.map((i) => {
     const a = { ...i.asset };
@@ -86,7 +96,6 @@ function buildIssue(cluster, { now, prevAdded }) {
     added,
     assets,
     _base: `${lead.series.id}|${lead.hy ?? ''}|${slugs.join('+') || lead.event || lead.date || ''}|${no ?? ''}`,
-    _variant: variant,
     _first: `${lead.src}:${lead.ext}`,
   };
   return issue;
@@ -105,14 +114,15 @@ export function mergeAll(items, { now, prevAdded = null, aliasIndex = null } = {
   const issues = [];
   for (const g of groups.values()) for (const c of clusterItems(g)) issues.push(buildIssue(c, { now, prevAdded }));
 
-  // Ids: stable hash; when two distinct issues share it (same week, same number, no contradiction
-  // but not mergeable), the first copy's identity tells them apart.
+  // Ids: stable hash; when two distinct issues share it (same week, same number, but not
+  // mergeable), the lead copy's source id tells them apart. Nothing derived from titles goes in,
+  // so re-reading the catalog never renames an issue.
   const counts = new Map();
   for (const i of issues) counts.set(i._base, (counts.get(i._base) || 0) + 1);
   for (const i of issues) {
-    const base = counts.get(i._base) > 1 ? `${i._base}|${i._variant}|${i._first}` : i._base;
+    const base = counts.get(i._base) > 1 ? `${i._base}|${i._first}` : i._base;
     i.id = `i_${sha1(base).slice(0, 12)}`;
-    delete i._base; delete i._first; delete i._variant;
+    delete i._base; delete i._first;
   }
 
   // ---- series ----

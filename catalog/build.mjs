@@ -79,7 +79,7 @@ export async function runBuild(o) {
   if (o.prev && !prev) log(`warning: could not read previous catalog in ${o.prev}; building without it`);
   // A full crawl that finished cleanly replaces that source's old items; anything else keeps them.
   const skip = new Set(results.filter((r) => o.full && r.status === 'ok' && r.raw.length).map((r) => r.id));
-  const { items: prevItems, prevAdded } = prev ? itemsFromPrev(prev, { aliasIndex, skipSources: skip }) : { items: [], prevAdded: new Map() };
+  const { items: prevItems, prevAdded, cidByKey } = prev ? itemsFromPrev(prev, { aliasIndex, skipSources: skip }) : { items: [], prevAdded: new Map(), cidByKey: new Map() };
 
   // ---- enrich + merge ----
   const stats = {};
@@ -92,6 +92,8 @@ export async function runBuild(o) {
       if (seen.has(k)) continue;
       seen.add(k);
       const it = enrich(raw, { now, aliasIndex });
+      // A copy seen before stays in the issue it was in (see lib/merge.mjs).
+      it.cid = cidByKey.get(k);
       fresh.push(it);
       if (it.flags.parasha) st.parasha++;
       if (it.flags.year) st.year++;

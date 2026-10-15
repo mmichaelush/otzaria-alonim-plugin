@@ -31,6 +31,7 @@ export function itemsFromPrev(prev, { aliasIndex, skipSources = new Set() }) {
   const seriesById = new Map(prev.series.map((s) => [s.id, s]));
   const items = [];
   const prevAdded = new Map();
+  const cidByKey = new Map();
   for (const issue of prev.issues) {
     const s = seriesById.get(issue.series);
     if (!s) continue;
@@ -44,6 +45,7 @@ export function itemsFromPrev(prev, { aliasIndex, skipSources = new Set() }) {
         ? tokenize(issue.title).map((t) => t.n).filter((w) => !seriesWords.has(w) && !/^\d+$/.test(w)).join(' ')
         : '';
       prevAdded.set(`${asset.src}:${asset.ext}`, issue.added);
+      cidByKey.set(`${asset.src}:${asset.ext}`, issue.id);
       items.push({
         src: asset.src,
         ext: asset.ext,
@@ -66,8 +68,9 @@ export function itemsFromPrev(prev, { aliasIndex, skipSources = new Set() }) {
         pages: asset.pages ?? issue.pages ?? null,
         addedAt: null,
         circle: s.circle || null,
+        cid: issue.id,
       });
     }
   }
-  return { items, prevAdded };
+  return { items, prevAdded, cidByKey };
 }
