@@ -697,5 +697,11 @@
     "כל העלונים של הפרשה": "All bulletins of this parasha",
     "עוד גיליונות בסדרה": "More bulletins in the series",
     "כל גיליונות הסדרה": "The whole series",
+    "סמן את כולם כנקראו": "Mark all as read",
+    "התחל ביקור חדש": "Start a new visit",
+    "סימון הכול כנקרא": "Mark all as read",
+    "לסמן {n} גיליונות כנקראו? אפשר לבטל מיד אחרי.": "Mark {n} bulletins as read? You can undo right after.",
+    "הביקור הנוכחי נקבע כנקודת ההתחלה: \"חדשים\" יספרו מעכשיו": "This visit is now the starting point: \"new\" counts from now on",
+    "ייצוא כטקסט": "Export as text",
   };
 })(typeof self !== 'undefined' ? self : globalThis);

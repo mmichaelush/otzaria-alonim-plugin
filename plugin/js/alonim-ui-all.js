@@ -457,6 +457,13 @@
         parts.push(el('button', { type: 'button', class: 'link-button', onclick: () => app.loadCold() }, t('כולל את השנים האחרונות בלבד. לטעינת {n} גיליונות ישנים נוספים', { n: Core.formatCount(cold.issues) })));
       }
       if (app.coldLoading) parts.push(el('span', { class: 'loading-note' }, t('טוען שנים ישנות: {done} מתוך {total}', app.coldLoading)));
+      // "חדשים": סימון הכול כנקראו, ואיפוס נקודת הביקור (חדשים מאז הביקור האחרון).
+      if ((v.filters.isNew || v.filters.sinceVisit || v.filters.unread) && r.total > 0) {
+        parts.push(el('button', { type: 'button', class: 'link-button', onclick: () => this.markAllRead() }, t('סמן את כולם כנקראו')));
+      }
+      if (v.filters.sinceVisit) {
+        parts.push(el('button', { type: 'button', class: 'link-button', onclick: () => this.startNewVisit() }, t('התחל ביקור חדש')));
+      }
       if (this.activeFilterCount() || v.query) {
         parts.push(el('button', { type: 'button', class: 'link-button', onclick: () => this.reset() }, t('איפוס')));
       }
@@ -465,6 +472,27 @@
       this.filtersBtn.replaceChildren(icon('filter_24_regular'), active ? t('מסננים ({n})', { n: active }) : t('מסננים'));
       app.announce(t('{n} גיליונות', { n: Core.formatCount(r.total) }));
       this.renderEmpty();
+    }
+
+    /** מסמן את כל התוצאות הנוכחיות כנקראו (אחרי אישור כשהן הרבה), עם ביטול. */
+    markAllRead() {
+      const { app } = this;
+      const items = this.result.idx.map((i) => app.index.item(i));
+      const run = () => A.Bulk.read(app, items, true);
+      if (items.length <= 30) return run();
+      return Ui.confirmDialog({
+        title: t('סימון הכול כנקרא'),
+        text: t('לסמן {n} גיליונות כנקראו? אפשר לבטל מיד אחרי.', { n: Core.formatCount(items.length) }),
+        confirmLabel: t('סמן כנקראו'),
+        onConfirm: run,
+      });
+    }
+
+    /** "חדשים מאז הביקור האחרון" נספרים מעכשיו. */
+    startNewVisit() {
+      this.app.state.markVisited();
+      this.app.toast(t('הביקור הנוכחי נקבע כנקודת ההתחלה: "חדשים" יספרו מעכשיו'));
+      this.schedule();
     }
 
     renderEmpty() {

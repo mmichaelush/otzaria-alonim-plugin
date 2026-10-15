@@ -171,6 +171,16 @@
       else this.renderDownloads();
     }
 
+    /** כפתור "ייצוא כטקסט" לרשימה: מעתיק שורה לגיליון, עם כתובת דף המקור. */
+    exportButton(items) {
+      const { app } = this;
+      return Ui.button('text', t('ייצוא כטקסט'), async () => {
+        const { text, linked } = await A.Bulk.exportText(app, items);
+        const ok = await A.Selection.copyToClipboard(text);
+        app.toast(ok ? (linked ? t('הרשימה הועתקה') : t('הרשימה הועתקה, בלי כתובות (יותר מדי גיליונות)')) : t('ההעתקה נכשלה'), { error: !ok });
+      }, { icon: 'copy_24_regular', className: 'button-small', disabled: !items.length });
+    }
+
     list(items, label, onRemove, header) {
       this.itemList = new ItemList(this.app, label);
       this.itemList.onRemove = onRemove || null;
@@ -189,7 +199,8 @@
         this.body.replaceChildren(Ui.stateCard({ icon: 'star_24_regular', title: t('עוד אין מועדפים'), text: t('סמנו גיליון בכוכב והוא יופיע כאן, גם בלי חיבור לאינטרנט.'), actions: [Ui.button('tonal', t('לכל העלונים'), () => app.go('all'))], compact: true }));
         return;
       }
-      this.list(snaps.map((s) => this.resolve(s)), t('המועדפים שלי'), null, el('p', { class: 'results-line' }, t('{n} מועדפים', { n: Core.formatCount(snaps.length) })));
+      const favorites = snaps.map((s) => this.resolve(s));
+      this.list(favorites, t('המועדפים שלי'), null, el('div', { class: 'list-header' }, el('p', { class: 'results-line' }, t('{n} מועדפים', { n: Core.formatCount(snaps.length) })), el('div', { class: 'list-tools' }, this.exportButton(favorites))));
     }
 
     // ------------------------------------------------------ רשימות
@@ -217,6 +228,7 @@
       const tools = el(
         'div',
         { class: 'list-tools' },
+        this.exportButton(current.entries.map((e) => this.resolve(e))),
         Ui.button('text', t('שינוי שם'), () => this.nameDialog(t('שינוי שם הרשימה'), current.name, (name) => app.state.renameList(current.id, name)), { icon: 'tag_24_regular', className: 'button-small' }),
         Ui.button('text', t('מחיקת הרשימה'), () => {
           const removed = app.state.deleteList(current.id);
@@ -262,6 +274,7 @@
           'div',
           { class: 'list-tools' },
           addMine,
+          this.exportButton(items),
           Ui.button('filled', t('הורד הכול'), () => this.downloadAll(items), { icon: 'arrow_download_24_regular', className: 'button-small', disabled: !items.length || downloaded === items.length, busy, busyLabel: t('מוריד…') }),
           Ui.button('tonal', t('פתח את האוסף'), () => app.openIssue(items[0], { count: items.length, at: (k) => items[k], index: 0 }), { icon: 'book_open_24_regular', className: 'button-small', disabled: !items.length }),
           Ui.button('text', t('ניקוי'), () => {

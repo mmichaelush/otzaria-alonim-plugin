@@ -96,7 +96,13 @@ test('favorite ו-read: משנים רק את מה שצריך וסופרים נכ
   assert.equal(Bulk.read(app, [item(1)], false), 1);
   assert.equal(app.state.isRead('i_1'), false);
   assert.equal(app.state.isRead('i_2'), true);
-  assert.deepEqual(app.state.historyEvents('read').map((e) => e.id).sort(), ['i_1', 'i_2']);
+  // ביטול הפעולה מחזיר את המצב הקודם
+  assert.equal(Bulk.read(app, [item(1), item(3)], true), 2);
+  app.toasts[app.toasts.length - 1].o.action.run();
+  assert.equal(app.state.isRead('i_1'), false);
+  assert.equal(app.state.isRead('i_3'), false);
+  assert.equal(app.state.isRead('i_2'), true, 'מה שלא שונה בפעולה נשאר');
+  assert.deepEqual([...new Set(app.state.historyEvents('read').map((e) => e.id))].sort(), ['i_1', 'i_2', 'i_3']);
 });
 
 test('hideSeries: כלל אחד לכל סדרה, וביטול אחד מסיר את כולם', async () => {

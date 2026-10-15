@@ -70,14 +70,17 @@
 
   /** נקרא / לא נקרא לכולם. מחזיר כמה השתנו. */
   function read(app, items, on) {
-    let n = 0;
+    const changed = [];
     for (const item of items) {
       if (app.state.isRead(item.id) === on) continue;
       app.state.markRead(item, on);
       if (on) app.state.logEvent('read', item);
-      n++;
+      changed.push(item);
     }
-    app.toast(on ? t('{n} גיליונות סומנו כנקראו', { n }) : t('{n} גיליונות סומנו כלא נקראו', { n }));
+    const n = changed.length;
+    app.toast(on ? t('{n} גיליונות סומנו כנקראו', { n }) : t('{n} גיליונות סומנו כלא נקראו', { n }), {
+      action: n ? { label: t('ביטול הפעולה'), run: () => changed.forEach((item) => app.state.markRead(item, !on)) } : undefined,
+    });
     return n;
   }
 
