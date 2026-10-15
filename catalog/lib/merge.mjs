@@ -4,6 +4,7 @@
 // unambiguous. When unsure they stay separate; no source copy is ever dropped.
 import { normalizeKey } from './normalize.mjs';
 import { sha1 } from './enrich.mjs';
+import { isArchive } from './archive.mjs';
 
 /** Preference order of copies inside one issue (quality and reliability of the source). */
 export const SOURCE_ORDER = ['ladaat', 'tashma', 'gilyoines', 'alonolam'];
@@ -70,7 +71,7 @@ export function clusterItems(items) {
 
 const first = (list, f) => { for (const x of list) { const v = f(x); if (v != null && v !== '') return v; } return null; };
 
-function buildIssue(cluster, { now, prevAdded }) {
+function buildIssue(cluster, { now, prevAdded, bulkDays }) {
   const items = [...cluster.items].sort((a, b) => rank(a.src) - rank(b.src) || (a.ext < b.ext ? -1 : 1));
   const lead = items[0];
   const no = first(items.filter((i) => i.noStrong), (i) => i.no) ?? first(items, (i) => i.no);
@@ -81,8 +82,13 @@ function buildIssue(cluster, { now, prevAdded }) {
     return a;
   });
   // Earliest sighting: the source's own upload time, else the first run that saw it.
-  const addedCandidates = items.map((i) => i.addedAt || prevAdded?.get(`${i.src}:${i.ext}`)).filter(Boolean).sort();
-  const added = addedCandidates[0] || now;
+  const sightings = items
+    .map((i) => ({ added: i.addedAt || prevAdded?.get(`${i.src}:${i.ext}`), src: i.src }))
+    .filter((x) => x.added)
+    .sort((a, b) => (a.added < b.added ? -1 : a.added > b.added ? 1 : 0));
+  const added = sightings[0]?.added || now;
+  // `archive`: the upload time says nothing about when this became available (lib/archive.mjs).
+  const archive = items.some((i) => i.archive) || (sightings[0] ? isArchive({ ...sightings[0], date: lead.date, hy: lead.hy }, bulkDays) : false);
   const issue = {
     series: lead.series.id,
     title: first(items, (i) => i.title) || lead.series.displayTitle,
@@ -94,6 +100,7 @@ function buildIssue(cluster, { now, prevAdded }) {
     lang: lead.lang,
     pages: first(items, (i) => i.pages),
     added,
+    archive: archive || undefined,
     assets,
     _base: `${lead.series.id}|${lead.hy ?? ''}|${slugs.join('+') || lead.event || lead.date || ''}|${no ?? ''}`,
     _first: `${lead.src}:${lead.ext}`,
@@ -105,14 +112,14 @@ function buildIssue(cluster, { now, prevAdded }) {
  * @param items enriched items (lib/enrich.mjs)
  * @returns { series:[], issues:[] } unsorted-stable: both sorted deterministically
  */
-export function mergeAll(items, { now, prevAdded = null, aliasIndex = null } = {}) {
+export function mergeAll(items, { now, prevAdded = null, aliasIndex = null, bulkDays = new Set() } = {}) {
   const groups = new Map();
   for (const it of items) {
     const k = groupKey(it);
     (groups.get(k) ?? groups.set(k, []).get(k)).push(it);
   }
   const issues = [];
-  for (const g of groups.values()) for (const c of clusterItems(g)) issues.push(buildIssue(c, { now, prevAdded }));
+  for (const g of groups.values()) for (const c of clusterItems(g)) issues.push(buildIssue(c, { now, prevAdded, bulkDays }));
 
   // Ids: stable hash; when two distinct issues share it (same week, same number, but not
   // mergeable), the lead copy's source id tells them apart. Nothing derived from titles goes in,
@@ -144,6 +151,7 @@ export function mergeAll(items, { now, prevAdded = null, aliasIndex = null } = {
     const iss = issueBySeries.get(s.id) || [];
     const titles = [...s.titles.entries()].sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1)).map((x) => x[0]);
     const dates = iss.map((i) => i.date).filter(Boolean).sort();
+    const years = [...new Set(iss.map((i) => i.hy).filter(Boolean))].sort((a, b) => a - b);
     const circle = [...s.circles.entries()].sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1))[0]?.[0];
     const named = s.items[0].series.named;
     series.push({
@@ -156,6 +164,7 @@ export function mergeAll(items, { now, prevAdded = null, aliasIndex = null } = {
       kind: iss.some((i) => i.date || i.parasha || i.event) ? 'weekly' : 'timeless',
       sources: [...s.sources.values()].sort((a, b) => rank(a.src) - rank(b.src) || (a.ext < b.ext ? -1 : 1)),
       issueCount: iss.length,
+      years,
       first: dates[0],
       last: dates[dates.length - 1],
     });

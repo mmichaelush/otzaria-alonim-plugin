@@ -59,6 +59,9 @@ export function hyOfTimestamp(ts) {
   return hyOfIso(parts);
 }
 
+/** Last civil day of a Hebrew year (29 Elul). */
+export const hyEndIso = (hy) => addDays(isoOfHDate(new HDate(1, 'Tishrei', hy + 1)), -1);
+
 /** "כ״ז בחשוון תשפ״ז" for a civil date. */
 export const hebrewDateOf = (iso) => hebrewDateString(new HDate(parseIso(iso)));
 

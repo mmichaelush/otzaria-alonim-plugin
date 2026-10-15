@@ -17,6 +17,7 @@ import { loadPrev, itemsFromPrev } from './lib/prev.mjs';
 import { writeCatalog, stableStringify, sha256, prune } from './lib/shards.mjs';
 import { dayOf } from './lib/dates.mjs';
 import { usableSpec } from './lib/urls.mjs';
+import { bulkDaysOf } from './lib/archive.mjs';
 
 const HERE = dirname(fileURLToPath(import.meta.url));
 const MIN_PLUGIN_VERSION = '0.1.0';
@@ -80,7 +81,9 @@ export async function runBuild(o) {
   if (o.prev && !prev) log(`warning: could not read previous catalog in ${o.prev}; building without it`);
   // A full crawl that finished cleanly replaces that source's old items; anything else keeps them.
   const skip = new Set(results.filter((r) => o.full && r.status === 'ok' && r.raw.length).map((r) => r.id));
-  const { items: prevItems, prevAdded, cidByKey } = prev ? itemsFromPrev(prev, { aliasIndex, skipSources: skip }) : { items: [], prevAdded: new Map(), cidByKey: new Map() };
+  const { items: prevItems, prevAdded, cidByKey, archiveByKey } = prev
+    ? itemsFromPrev(prev, { aliasIndex, skipSources: skip })
+    : { items: [], prevAdded: new Map(), cidByKey: new Map(), archiveByKey: new Map() };
 
   // ---- enrich + merge ----
   const stats = {};
@@ -95,6 +98,7 @@ export async function runBuild(o) {
       const it = enrich(raw, { now, aliasIndex });
       // A copy seen before stays in the issue it was in (see lib/merge.mjs).
       it.cid = cidByKey.get(k);
+      it.archive = archiveByKey.get(k) === true;
       fresh.push(it);
       if (it.flags.parasha) st.parasha++;
       if (it.flags.year) st.year++;
@@ -105,7 +109,7 @@ export async function runBuild(o) {
   }
   // New data wins over reconstructed data for the same copy.
   const items = [...prevItems.filter((i) => !seen.has(`${i.src}:${i.ext}`)), ...fresh];
-  const { series, issues } = mergeAll(items, { now, prevAdded, aliasIndex });
+  const { series, issues } = mergeAll(items, { now, prevAdded, aliasIndex, bulkDays: bulkDaysOf(fresh) });
 
   // ---- write ----
   const out = resolve(o.out);

@@ -34,6 +34,7 @@ export function itemsFromPrev(prev, { aliasIndex, skipSources = new Set() }) {
   const items = [];
   const prevAdded = new Map();
   const cidByKey = new Map();
+  const archiveByKey = new Map();
   for (const wireIssue of prev.issues) {
     const s = seriesById.get(wireIssue.series);
     if (!s) continue;
@@ -50,6 +51,7 @@ export function itemsFromPrev(prev, { aliasIndex, skipSources = new Set() }) {
         : '';
       prevAdded.set(`${asset.src}:${asset.ext}`, issue.added);
       cidByKey.set(`${asset.src}:${asset.ext}`, issue.id);
+      archiveByKey.set(`${asset.src}:${asset.ext}`, issue.archive === true);
       items.push({
         src: asset.src,
         ext: asset.ext,
@@ -73,8 +75,9 @@ export function itemsFromPrev(prev, { aliasIndex, skipSources = new Set() }) {
         addedAt: null,
         circle: s.circle || null,
         cid: issue.id,
+        archive: issue.archive === true,
       });
     }
   }
-  return { items, prevAdded, cidByKey };
+  return { items, prevAdded, cidByKey, archiveByKey };
 }

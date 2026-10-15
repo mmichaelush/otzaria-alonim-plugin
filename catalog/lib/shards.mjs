@@ -57,7 +57,7 @@ export function selectRecent(issues, today, maxBytes = RECENT_MAX_BYTES) {
   const picked = [];
   for (const i of issues) {
     if (i.date) { if (i.date >= from && i.date <= to) picked.push([i.date, i]); continue; }
-    if (i.added >= fromTs && i.assets.some((a) => a.src !== 'tashma')) picked.push([i.added.slice(0, 10), i]);
+    if (i.added >= fromTs && !i.archive && i.assets.some((a) => a.src !== 'tashma')) picked.push([i.added.slice(0, 10), i]);
   }
   picked.sort(([da, a], [db, b]) => (da < db ? 1 : da > db ? -1 : b.assets.length - a.assets.length || (a.id < b.id ? -1 : 1)));
   const out = [];
