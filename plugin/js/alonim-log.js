@@ -30,7 +30,8 @@
       const text = args
         .map((a) => {
           if (a instanceof Error) {
-            if (!code && a.code) code = String(a.code);
+            const failure = /** @type {any} */ (a);
+            if (!code && failure.code) code = String(failure.code);
             return a.message;
           }
           return typeof a === 'string' ? a : safeJson(a);
@@ -135,6 +136,7 @@
   }
 
   const api = { Log, scrub, LEVELS, CATEGORIES, LIMIT, shared: new Log() };
+  /** @type {any} */
   const A = (root.Alonim = root.Alonim || {});
   A.Log = api;
   if (typeof module === 'object' && module.exports) module.exports = api;

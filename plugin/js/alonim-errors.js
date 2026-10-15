@@ -6,6 +6,8 @@
 (function (root) {
   'use strict';
 
+  /** @type {any} */
+
   const A = (root.Alonim = root.Alonim || {});
   /** מסמן מחרוזת לתרגום בלי לתרגם אותה עכשיו (התרגום בזמן הציור). */
   const N = (text) => text;

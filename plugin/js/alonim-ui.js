@@ -196,7 +196,7 @@
     const active = document.activeElement;
     let key = null;
     if (active && active !== document.body && container.contains(active)) {
-      const card = active.closest('[data-id]');
+      const card = /** @type {HTMLElement|null} */ (active.closest('[data-id]'));
       key = {
         id: card ? card.dataset.id : null,
         label: active.getAttribute('aria-label') || '',
@@ -356,8 +356,8 @@
    */
   function dialog(options) {
     const o = options || {};
-    const opener = document.activeElement;
-    const shell = document.querySelector('.app-shell');
+    const opener = /** @type {HTMLElement|null} */ (document.activeElement);
+    const shell = /** @type {HTMLElement|null} */ (document.querySelector('.app-shell'));
     const titleId = 'dlg-' + Math.random().toString(36).slice(2, 8);
     const closeButton = iconButton('dismiss_24_regular', t('סגירה'), () => api.close(), {
       className: 'dialog-close',
@@ -569,7 +569,9 @@
       this.root.appendChild(this.inner);
       this.rows = new Map();
       this.count = 0;
+      /** @type {number | ((row: number) => number)} */
       this.heightEm = 4;
+      /** @type {(row: number, node: HTMLElement) => void} */
       this.render = () => {};
       this.itemsPerRow = 1;
       this.offsets = null;

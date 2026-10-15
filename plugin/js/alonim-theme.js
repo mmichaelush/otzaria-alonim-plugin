@@ -43,6 +43,7 @@
   }
 
   const api = { applyTheme, applyScale, kebab };
+  /** @type {any} */
   const A = (root.Alonim = root.Alonim || {});
   A.Theme = api;
   if (typeof module === 'object' && module.exports) module.exports = api;

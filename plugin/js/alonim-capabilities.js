@@ -13,6 +13,8 @@
 (function (root) {
   'use strict';
 
+  /** @type {any} */
+
   const A = (root.Alonim = root.Alonim || {});
 
   /** הגרסה שבה נוספו השיטות החדשות (docs/HOST_API_PROPOSAL.md). */

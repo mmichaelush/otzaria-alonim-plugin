@@ -68,6 +68,7 @@
       ilSlugs.length
     )
       event = null;
+    /** @type {string} */
     let kind = KINDS.shabbat;
     if (!isShabbat) kind = KINDS.holiday;
     else if (event || !parasha.length) kind = KINDS.special;
@@ -100,6 +101,10 @@
   }
 
   /** שורות ← תצוגות (ממוינות לפי תאריך, יום אחד = שורה אחת). */
+  /**
+   * @param {WeekRow[]} rows
+   * @param {{ diaspora?: boolean }} [options]
+   */
   function build(rows, options) {
     const seen = new Set();
     return (Array.isArray(rows) ? rows : [])

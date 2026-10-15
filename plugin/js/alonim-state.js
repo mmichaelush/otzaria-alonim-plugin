@@ -27,6 +27,7 @@
   const MAX_IMPORT_BYTES = 3 * 1024 * 1024;
   const EXPORT_FORMAT = 'otzaria-alonim-settings';
 
+  /** @type {Record<string, any>} */
   const DEFAULT_PREFS = Object.freeze({
     v: 1,
     scale: 1,

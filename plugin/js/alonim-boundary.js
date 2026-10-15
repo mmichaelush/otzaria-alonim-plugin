@@ -5,6 +5,8 @@
 (function (root) {
   'use strict';
 
+  /** @type {any} */
+
   const A = (root.Alonim = root.Alonim || {});
 
   /** השיטות של מסך שנעטפות. כל מה שלא קיים במחלקה מדולג. */

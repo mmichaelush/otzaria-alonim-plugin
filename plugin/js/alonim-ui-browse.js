@@ -25,7 +25,9 @@
   /** משמר את המיקוד ברשימה וירטואלית שמצוירת מחדש. */
   function keepFocus(list, fn) {
     const active = document.activeElement;
-    const node = active && active.closest ? active.closest('[data-item]') : null;
+    const node = /** @type {HTMLElement|null} */ (
+      active && active.closest ? active.closest('[data-item]') : null
+    );
     const inside = node && list.root.contains(node);
     const index = inside ? node.dataset.item : null;
     const subKey = inside && active !== node ? active.getAttribute('aria-label') : null;

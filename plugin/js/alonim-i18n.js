@@ -89,6 +89,7 @@
       return language;
     },
   };
+  /** @type {any} */
   const A = (root.Alonim = root.Alonim || {});
   A.I18n = api;
   if (typeof module === 'object' && module.exports) module.exports = api;

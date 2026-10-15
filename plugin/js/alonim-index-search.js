@@ -218,6 +218,11 @@
    * isNew, lastVisit }`. [options]: `{ sort, includeHidden }`.
    * מחזיר `{ idx, total, hidden, ms, query }`; `hidden` — כמה עוד היו מתאימים
    * אילולא הוסתרו לפי הכללים.
+   * @param {string | object} query
+   * @param {FilterSpec} [filters]
+   * @param {SearchContext} [ctx]
+   * @param {{ sort?: string, includeHidden?: boolean }} [options]
+   * @returns {SearchResult}
    */
   proto.search = function (query, filters, ctx, options) {
     const started = typeof performance !== 'undefined' ? performance.now() : Date.now();

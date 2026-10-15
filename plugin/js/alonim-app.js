@@ -105,7 +105,15 @@
       this.selection = { on: false, ids: new Set() };
       this.viewer = null;
       this.screen = null;
+      /** Created by alonim-ui-shell.js (mountShell), the DOM layer. */
+      this.toasts = null;
+      this.announcer = null;
       this.lastQueryMs = 0;
+    }
+
+    /** Replaced by alonim-ui-shell.js (the DOM layer); a clear error if it was not loaded. */
+    mountShell() {
+      throw new Error('alonim-ui-shell.js is not loaded');
     }
 
     // ------------------------------------------------------ אירועים

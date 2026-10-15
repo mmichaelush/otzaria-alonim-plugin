@@ -50,7 +50,7 @@
 
     open(viewer) {
       // המיקוד חוזר למי שפתח את הצפיין (לא לפתיחה קודמת, וגם לא בין קודם/הבא).
-      if (!this.state) this.returnFocus = document.activeElement;
+      if (!this.state) this.returnFocus = /** @type {HTMLElement|null} */ (document.activeElement);
       this.releaseBlob();
       this.state = { ...viewer, phase: 'loading', error: '', file: null, job: null };
       this.token = viewer.token;
@@ -73,7 +73,9 @@
       this.host.hidden = true;
       this.host.replaceChildren();
       this.app.shell.dataset.mode = 'tabs';
-      const focus = this.app.shell.querySelector('.main-tab[aria-selected="true"]');
+      const focus = /** @type {HTMLElement|null} */ (
+        this.app.shell.querySelector('.main-tab[aria-selected="true"]')
+      );
       if (this.returnFocus && document.contains(this.returnFocus)) this.returnFocus.focus();
       else if (focus) focus.focus();
       this.returnFocus = null;

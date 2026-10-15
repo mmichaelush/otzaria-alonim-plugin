@@ -247,6 +247,7 @@
   }
 
   const api = { CODES, SdkError, NetError, classifyNetworkFailure, createRuntime };
+  /** @type {any} */
   const A = (root.Alonim = root.Alonim || {});
   A.Runtime = api;
   if (typeof module === 'object' && module.exports) module.exports = api;

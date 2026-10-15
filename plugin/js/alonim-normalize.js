@@ -103,6 +103,7 @@
   }
 
   const api = { normalizeKey, searchKey, memoized, highlightSpans };
+  /** @type {any} */
   const A = (root.Alonim = root.Alonim || {});
   A.Normalize = api;
   if (typeof module === 'object' && module.exports) module.exports = api;

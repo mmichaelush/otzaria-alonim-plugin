@@ -37,6 +37,7 @@
   class ItemList {
     constructor(app, label) {
       this.app = app;
+      this.removeLabel = '';
       this.items = [];
       this.onRemove = null;
       this.vlist = new Ui.VList({ className: 'results-list', label });

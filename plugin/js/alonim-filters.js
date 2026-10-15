@@ -48,7 +48,7 @@
     const out = [];
     for (const raw of list) {
       const v = NUMERIC_LISTS.has(key) ? Number(raw) : String(raw);
-      if (NUMERIC_LISTS.has(key) ? !Number.isFinite(v) || v <= 0 : !v) continue;
+      if (NUMERIC_LISTS.has(key) ? !Number.isFinite(v) || Number(v) <= 0 : !v) continue;
       if (!out.includes(v)) out.push(v);
     }
     return out;
@@ -57,6 +57,10 @@
   /**
    * צורה קנונית: רק מפתחות פעילים. רשימות מערכים (ערך בודד מהצורה הישנה נעטף),
    * מספרים מספריים, תאריכים `YYYY-MM-DD` תקינים בלבד, וטווח הפוך מתהפך.
+   */
+  /**
+   * @param {any} input
+   * @returns {FilterSpec}
    */
   function clean(input) {
     const raw = input && typeof input === 'object' ? input : {};

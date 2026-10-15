@@ -8,6 +8,8 @@
 (function (root) {
   'use strict';
 
+  /** @type {any} */
+
   const A = (root.Alonim = root.Alonim || {});
   const I18n = A.I18n;
   const GERESH = '׳';

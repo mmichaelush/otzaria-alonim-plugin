@@ -356,6 +356,7 @@
         done: 0,
       });
       let failed = 0;
+      /** @type {any} */
       let firstError = null;
       let cursor = 0;
       const worker = async () => {
