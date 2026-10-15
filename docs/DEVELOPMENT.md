@@ -82,6 +82,12 @@ node --expose-gc tools/preview/measure-real.mjs <catalog/out>   # זמן בני�
 של התוסף (`com.otzaria-alonim.qa`) שמחליף כתובות. **המוצר אינו פונה ל-localhost ואינו מזכיר את
 השרת**; `qa-variant.test.js` ו-`capabilities.test.js` שומרים על ההפרדה.
 
+כלים נוספים לבדיקה חיה: `tools/qa/make-catalog.mjs <dir> [--prev] [--bump N]` בונה עותק של הקטלוג
+(בלי לגעת ב-`catalog/out`) עם גיליונות סינתטיים (`qa-ok.pdf`, `qa-big.pdf` 60MB, `qa-huge.pdf` 110MB,
+`qa-html.pdf`, `qa-slow.pdf` שמוגשים מקומית גם ב-`--proxy`), ועם `--prev` גיליון שמזההו השתנה ונושא
+`previousIds`; `GET /qa/root?dir=<נתיב>` מחליף קטלוג בשרת רץ (בדיקת סנכרון והגירה), `/qa/mode?down=503|reset|hang`
+מדמה תקלה, ו-`/qa/wins` ו-`/qa/exec?win=<id>` מכוונים פקודה לחלון מסוים כשיש כמה חלונות.
+
 ## מטריצת גרסאות המארח
 
 | יכולת | אוצריא 0.9.98 | אוצריא ≥ 0.9.99 |
