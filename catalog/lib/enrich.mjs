@@ -64,11 +64,14 @@ export function enrich(raw, ctx) {
   const expect = fresh ? expectedSlugs(raw.addedAt) : [];
 
   // ---- text facts (rawTitle first, then the folder it sits in) ----
-  let a = analyzeTitle(raw.rawTitle, { expect });
+  // A year after next year is a misreading ("תשצ" is not 5790), never a real issue.
+  const maxHy = hyOfTimestamp(now) + 1;
+  const sane = (x) => (x.hy && x.hy > maxHy ? { ...x, hy: null } : x);
+  let a = sane(analyzeTitle(raw.rawTitle, { expect }));
   let fromFolder = false;
   if (raw.contextTitles?.length) {
     for (const ctxTitle of raw.contextTitles) {
-      const f = analyzeTitle(ctxTitle, { expect });
+      const f = sane(analyzeTitle(ctxTitle, { expect }));
       if (!a.slugs.length && f.slugs.length) { a = { ...a, slugs: f.slugs }; fromFolder = true; }
       if (!a.hy && f.hy) a = { ...a, hy: f.hy };
       if (!a.events.length && f.events.length) a = { ...a, events: f.events };

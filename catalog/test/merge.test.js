@@ -160,3 +160,11 @@ test('a text-dated title keeps the reading it named (Israel-only "חקת" is not
   assert.deepEqual(half.slugs, ['matot', 'masei']); // half of a double reading becomes the whole reading
   assert.equal(half.date, '2026-07-11');
 });
+
+test('a year far in the future is a misreading and is ignored', () => {
+  const it = enrich(raw({ src: 'tashma', ext: '1', rawTitle: 'פרשת נח תשצט', seriesHint: { title: 'X' }, addedAt: null }), { now: NOW, aliasIndex: noAliases });
+  assert.equal(it.hy, null);
+  assert.equal(it.date, null);
+  const ok = enrich(raw({ src: 'tashma', ext: '2', rawTitle: 'פרשת נח תשפח', seriesHint: { title: 'X' }, addedAt: null }), { now: NOW, aliasIndex: noAliases });
+  assert.equal(ok.hy, 5788); // next year is fine (issues are published ahead)
+});
