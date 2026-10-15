@@ -475,7 +475,7 @@
     "הסנכרון נכשל · הנתונים השמורים": "Sync failed · saved data",
     "עודכן {when}": "Updated {when}",
     "{i} מתוך {n}": "{i} of {n}",
-    "חזרה לרשימה": "Back to the list",
+    "חזרה לרשימה (Esc)": "Back to the list (Esc)",
     "הגיליון הקודם": "Previous issue",
     "הגיליון הבא": "Next issue",
     "בחרו תיקייה כדי לקרוא": "Choose a folder to read",

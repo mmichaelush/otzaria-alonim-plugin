@@ -24,23 +24,9 @@
 
   /** משמר את המיקוד ברשימה וירטואלית שמצוירת מחדש. */
   function keepFocus(list, fn) {
-    const active = document.activeElement;
-    const node = /** @type {HTMLElement|null} */ (
-      active && active.closest ? active.closest('[data-item]') : null
-    );
-    const inside = node && list.root.contains(node);
-    const index = inside ? node.dataset.item : null;
-    const subKey = inside && active !== node ? active.getAttribute('aria-label') : null;
+    const restore = list.captureFocus();
     fn();
-    if (index === null) return;
-    const again = list.inner.querySelector('[data-item="' + index + '"]');
-    if (!again) return;
-    let target = again;
-    if (subKey) {
-      for (const b of again.querySelectorAll('button'))
-        if (b.getAttribute('aria-label') === subKey) target = b;
-    }
-    target.focus({ preventScroll: true });
+    if (restore) restore();
   }
 
   // ======================================================== סדרות
@@ -171,7 +157,8 @@
       this.listInput = input;
       this.runList();
       this.unsub.push(
-        app.on('data', () => this.runList()),
+        // שרד שהגיע ברקע מרענן את הרשימה, בלי לזרוק את המיקוד והגלילה של המשתמש.
+        app.on('data', () => this.runList(true)),
         app.on('state', () => this.runList(true)),
         app.on('focus-search', () => input.focus()),
       );
@@ -288,6 +275,7 @@
               : new A.WeekScreen(app).emptyCatalog(),
         );
         this.list.configure({ count: 0, heightEm: 4, render() {} });
+        this.listConfigured = false;
         return;
       }
       const render = (r, node) => {
@@ -295,19 +283,22 @@
         node.style.setProperty('--cols', '1');
         node.appendChild(this.seriesRow(this.rows[r], r));
       };
-      if (keep)
+      // רענון במקום (בלי configure) רק כשהרשימה כבר הוגדרה עם הגובה האמיתי של שורת סדרה.
+      if (keep && this.listConfigured)
         keepFocus(this.list, () => {
           this.list.render = render;
           this.list.count = this.rows.length;
           this.list.refreshVisible();
         });
-      else
+      else {
         this.list.configure({
           count: this.rows.length,
           heightEm: 4.6 + Cards.ROW_EM.gap * 0.4,
           render,
           itemsPerRow: 1,
         });
+        this.listConfigured = true;
+      }
     }
 
     seriesRow(s, r) {

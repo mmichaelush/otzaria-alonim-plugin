@@ -72,7 +72,36 @@
       this._layout();
     }
 
+    /**
+     * זוכר איזה פריט (ואיזה כפתור בתוכו) ממוקד כרגע, ומחזיר פונקציה שמחזירה אליו את המיקוד אחרי
+     * שהשורות צוירו מחדש. בלי זה כל ציור מחדש (שרד שהגיע ברקע, שינוי גודל, חזרה מהצפיין) השאיר
+     * את המשתמש ב-`body`, ומי שגולל במקלדת איבד את מקומו.
+     * @returns {(() => void) | null} `null` כשאין מיקוד ברשימה.
+     */
+    captureFocus() {
+      const active = /** @type {HTMLElement|null} */ (document.activeElement);
+      const node = /** @type {HTMLElement|null} */ (
+        active && active.closest ? active.closest('[data-item]') : null
+      );
+      if (!node || !this.root.contains(node)) return null;
+      const index = node.dataset.item;
+      const subKey = active !== node ? active.getAttribute('aria-label') : null;
+      return () => {
+        const again = /** @type {HTMLElement|null} */ (
+          this.inner.querySelector('[data-item="' + index + '"]')
+        );
+        if (!again) return;
+        let target = again;
+        if (subKey) {
+          for (const b of again.querySelectorAll('button'))
+            if (b.getAttribute('aria-label') === subKey) target = b;
+        }
+        target.focus({ preventScroll: true });
+      };
+    }
+
     configure(o) {
+      const restore = this.captureFocus();
       this.count = o.count;
       this.heightEm = o.heightEm;
       this.render = o.render;
@@ -80,6 +109,12 @@
       this.rows.forEach((node) => node.remove());
       this.rows.clear();
       this._layout();
+      // ציור מיידי רק כשיש מיקוד לשמר (אחרת הכרטיס עוד לא קיים); אחרת מתזמנים ל-frame הבא,
+      // וכמה configure באותו frame עולים ציור אחד.
+      if (restore) {
+        this.update();
+        restore();
+      }
       this._schedule();
     }
 

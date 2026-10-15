@@ -73,17 +73,32 @@
     }
 
     close() {
+      const closed = this.state;
       this.releaseFile();
       this.state = null;
       this.token++;
       this.host.hidden = true;
       this.host.replaceChildren();
+      this.frame = null;
       this.app.shell.dataset.mode = 'tabs';
-      const focus = /** @type {HTMLElement|null} */ (
-        this.app.shell.querySelector('.main-tab[aria-selected="true"]')
+      this.restoreFocus(closed && closed.item ? closed.item.id : '');
+    }
+
+    /**
+     * המיקוד חוזר לכרטיס של הגיליון שנקרא אחרון (אם הוא מצויר), אחרת למי שפתח את הצפיין, אחרת
+     * ללשונית הפעילה. אחרי קודם/הבא המיקוד נשאר על הגיליון שנצפה, לא על זה שנפתח ראשון.
+     */
+    restoreFocus(itemId) {
+      const shell = this.app.shell;
+      const byItem =
+        itemId && [...shell.querySelectorAll('[data-id]')].find((n) => n.dataset.id === itemId);
+      const tab = /** @type {HTMLElement|null} */ (
+        shell.querySelector('.main-tab[aria-selected="true"]')
       );
-      if (this.returnFocus && document.contains(this.returnFocus)) this.returnFocus.focus();
-      else if (focus) focus.focus();
+      const target =
+        byItem ||
+        (this.returnFocus && document.contains(this.returnFocus) ? this.returnFocus : tab);
+      if (target) target.focus({ preventScroll: Boolean(byItem) });
       this.returnFocus = null;
     }
 
@@ -185,6 +200,20 @@
       if (back) back.focus();
     }
 
+    /**
+     * הצפיין של הדפדפן תופס מיקוד מיד אחרי הטעינה, ומאותו רגע Esc והקיצורים אינם מגיעים לתוסף
+     * (האירועים נשארים ב-iframe, ממקור אחר). לכן מחזירים את המיקוד לסרגל, אלא אם המשתמש כבר עבר
+     * למקום אחר. גלילה בעכבר ולחיצה על המסמך (לגלילה במקלדת) ממשיכות לעבוד.
+     */
+    frameLoaded(frame) {
+      if (this.frame !== frame || !this.state) return;
+      setTimeout(() => {
+        if (this.frame !== frame || !this.state || document.activeElement !== frame) return;
+        const back = this.bar && this.bar.querySelector('[data-key="back"]');
+        if (back) /** @type {HTMLElement} */ (back).focus({ preventScroll: true });
+      }, 50);
+    }
+
     /** מיקום בהקשר הרשימה (הקודם/הבא). */
     neighbors() {
       const { ctx, item } = this.state;
@@ -230,7 +259,7 @@
       this.bar.replaceChildren(
         Ui.iconButton(
           rtl ? 'arrow_right_24_regular' : 'arrow_left_24_regular',
-          t('חזרה לרשימה'),
+          t('חזרה לרשימה (Esc)'),
           () => app.closeViewer(),
           { key: 'back', className: 'viewer-tool' },
         ),
@@ -309,12 +338,14 @@
       const item = s.item;
       let content;
       if (s.phase === 'ready' && s.file) {
-        this.frame = el('iframe', {
+        const frame = el('iframe', {
           class: 'viewer-frame',
           src: s.file.frameUrl || s.file.blobUrl,
           title: Cards.titleOf(item),
           referrerpolicy: 'no-referrer',
         });
+        this.frame = frame;
+        frame.addEventListener('load', () => this.frameLoaded(frame));
         content = s.pendingPrint
           ? el(
               'div',

@@ -1082,6 +1082,16 @@ async function flows(browser) {
     await page.eval("document.activeElement.dataset.item === '1'"),
     await page.eval('document.activeElement.className'),
   );
+  // שרד שמגיע ברקע מצייר מחדש את התוצאות: המיקוד של מי שגולל במקלדת נשמר
+  await page.eval("window.__alonimApp.emit('data', 'shard')");
+  await page.sleep(400);
+  check(
+    'אירוע נתונים בזמן שכרטיס ממוקד אינו מפיל את המיקוד',
+    await page.eval(
+      "document.activeElement.classList.contains('card') && document.activeElement.dataset.item === '1'",
+    ),
+    await page.eval('document.activeElement.tagName + "." + document.activeElement.className'),
+  );
   await page.key('Enter');
   await page.sleep(900);
   check(
@@ -1096,6 +1106,33 @@ async function flows(browser) {
     'Esc סוגר צפיין וחוזר לרשימה',
     await page.eval(
       "document.querySelector('.viewer').hidden && document.querySelectorAll('.card').length > 0",
+    ),
+  );
+  check(
+    'אחרי Esc המיקוד חוזר לכרטיס שממנו נפתח הצפיין',
+    await page.eval(
+      "document.activeElement.classList.contains('card') && document.activeElement.dataset.item === '1'",
+    ),
+    await page.eval('document.activeElement.className'),
+  );
+  // הצפיין של הדפדפן תופס מיקוד אחרי הטעינה: המיקוד חוזר לסרגל כדי ש-Esc ימשיך לעבוד
+  await page.key('Enter');
+  await page.sleep(900);
+  await page.eval(
+    "(() => { const f = document.querySelector('.viewer-frame'); f.focus(); f.dispatchEvent(new Event('load')); })()",
+  );
+  await page.sleep(250);
+  check(
+    'מיקוד שנתפס ב-iframe אחרי טעינה חוזר לכפתור החזרה (Esc עובד)',
+    await page.eval("document.activeElement.dataset.key === 'back'"),
+    await page.eval('document.activeElement.tagName + "." + document.activeElement.className'),
+  );
+  await page.key('Escape');
+  await page.sleep(250);
+  check(
+    'אחרי Esc שני המיקוד על הכרטיס שנצפה',
+    await page.eval(
+      "document.activeElement.classList.contains('card') && document.activeElement.dataset.item === '1'",
     ),
   );
   check('בלי שגיאות קונסול בזרימה', page.errors.length === 0, page.errors.join('\n'));
