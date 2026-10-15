@@ -44,10 +44,6 @@
       app.on('state', () => this.refreshBar());
     }
 
-    get open_() {
-      return Boolean(this.state);
-    }
-
     open(viewer) {
       // המיקוד חוזר למי שפתח את הצפיין (לא לפתיחה קודמת, וגם לא בין קודם/הבא).
       if (!this.state) this.returnFocus = /** @type {HTMLElement|null} */ (document.activeElement);

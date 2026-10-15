@@ -262,8 +262,6 @@ test('קבוצות: סדרה, שבוע, פרשה+שנה כשאין תאריך, �
   assert.equal(idx.get('i_1').series, 's_new');
   assert.equal(idx.issuesOfSeries('old').length, 3);
   assert.deepEqual(idx.forWeek(idx.weeks[1]).sort(), [0, 1]);
-  assert.equal(idx.weekFor('2026-10-12'), 1);
-  assert.equal(idx.weekFor('2030-01-01'), 1);
 });
 
 test('ביצועים: אינדקס וחיפוש על 50,000 גיליונות', () => {

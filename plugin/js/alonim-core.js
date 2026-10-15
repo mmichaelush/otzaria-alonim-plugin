@@ -284,10 +284,6 @@
   /** ספרות באותו פורמט בכל מקום (בלי מפרידי אלפים שמשתנים לפי שפה). */
   const formatCount = (n) => Number(n || 0).toLocaleString(I18n.locale());
 
-  function relativeDays(fromMs, nowMs) {
-    return Math.floor((nowMs - fromMs) / 86400000);
-  }
-
   // ------------------------------------------------------------ כתובות
 
   function parseUrl(text) {
@@ -454,8 +450,6 @@
 
   // ---------------------------------------------------------- שונות
 
-  const clone = (value) => JSON.parse(JSON.stringify(value));
-
   /**
    * האם המקש הוא האות [letter]. בפריסת מקלדת עברית `event.key` הוא 'ל' ולא 'k',
    * ולכן מקש שאינו אות לטינית נבדק לפי המקש הפיזי (`event.code`).
@@ -498,7 +492,6 @@
     formatDate,
     formatBytes,
     formatCount,
-    relativeDays,
     parseUrl,
     isPublicHost,
     isSafeHttpsUrl,
@@ -513,7 +506,6 @@
     idFragment,
     downloadPath,
     fragmentFromFile,
-    clone,
   };
   root.Alonim.Core = api;
   if (typeof module === 'object' && module.exports) module.exports = api;

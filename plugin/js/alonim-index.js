@@ -930,12 +930,6 @@
         : calendar;
     }
 
-    weekFor(dateText) {
-      const weeks = this.weeks;
-      for (let i = 0; i < weeks.length; i++) if (weeks[i].date >= dateText) return i;
-      return weeks.length ? weeks.length - 1 : -1;
-    }
-
     /** כל הסדרות, מסודרות א-ב (עברית קודם), עם `_norm` לחיפוש. */
     seriesList() {
       const rank = (s) => (/^[֐-׿]/.test(s._ntitle) ? 0 : 1);
@@ -982,11 +976,6 @@
       }
       this._facets = { years, parashot, langs, sources, circles };
       return this._facets;
-    }
-
-    /** נתיב קבצי השרד שבהם מצוי הגיליון: `recent` או מזהה שרד. */
-    shardOf(item) {
-      return item._shard || '';
     }
   }
 

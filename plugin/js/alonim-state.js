@@ -835,10 +835,6 @@
       this._touch('lists');
     }
 
-    listsContaining(id) {
-      return this.data.lists.items.filter((l) => l.entries.some((e) => e.id === id));
-    }
-
     /** "אוסף שבת": נוצר בפעם הראשונה שמבקשים אותו. */
     shabbatList() {
       return this.data.lists.items.find((l) => l.kind === 'shabbat') || null;

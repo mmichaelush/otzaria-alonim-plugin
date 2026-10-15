@@ -711,11 +711,6 @@
       this.update();
     }
 
-    /** כמה צמתי פריט (`[data-item]`) מצויים עכשיו ב-DOM: לבדיקת הגלילה. */
-    get domItems() {
-      return this.inner.querySelectorAll('[data-item]').length;
-    }
-
     resetScroll() {
       this.root.scrollTop = 0;
     }
