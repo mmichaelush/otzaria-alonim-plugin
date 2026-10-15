@@ -6,6 +6,9 @@
   'use strict';
   const BASE = 'http://127.0.0.1:__PORT__/qa/';
   const buffer = [];
+  /** מזהה חלון (בכל טעינה): `/qa/exec?win=<id>` מכוון פקודה לחלון מסוים. */
+  const WIN = Math.random().toString(36).slice(2, 8);
+  window.__qaWin = WIN;
   let timer = null;
   let sending = false;
   const stamp = () => Math.round(performance.now());
@@ -131,7 +134,7 @@
     for (;;) {
       let cmd = null;
       try {
-        const body = await post('poll', { page: location.href }, 8000);
+        const body = await post('poll', { page: location.href, win: WIN }, 8000);
         cmd = body ? JSON.parse(body) : null;
         if (!cmd) await new Promise((r) => setTimeout(r, 2500));
       } catch (error) {

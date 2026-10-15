@@ -107,6 +107,35 @@
       return this.failed.size > 0;
     }
 
+    /**
+     * קורא מחדש מהמארח את התחומים שלא השתנו מקומית. חלון אחר של אוצריא (או הפעלה אחרת של התוסף)
+     * שומר לאותו מפתח, והכתיבה היא של התחום כולו: בלי רענון, העותק הישן שלנו היה דורס את השינוי
+     * שלהם (אובדן מועדף/סימון קריאה — נמצא בבדיקה חיה בשני חלונות). נקרא כשהחלון מקבל מיקוד,
+     * ואילו `flush()` נקרא כשהוא מאבד אותו. `views` (מצב מסך לחלון) אינו מתרענן.
+     * מחזיר את התחומים שהשתנו.
+     */
+    async refresh() {
+      if (!this.loaded) return [];
+      await this.saving;
+      const changed = [];
+      for (const name of Object.keys(defaults)) {
+        if (name === 'views' || this.dirty.has(name) || this.failed.has(name)) continue;
+        try {
+          const value = await this.runtime.call('storage.get', { key: KEYS[name] });
+          if (this.dirty.has(name)) continue; // השתנה אצלנו בזמן הקריאה
+          const next = cleaners[name](value === null || value === undefined ? undefined : value);
+          if (JSON.stringify(next) !== JSON.stringify(this.data[name])) {
+            this.data[name] = next;
+            changed.push(name);
+          }
+        } catch (error) {
+          this.log.debug('state ' + name + ' refresh failed', error);
+        }
+      }
+      if (changed.length) this._emit(changed);
+      return changed;
+    }
+
     _touch(...domains) {
       for (const d of domains) this.dirty.add(d);
       this._emit(domains);

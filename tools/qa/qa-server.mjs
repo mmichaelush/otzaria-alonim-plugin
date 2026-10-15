@@ -23,6 +23,7 @@ const qaLog = resolve(arg('--qa-log', 'tools/qa/out/qa-console.log'));
 let outage = null;
 const queue = [];
 const waiters = [];
+const wins = new Map();
 const results = new Map();
 let nextId = 1;
 const readBody = (req) => new Promise((ok) => { let b = ''; req.on('data', (c) => (b += c)); req.on('end', () => ok(b)); });
@@ -88,9 +89,17 @@ async function qaRoute(path, url, req, res) {
     return res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' }).end('{}');
   }
   if (path === '/qa/poll') {
-    const take = () => queue.shift();
-    const cmd = take();
+    // כמה חלונות/עותקים של התוסף יכולים לדגום: פקודה עם `win` מגיעה רק לחלון הזה (`/qa/exec?win=<id>`).
+    let who = '';
+    try { who = JSON.parse(body || '{}').win || ''; } catch (e) { /* ללא מזהה */ }
+    if (who) wins.set(who, Date.now());
+    const at = queue.findIndex((c) => !c.win || c.win === who);
+    const cmd = at >= 0 ? queue.splice(at, 1)[0] : null;
     return res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' }).end(cmd ? JSON.stringify(cmd) : '');
+  }
+  if (path === '/qa/wins') {
+    const live = [...wins].filter(([, t]) => Date.now() - t < 15000).map(([id]) => id);
+    return res.writeHead(200, { 'Content-Type': 'application/json' }).end(JSON.stringify(live));
   }
   if (path === '/qa/result') {
     const id = url.searchParams.get('id');
@@ -101,7 +110,7 @@ async function qaRoute(path, url, req, res) {
   if (path === '/qa/exec') {
     const id = String(nextId++);
     const done = new Promise((ok) => { results.set(id, ok); setTimeout(() => ok({ ok: false, error: 'timeout waiting for page' }), Number(url.searchParams.get('timeout') || 60000)); });
-    const cmd = { id, code: body };
+    const cmd = { id, code: body, win: url.searchParams.get('win') || '' };
     queue.push(cmd);
     return res.writeHead(200, { 'Content-Type': 'application/json; charset=utf-8' }).end(JSON.stringify(await done));
   }

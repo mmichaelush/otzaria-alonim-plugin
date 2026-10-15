@@ -182,3 +182,56 @@ test('נתוני היסטוריה פגומים מנוקים בטעינה', async
     ['s'],
   );
 });
+
+test('שני חלונות: שמירה באיבוד מיקוד וקריאה מחדש במיקוד — שינוי של חלון אחד אינו נדרס בחלון השני', async () => {
+  const clock = { t: 1_000_000 };
+  const sdk = createFakeSdk();
+  const a = make(sdk, clock);
+  const b = make(sdk, clock);
+  await a.load();
+  await b.load();
+  a.setFavorite(item(1), true);
+  await a.flush();
+  // בלי רענון, b היה כותב את התחום כולו בלי המועדף של a. הרענון (מיקוד) מביא אותו קודם.
+  const changed = await b.refresh();
+  assert.deepEqual(changed, ['favorites']);
+  assert.equal(b.isFavorite('i_1'), true);
+  b.setFavorite(item(2), true);
+  await b.flush();
+  await a.refresh();
+  assert.equal(a.isFavorite('i_2'), true);
+  const stored = sdk.storage.get('state_favorites');
+  assert.deepEqual(Object.keys(stored.items).sort(), ['i_1', 'i_2'], 'שניהם נשמרו');
+});
+
+test('refresh: תחום עם שינוי מקומי שלא נשמר אינו נדרס; תחום שנכשלה קריאתו אינו נקרא; views אינו מתרענן', async () => {
+  const clock = { t: 1_000_000 };
+  const sdk = createFakeSdk();
+  const a = make(sdk, clock);
+  const b = make(sdk, clock);
+  await a.load();
+  await b.load();
+  a.setFavorite(item(1), true);
+  await a.flush();
+  b.delay = 60000; // שינוי ממתין לשמירה
+  b.setFavorite(item(2), true);
+  assert.ok(b.dirty.has('favorites'));
+  assert.ok(!(await b.refresh()).includes('favorites'), 'השינוי המקומי נשמר בזיכרון');
+  assert.equal(b.isFavorite('i_1'), false);
+  clearTimeout(b.timer);
+  await b.flush();
+  b.failed.add('read');
+  sdk.storage.set('state_read', { v: 1, items: { i_9: { id: 'i_9', t: 1 } } });
+  assert.ok(!(await b.refresh()).includes('read'), 'תחום שנכשל אינו נקרא');
+  b.failed.delete('read');
+  const viewsBefore = JSON.stringify(b.data.views);
+  sdk.storage.set('state_views', {
+    v: 1,
+    tabs: { all: { query: 'x' } },
+    presets: [],
+    lastSeen: 5,
+    visitBase: 5,
+  });
+  await b.refresh();
+  assert.equal(JSON.stringify(b.data.views), viewsBefore, 'מצב מסך אינו מתרענן');
+});

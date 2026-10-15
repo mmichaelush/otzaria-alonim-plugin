@@ -184,6 +184,9 @@
           this.state.flush();
           this.files.releaseRemote();
         });
+        // שני חלונות של אוצריא על אותו מצב: שומרים כשמאבדים מיקוד וקוראים מחדש כשמקבלים אותו.
+        root.addEventListener('blur', () => this.state.flush());
+        root.addEventListener('focus', () => this.state.refresh());
         this.doc.addEventListener('visibilitychange', () => {
           if (this.doc.visibilityState === 'hidden') this.state.flush();
         });
@@ -240,6 +243,7 @@
 
     resume() {
       this.suspended = false;
+      this.state.refresh();
       this.catalog.resume();
       if (this.files.hasFolder) this.files.scan();
     }
