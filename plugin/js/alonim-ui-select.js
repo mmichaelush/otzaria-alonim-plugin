@@ -176,6 +176,22 @@
         () => {
           Ui.menu(more, [
             {
+              label: t('העתקה כטקסט'),
+              icon: 'copy_24_regular',
+              run: async () => {
+                const { text, linked } = await A.Bulk.exportText(app, items());
+                const ok = await copyToClipboard(text);
+                app.toast(
+                  ok
+                    ? linked
+                      ? t('הרשימה הועתקה')
+                      : t('הרשימה הועתקה, בלי כתובות (יותר מדי גיליונות)')
+                    : t('ההעתקה נכשלה'),
+                  { error: !ok },
+                );
+              },
+            },
+            {
               label: t('סמן כנקראו'),
               icon: 'checkmark_24_regular',
               run: run((list) => A.Bulk.read(app, list, true)),
@@ -203,6 +219,9 @@
       );
       Ui.fill(
         this.el,
+        Ui.iconButton('dismiss_24_regular', t('יציאה ממצב בחירה'), () => app.setSelecting(false), {
+          className: 'selection-close',
+        }),
         el(
           'span',
           { class: 'selection-count', 'aria-live': 'polite' },
@@ -247,27 +266,7 @@
               disabled: none,
             })
           : null,
-        Ui.button(
-          'tonal',
-          t('העתקה כטקסט'),
-          async () => {
-            const { text, linked } = await A.Bulk.exportText(app, items());
-            const ok = await copyToClipboard(text);
-            app.toast(
-              ok
-                ? linked
-                  ? t('הרשימה הועתקה')
-                  : t('הרשימה הועתקה, בלי כתובות (יותר מדי גיליונות)')
-                : t('ההעתקה נכשלה'),
-              { error: !ok },
-            );
-          },
-          { icon: 'copy_24_regular', className: 'button-small', disabled: none },
-        ),
         more,
-        Ui.iconButton('dismiss_24_regular', t('יציאה ממצב בחירה'), () => app.setSelecting(false), {
-          className: 'selection-close',
-        }),
       );
     }
   }

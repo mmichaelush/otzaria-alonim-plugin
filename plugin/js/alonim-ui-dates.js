@@ -11,7 +11,11 @@
   const { el } = Ui;
   const t = (text, vars) => I18n.t(text, vars);
 
-  const yearLabel = (hy) => Heb.yearLetters(hy) + ' (' + hy + ')';
+  /** תשפ״ז (5787); בממשק לועזי — 5787 (תשפ״ז), כדי שהמספר יוביל ולא יתהפך בתוך שורה לועזית. */
+  const yearLabel = (hy) =>
+    I18n.language === 'he'
+      ? Heb.yearLetters(hy) + ' (' + hy + ')'
+      : hy + ' (' + Heb.yearLetters(hy) + ')';
 
   /**
    * [initial]: `Date` התחלתי. [onChange]: נקרא עם `Date` תקין אחרי כל שינוי.

@@ -675,8 +675,10 @@ async function selectionFlows(browser, open, check) {
     (await num('window.__alonimApp.selection.ids.size')) === total,
     String(total),
   );
+  await page.eval("document.querySelector('.selection-bar [aria-haspopup=menu]').click()");
+  await page.sleep(300);
   await page.eval(
-    "[...document.querySelectorAll('.selection-bar button')].find((b) => b.textContent.includes('העתקה כטקסט')).click()",
+    "[...document.querySelectorAll('.menu-item')].find((b) => b.textContent.includes('העתקה כטקסט')).click()",
   );
   await page.sleep(700);
   check(

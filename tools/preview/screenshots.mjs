@@ -1,5 +1,6 @@
 // מצלם את כל המסכים, בהיר וכהה, ברוחב דסקטופ ובטלפון (400px).
 //   node tools/preview/screenshots.mjs [out-dir]     (SHOTS=week,all לחלק מהמסכים)
+//   MODES=light  — מצב אחד בלבד; FLAT=1 — בלי סיומת -light בשם הקובץ (docs/img למדריך)
 import { mkdirSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -14,7 +15,9 @@ const small = pathToFileURL(join(here, 'out', 'preview.html')).href;
 const large = pathToFileURL(join(here, 'out', 'preview-large.html')).href;
 
 const q = encodeURIComponent;
-// [שם, שאילתה, רוחב, גובה, preview]
+// [שם, שאילתה, רוחב, גובה, preview, קוד שרץ בדף לפני הצילום]
+const app = 'window.__alonimApp';
+const open = (selector) => `document.querySelector('${selector}').click()`;
 const shots = [
   ['week', 'page=week', 1000, 820],
   ['week-skeleton', 'page=week&seed=0&netdelay=3000&settle=100', 1000, 620],
@@ -48,6 +51,72 @@ const shots = [
   ['narrow-settings', 'page=settings&section=rules', 400, 1300],
   ['narrow-details', 'details=0', 400, 800],
   ['narrow-viewer', 'open=0', 400, 800],
+  [
+    'week-holiday',
+    'page=week',
+    1000,
+    760,
+    null,
+    `${app}.view.weekDate = '2027-03-23'; ${app}.go('week')`,
+  ],
+  [
+    'week-future',
+    'page=week',
+    1000,
+    760,
+    null,
+    `${app}.view.weekDate = '2027-02-06'; ${app}.go('week')`,
+  ],
+  ['week-picker', 'page=week', 1000, 820, null, open('[data-key=jump]')],
+  [
+    'filters-panel',
+    'page=all',
+    1000,
+    860,
+    null,
+    `${open('[data-key=filters]')}; setTimeout(() => document.querySelectorAll('[data-group=parasha], [data-group=lang]').forEach((g) => (g.open = true)), 50)`,
+  ],
+  [
+    'filters-active',
+    'page=all',
+    1000,
+    820,
+    null,
+    `${app}.view.all.filters = { lang: ['he'], source: ['ladaat', 'tashma'], parasha: ['noach', 'bereshit'], pagesMin: 4 }; ${app}.go('series'); ${app}.go('all')`,
+  ],
+  [
+    'all-grouped',
+    'page=all',
+    1000,
+    820,
+    null,
+    `${app}.view.all.group = 'series'; ${app}.go('series'); ${app}.go('all')`,
+  ],
+  [
+    'select-mode',
+    'page=all',
+    1000,
+    820,
+    null,
+    `${open('[data-key=select-mode]')}; setTimeout(() => [...document.querySelectorAll('.select-check')].slice(0, 3).forEach((b) => b.click()), 80)`,
+  ],
+  [
+    'mine-history',
+    'page=mine&minetab=history',
+    1000,
+    760,
+    null,
+    `[1, 4, 7].forEach((n) => ${app}.state.logEvent(['opened', 'read', 'downloaded'][n % 3], ${app}.index.item(n))); ${app}.go('series'); ${app}.go('mine')`,
+  ],
+  ['settings-general', 'page=settings&section=general', 1000, 900],
+  ['settings-storage', 'page=settings&section=disk', 1000, 1000],
+  ['settings-diagnostics', 'page=settings&section=diagnostics', 1000, 1100],
+  ['settings-diagnostics-legacy', 'page=settings&section=diagnostics&host=legacy', 1000, 1100],
+  ['settings-help', 'page=settings&section=help', 1000, 1000],
+  ['welcome', 'welcome=1', 1000, 620],
+  ['viewer-print-ready', 'open=40&print=1&xorigin=1', 1000, 620],
+  ['narrow-picker', 'page=week', 400, 800, null, open('[data-key=jump]')],
+  ['narrow-filters', 'page=all', 400, 860, null, open('[data-key=filters]')],
   ['scaled', 'page=all&scale=1.5', 1000, 820],
   ['english', 'page=week&lang=en', 1000, 760],
 ];
@@ -55,9 +124,10 @@ const shots = [
 const only = process.env.SHOTS ? process.env.SHOTS.split(',') : null;
 const browser = await Browser.launch();
 try {
-  for (const [name, query, width, height, base] of shots) {
+  const modes = process.env.MODES ? process.env.MODES.split(',') : ['light', 'dark'];
+  for (const [name, query, width, height, base, after] of shots) {
     if (only && !only.includes(name)) continue;
-    for (const mode of ['light', 'dark']) {
+    for (const mode of modes) {
       const page = await browser.newPage(width, height);
       await page.goto(`${base || small}?today=2026-10-15&${query}&mode=${mode}`);
       await page
@@ -70,7 +140,11 @@ try {
             ? 1400
             : 400,
       );
-      const file = join(outDir, `${name}-${mode}.png`);
+      if (after) {
+        await page.eval(after);
+        await page.sleep(600);
+      }
+      const file = join(outDir, process.env.FLAT ? `${name}.png` : `${name}-${mode}.png`);
       await page.screenshot(file);
       if (page.errors.length)
         console.error('✖ ' + name + ' ' + mode + ': ' + page.errors.join(' | '));
