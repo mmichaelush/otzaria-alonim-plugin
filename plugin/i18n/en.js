@@ -687,5 +687,15 @@
     "לא הצלחנו לטעון את לוח השנים הישנות. אפשר לנסות שוב.": "Could not load the older years calendar. You can try again.",
     "השנה עוד לא נטענה": "This year is not loaded yet",
     "העלונים של השנה הזו נטענים; הספירות יתעדכנו.": "This year's bulletins are loading; the counts will update.",
+    "העתקת השם": "Copy name",
+    "השם הועתק": "Name copied",
+    "העתקת קישור לאתר המקור": "Copy source site link",
+    "הקישור הועתק": "Link copied",
+    "הקודם בסדרה": "Previous in series",
+    "הבא בסדרה": "Next in series",
+    "אותה פרשה בשנים אחרות": "Same parasha in other years",
+    "כל העלונים של הפרשה": "All bulletins of this parasha",
+    "עוד גיליונות בסדרה": "More bulletins in the series",
+    "כל גיליונות הסדרה": "The whole series",
   };
 })(typeof self !== 'undefined' ? self : globalThis);

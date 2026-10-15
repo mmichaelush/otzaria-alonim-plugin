@@ -22,6 +22,46 @@
     return [el('dt', {}, label), el('dd', { dir: 'auto' }, value)];
   }
 
+  // ------------------------------------------------- גיליונות קשורים
+
+  /** שורת גיליון קצרה (שבוע, שנה) שפותחת את הפרטים שלו. */
+  function relatedRow(app, other, ctx, getDialog) {
+    const meta = [Core.weekLabel(other), other.hy ? Core.hyLetters(other.hy) : '', other.no ? t('גיליון {no}', { no: other.no }) : ''].filter(Boolean).join(' · ');
+    return el(
+      'button',
+      { type: 'button', class: 'compact-row', onclick: () => { getDialog().close(); showDetails(app, other, ctx); } },
+      el('span', { class: 'compact-title', dir: 'auto' }, other.seriesTitle || other.title),
+      el('span', { class: 'compact-meta', dir: 'auto' }, meta),
+    );
+  }
+
+  /**
+   * הגיליונות הסמוכים לגיליון: הקודם והבא בסדרה (לפי תאריך), עוד גיליונות
+   * אחרונים בסדרה, ואותה פרשה בשנים אחרות (באותה סדרה). הכול מהאינדקס שבזיכרון.
+   */
+  function relatedIssues(app, item) {
+    const { index } = app;
+    const list = index.issuesOfSeries(item.series);
+    const at = list.findIndex((i) => index.ids[i] === item.id);
+    const pick = (i) => (i >= 0 && i < list.length ? index.item(list[i]) : null);
+    const sameParasha = item.parasha && item.parasha.length
+      ? list.filter((i) => index.ids[i] !== item.id && index.item(i).hy !== item.hy && index.item(i).parasha.includes(item.parasha[0])).slice(0, 6).map((i) => index.item(i))
+      : [];
+    return {
+      newer: at > 0 ? pick(at - 1) : null,
+      older: at >= 0 ? pick(at + 1) : null,
+      recent: list.filter((i) => index.ids[i] !== item.id).slice(0, 5).map((i) => index.item(i)),
+      sameParasha,
+      total: list.length,
+    };
+  }
+
+  /** העתקת טקסט מתוך כפתור בפרטים, עם הודעה. */
+  async function copyWithToast(app, text, okMessage) {
+    const ok = await A.Selection.copyToClipboard(text);
+    app.toast(ok ? okMessage : t('ההעתקה נכשלה'), { error: !ok });
+  }
+
   // ------------------------------------------------------------- פרטים
 
   /**
@@ -88,6 +128,9 @@
       ? el('p', { class: 'reason-line' }, icon(state.hidden ? 'eye_off_24_regular' : 'info_24_regular'), Rules.reasonText(decision, app.ruleNames(), app.state.rules.mode))
       : null;
 
+    const related = relatedIssues(app, item);
+    const siteAsset = hydrated ? app.pickSiteAsset(view) : null;
+    const siteLink = (siteAsset && (siteAsset.page || siteAsset.url)) || '';
     const dlg = Ui.dialog({
       title,
       size: 'large',
@@ -118,6 +161,32 @@
           Ui.button('text', t('לדף הסדרה'), () => { dlg.close(); app.openSeries(item.series); }, { icon: 'text_bullet_list_24_regular', className: 'button-small' }),
           Ui.button('text', t('הסתר סדרה זו'), () => { dlg.close(); app.hideSeries(item); }, { icon: 'eye_off_24_regular', className: 'button-small' }),
         ),
+        el(
+          'div',
+          { class: 'details-more' },
+          Ui.button('text', t('העתקת השם'), () => copyWithToast(app, A.Bulk.exportLine(item, ''), t('השם הועתק')), { icon: 'copy_24_regular', className: 'button-small' }),
+          Ui.button('text', t('העתקת קישור לאתר המקור'), () => copyWithToast(app, siteLink, t('הקישור הועתק')), { icon: 'copy_24_regular', className: 'button-small', disabled: !siteLink }),
+          related.older ? Ui.button('text', t('הקודם בסדרה'), () => { dlg.close(); showDetails(app, related.older, ctx); }, { icon: document.documentElement.dir === 'ltr' ? 'chevron_left_24_regular' : 'chevron_right_24_regular', className: 'button-small' }) : null,
+          related.newer ? Ui.button('text', t('הבא בסדרה'), () => { dlg.close(); showDetails(app, related.newer, ctx); }, { icon: document.documentElement.dir === 'ltr' ? 'chevron_right_24_regular' : 'chevron_left_24_regular', className: 'button-small' }) : null,
+        ),
+        related.sameParasha.length
+          ? el(
+              'section',
+              { class: 'details-related' },
+              el('h3', { class: 'details-section' }, t('אותה פרשה בשנים אחרות'), el('span', { class: 'section-count' }, String(related.sameParasha.length))),
+              el('div', { class: 'compact-list' }, related.sameParasha.map((o) => relatedRow(app, o, ctx, () => dlg))),
+              Ui.button('text', t('כל העלונים של הפרשה'), () => { dlg.close(); app.go('all', { query: '', filters: { parasha: [item.parasha[0]] } }); }, { icon: 'library_24_regular', className: 'button-small' }),
+            )
+          : null,
+        related.recent.length
+          ? el(
+              'section',
+              { class: 'details-related' },
+              el('h3', { class: 'details-section' }, t('עוד גיליונות בסדרה'), el('span', { class: 'section-count' }, Core.formatCount(related.total))),
+              el('div', { class: 'compact-list' }, related.recent.map((o) => relatedRow(app, o, ctx, () => dlg))),
+              Ui.button('text', t('כל גיליונות הסדרה'), () => { dlg.close(); app.openSeries(item.series); }, { icon: 'text_bullet_list_24_regular', className: 'button-small' }),
+            )
+          : null,
       ),
       focus: '[data-key="read"]',
     });

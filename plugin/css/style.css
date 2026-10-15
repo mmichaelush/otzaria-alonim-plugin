@@ -1939,6 +1939,13 @@ kbd {
   border-color: var(--color-outline-variant);
 }
 
+.details-related {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+  margin-block-start: var(--space-3);
+}
+
 .history-page {
   max-height: 100%;
   overflow-y: auto;

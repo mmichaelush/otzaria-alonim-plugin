@@ -395,6 +395,20 @@ async function selectionFlows(browser, open, check) {
   })()`);
   check('previousIds: מועדף וקריאה עברו למזהה החדש', await page.eval("(() => { const s = window.__alonimApp.state; return s.isFavorite('i_renamed00001') && s.isRead('i_renamed00001') && !s.isFavorite('i_legacy000001') && !s.isRead('i_legacy000001'); })()"));
   check('היסטוריה: הסרת אירוע', await page.eval("(document.querySelector('.history-remove').click(), true)"));
+  // פרטי גיליון: גיליונות קשורים וניווט בסדרה
+  await page.eval("window.__alonimApp.go('all'); window.__alonimApp.showDetails(window.__alonimApp.index.item(window.__alonimApp.index.search('', {}, {}, { sort: 'date' }).idx[3]))");
+  await page.sleep(700);
+  const title1 = await page.eval("document.querySelector('.dialog-title').textContent");
+  check('פרטים: "עוד גיליונות בסדרה" ו"אותה פרשה בשנים אחרות"', await page.eval("document.querySelectorAll('.details-related').length >= 1"));
+  await page.eval("[...document.querySelectorAll('.details-more button')].find((b) => b.textContent.includes('הקודם בסדרה') || b.textContent.includes('הבא בסדרה')).click()");
+  await page.sleep(700);
+  const title2 = await page.eval("document.querySelector('.dialog-title').textContent");
+  check('פרטים: מעבר לגיליון הסמוך בסדרה', Boolean(title1) && Boolean(title2) && (await page.eval("document.querySelectorAll('.dialog').length")) === 1, `${title1} -> ${title2}`);
+  await page.eval("[...document.querySelectorAll('.details-more button')].find((b) => b.textContent.includes('העתקת השם')).click()");
+  await page.sleep(600);
+  check('פרטים: העתקת שם מציגה הודעה', await page.eval("/השם הועתק|ההעתקה נכשלה/.test(document.body.innerText)"));
+  await page.key('Escape');
+  await page.sleep(300);
   check('בחירה והיסטוריה: בלי שגיאות קונסול', page.errors.length === 0, page.errors.join('\n'));
   await browser.closePage(page);
 }
