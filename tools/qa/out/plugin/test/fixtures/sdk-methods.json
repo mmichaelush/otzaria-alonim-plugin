@@ -1,0 +1,89 @@
+{
+  "comment": "מתוך docs/plugin-sdk/spec.json של אוצריא (0.9.98): המתודות שהתוסף קורא להן, ההרשאה שלהן והגרסה הראשונה שבה הן קיימות.",
+  "baseline": [
+    "app.info.read",
+    "events.subscribe:theme.changed",
+    "notifications.send",
+    "plugin.storage.read",
+    "plugin.storage.write",
+    "ui.feedback"
+  ],
+  "methods": {
+    "app.getConnectivity": {
+      "permission": "app.info.read",
+      "since": "0.9.96"
+    },
+    "app.openUrl": {
+      "permission": "app.open_url",
+      "since": "0.9.95"
+    },
+    "fs.deleteEntry": {
+      "permission": null,
+      "since": "0.9.97"
+    },
+    "fs.deleteFile": {
+      "permission": null,
+      "since": "0.9.93"
+    },
+    "fs.listDir": {
+      "permission": null,
+      "since": "0.9.97"
+    },
+    "fs.listUserFolder": {
+      "permission": "fs.user_files.read",
+      "since": "0.9.98"
+    },
+    "fs.moveEntry": {
+      "permission": null,
+      "since": "0.9.98"
+    },
+    "fs.openFolderFile": {
+      "permission": "fs.user_files.read",
+      "since": "0.9.98"
+    },
+    "fs.pickUserFolder": {
+      "permission": "fs.user_files.read",
+      "since": "0.9.98"
+    },
+    "fs.readFile": {
+      "permission": null,
+      "since": "0.9.97"
+    },
+    "fs.revokeFolder": {
+      "permission": "fs.user_files.read",
+      "since": "0.9.98"
+    },
+    "fs.writeFile": {
+      "permission": null,
+      "since": "0.9.97"
+    },
+    "library.findBooks": {
+      "permission": "library.books.read",
+      "since": "0.9.89"
+    },
+    "library.refreshUserBooks": {
+      "permission": "library.refresh",
+      "since": "0.9.97"
+    },
+    "network.download": {
+      "permission": "network.access",
+      "since": "0.9.93"
+    },
+    "network.fetchStream": {
+      "permission": "network.access",
+      "since": "0.9.97"
+    },
+    "reader.openBook": {
+      "permission": "reader.open",
+      "since": "0.9.89"
+    },
+    "storage.get": {
+      "permission": "plugin.storage.read",
+      "since": "0.9.89"
+    },
+    "storage.set": {
+      "permission": "plugin.storage.write",
+      "since": "0.9.89"
+    }
+  }
+}
