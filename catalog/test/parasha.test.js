@@ -133,3 +133,11 @@ test('stripFileNoise', () => {
   assert.equal(stripFileNoise('אסיפת נח לשליחה (1).pdf'), 'אסיפת נח לשליחה');
   assert.equal(stripFileNoise('a_b_c.pdf.pdf'), 'a b c');
 });
+
+test('years split by underscore or space, and the number nine that looks like a year', () => {
+  assert.equal(analyzeTitle('סוד החשמל פרשת נצבים וילך תשע_ז').hy, 5777);
+  assert.equal(analyzeTitle('פרשת וילך ה_תשע_ט').hy, 5779);
+  assert.equal(analyzeTitle('תשע ימים').hy, null);
+  assert.equal(analyzeTitle('פרשת נצבים וילך תשע').hy, 5770);
+  assert.equal(analyzeTitle('גליון תשע"ז').hy, 5777);
+});

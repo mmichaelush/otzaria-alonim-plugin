@@ -336,7 +336,12 @@ export function parseShortYear(rawWord) {
 export function detectHebrewYear(tokens) {
   for (let i = 0; i < tokens.length; i++) {
     const hy = parseYearWord(tokens[i].n);
-    if (hy) return { hy, index: i };
+    if (!hy) continue;
+    // "תשע" without a units letter is also the number nine ("תשע ימים"): only at the end of
+    // the text, after "שנת", or written with the ה prefix.
+    const bareTens = /^תש[יכלמנסעפצ]$/.test(tokens[i].n);
+    if (bareTens && i !== tokens.length - 1 && !['שנת', 'ה'].includes(tokens[i - 1]?.n)) continue;
+    return { hy, index: i };
   }
   return null;
 }
@@ -447,6 +452,8 @@ const EXT_RE = /\.(pdf|docx?|jpe?g|png)$/i;
 export function stripFileNoise(name) {
   return String(name ?? '')
     .replace(BIDI_RE, '')
+    // A year split by underscore or space ("תשע_ז") must not read as 5770 plus a stray letter.
+    .replace(/(^|[^א-ת])(ה?תש[יכלמנסעפצ])[_ ]([א-ט])(?![א-ת])/g, '$1$2$3')
     .replace(EXT_RE, '')
     .replace(EXT_RE, '')
     .replace(/\s*\(\d{1,2}\)\s*$/, '')

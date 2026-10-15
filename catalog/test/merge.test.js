@@ -150,3 +150,13 @@ test('a source skipped in the previous catalog is dropped from reconstruction (c
   const { items } = itemsFromPrev({ series: first.series, issues: first.issues }, { aliasIndex: noAliases, skipSources: new Set(['tashma']) });
   assert.deepEqual(items.map((i) => i.src), ['ladaat']);
 });
+
+test('a text-dated title keeps the reading it named (Israel-only "חקת" is not relabelled as Korach)', () => {
+  const r = raw({ src: 'tashma', ext: '1', rawTitle: 'הסודות הגנוזים חקת תשפו', seriesHint: { title: 'הסודות הגנוזים' } });
+  const it = enrich(r, { now: NOW, aliasIndex: noAliases });
+  assert.equal(it.date, '2026-06-20');
+  assert.deepEqual(it.slugs, ['chukat']);
+  const half = enrich(raw({ src: 'tashma', ext: '2', rawTitle: 'פרשת מטות תשפו', seriesHint: { title: 'X' } }), { now: NOW, aliasIndex: noAliases });
+  assert.deepEqual(half.slugs, ['matot', 'masei']); // half of a double reading becomes the whole reading
+  assert.equal(half.date, '2026-07-11');
+});

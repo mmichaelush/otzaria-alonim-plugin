@@ -218,7 +218,7 @@ test('shards above 3MB are split into <year>-<k> files, each below the limit, in
 test('publish guard: refuses an empty catalog and one that lost most of the previous data', async () => {
   const { spawnSync } = await import('node:child_process');
   const { writeFile, mkdir } = await import('node:fs/promises');
-  const run = (out, prev) => spawnSync(process.execPath, [new URL('../tools/sanity.mjs', import.meta.url).pathname.replace(/^\/([A-Za-z]:)/, '$1'), '--out', out, ...(prev ? ['--prev', prev] : [])], { encoding: 'utf8' });
+  const run = (out, prev) => spawnSync(process.execPath, [fileURLToPath(new URL('../tools/sanity.mjs', import.meta.url)), '--out', out, ...(prev ? ['--prev', prev] : [])], { encoding: 'utf8' });
   await withTmp(async (dir) => {
     await runBuild({ out: join(dir, 'good'), now: NOW, http: fakeHttp(routes()), log: SILENT });
     assert.equal(run(join(dir, 'good')).status, 0);

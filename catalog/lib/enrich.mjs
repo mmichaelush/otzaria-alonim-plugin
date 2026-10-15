@@ -113,8 +113,14 @@ export function enrich(raw, ctx) {
   if (date) {
     const row = weekRowOf(date);
     if (row) {
-      // One reading per week, whatever each source calls it: the calendar's.
-      slugs = row.parasha.length ? row.parasha : row.parashaIL;
+      // One reading per week, whatever each source calls it: the calendar's. A title that
+      // named a reading itself keeps the calendar's version of that reading (so "מטות"
+      // in a double-reading week becomes matot+masei, and an Israel-only "חקת" stays chukat).
+      const within = (set) => slugs.length > 0 && slugs.every((x) => set.includes(x));
+      const textDated = how !== 'source-date' && how !== 'week-label';
+      if (textDated && within(row.parasha)) slugs = row.parasha;
+      else if (textDated && within(row.parashaIL)) slugs = row.parashaIL;
+      else slugs = row.parasha.length ? row.parasha : row.parashaIL;
       event = row.event;
       if (how === 'source-date' && a.slugs.length && !a.slugs.every((s) => row.parasha.includes(s) || row.parashaIL.includes(s))) notes.push('title-parasha-differs');
     }
