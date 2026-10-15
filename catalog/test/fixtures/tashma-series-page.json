@@ -1,0 +1,116 @@
+{
+ "component": "GilyonSites/Show",
+ "version": "b15fa6452312ed2a28cbe117dd5103f1",
+ "props": {
+  "years": [
+   {
+    "id": "תשפ\"ז",
+    "name": "תשפ\"ז",
+    "items": [
+     {
+      "id": 101820,
+      "originalID": "101820",
+      "name": "להבין מאמרי להבין להתבונן פרשת נח תשפז_.pdf",
+      "thumbnailLink": "http://tashma.co.il/gilyonot/thumb/101820.png",
+      "object_key": "gilyonot/להבין/תשפ\"ז/להבין מאמרי להבין להתבונן פרשת נח תשפז_.pdf",
+      "webContentLink": "",
+      "webViewLink": "",
+      "createdTime": "2026-10-14T16:08:23.000Z",
+      "views": 83,
+      "fileExtension": "pdf"
+     },
+     {
+      "id": 101241,
+      "originalID": "101241",
+      "name": "להתבונן - פרשת בראשית_.pdf",
+      "thumbnailLink": "http://tashma.co.il/gilyonot/thumb/101241.png",
+      "object_key": "gilyonot/להבין/תשפ\"ז/להתבונן - פרשת בראשית_.pdf",
+      "webContentLink": "",
+      "webViewLink": "",
+      "createdTime": "2026-10-03T22:28:07.000Z",
+      "views": 175,
+      "fileExtension": "pdf"
+     },
+     {
+      "id": 100741,
+      "originalID": "100741",
+      "name": "להתבונן - סוכות ושמיני עצרת_.pdf",
+      "thumbnailLink": "http://tashma.co.il/gilyonot/thumb/100741.png",
+      "object_key": "gilyonot/להבין/תשפ\"ז/להתבונן - סוכות ושמיני עצרת_.pdf",
+      "webContentLink": "",
+      "webViewLink": "",
+      "createdTime": "2026-09-21T19:57:33.000Z",
+      "views": 151,
+      "fileExtension": "pdf"
+     },
+     {
+      "id": 100728,
+      "originalID": "100728",
+      "name": "תומר דבורה להבין - יג מידות של רחמים_.pdf",
+      "thumbnailLink": "http://tashma.co.il/gilyonot/thumb/100728.png",
+      "object_key": "gilyonot/להבין/תשפ\"ז/תומר דבורה להבין - יג מידות של רחמים_.pdf",
+      "webContentLink": "",
+      "webViewLink": "",
+      "createdTime": "2026-09-20T07:40:25.000Z",
+      "views": 105,
+      "fileExtension": "pdf"
+     }
+    ]
+   },
+   {
+    "id": "תשפ\"ו",
+    "name": "תשפ\"ו",
+    "items": [
+     {
+      "id": 99817,
+      "originalID": "99817",
+      "name": "להתבונן - מאמרי ראש השנה_.pdf",
+      "thumbnailLink": "http://tashma.co.il/gilyonot/thumb/99817.png",
+      "object_key": "gilyonot/להבין/תשפ\"ו/להתבונן - מאמרי ראש השנה_.pdf",
+      "webContentLink": "",
+      "webViewLink": "",
+      "createdTime": "2026-09-05T19:42:55.000Z",
+      "views": 501,
+      "fileExtension": "pdf"
+     },
+     {
+      "id": 99385,
+      "originalID": "99385",
+      "name": "להתבונן - מאמרי חודש אלול - פרשת ניצבים וילך.pdf",
+      "thumbnailLink": "http://tashma.co.il/gilyonot/thumb/99385.png",
+      "object_key": "gilyonot/להבין/תשפ\"ו/להתבונן - מאמרי חודש אלול - פרשת ניצבים וילך.pdf",
+      "webContentLink": "",
+      "webViewLink": "",
+      "createdTime": "2026-08-30T05:04:11.000Z",
+      "views": 150,
+      "fileExtension": "pdf"
+     },
+     {
+      "id": 98951,
+      "originalID": "98951",
+      "name": "להתבונן - מאמרי חודש אלול - פרשת כי תבא.pdf",
+      "thumbnailLink": "http://tashma.co.il/gilyonot/thumb/98951.png",
+      "object_key": "gilyonot/להבין/תשפ\"ו/להתבונן - מאמרי חודש אלול - פרשת כי תבא.pdf",
+      "webContentLink": "",
+      "webViewLink": "",
+      "createdTime": "2026-08-22T17:53:58.000Z",
+      "views": 163,
+      "fileExtension": "pdf"
+     },
+     {
+      "id": 98625,
+      "originalID": "98625",
+      "name": "להתבונן - מאמרי חודש אלול - פרשת כי תצא_.pdf",
+      "thumbnailLink": "http://tashma.co.il/gilyonot/thumb/98625.png",
+      "object_key": "gilyonot/להבין/תשפ\"ו/להתבונן - מאמרי חודש אלול - פרשת כי תצא_.pdf",
+      "webContentLink": "",
+      "webViewLink": "",
+      "createdTime": "2026-08-18T14:44:17.000Z",
+      "views": 92,
+      "fileExtension": "pdf"
+     }
+    ]
+   }
+  ]
+ }
+}

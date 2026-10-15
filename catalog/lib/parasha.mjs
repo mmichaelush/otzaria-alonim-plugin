@@ -26,10 +26,14 @@ export function tokenize(text) {
   let last = 0;
   const s = String(text ?? '').replace(BIDI_RE, '');
   for (const m of s.matchAll(WORD_RE)) {
-    const n = normalizeKey(m[0]);
-    if (!n) continue;
-    out.push({ w: m[0], n, pre: s.slice(last, m.index) });
-    last = m.index + m[0].length;
+    // "138נח" is a number glued to a word: two tokens.
+    const pieces = /\d/.test(m[0]) && /\p{L}/u.test(m[0]) ? m[0].match(/\d+|\D+/g) : [m[0]];
+    let at = m.index;
+    for (const piece of pieces) {
+      const n = normalizeKey(piece);
+      if (n) { out.push({ w: piece, n, pre: s.slice(last, at) }); last = at + piece.length; }
+      at += piece.length;
+    }
   }
   return out;
 }
@@ -94,6 +98,66 @@ const NAMES = [
   ['vezot-haberakhah', ['וזאת הברכה'], false],
 ];
 
+// Latin transliterations seen in English/Yiddish-English titles. Always ambiguous:
+// they count with a cue ("Parshas X"), next to a year, or when expected.
+const EN_NAMES = {
+  bereshit: ['bereshit', 'bereishis', 'bereishit', 'breishis', 'bereshis', 'beresheet'],
+  noach: ['noach', 'noah'],
+  'lech-lecha': ['lech lecha', 'lech lecho', 'lekh lekha', 'lech lecha'],
+  vayera: ['vayera', 'vayeira'],
+  'chayei-sara': ['chayei sarah', 'chayei sara', 'chaye sarah', 'chayeh sarah'],
+  toldot: ['toldot', 'toldos', 'toledot'],
+  vayetzei: ['vayetzei', 'vayetze', 'vayeitzei', 'vayeitze'],
+  vayishlach: ['vayishlach', 'vayishlah'],
+  vayeshev: ['vayeshev', 'vayeishev'],
+  miketz: ['miketz', 'mikeitz', 'mikets'],
+  vayigash: ['vayigash'],
+  vayechi: ['vayechi', 'vayehi'],
+  shemot: ['shemot', 'shemos'],
+  vaera: ['vaera', 'vaeira'],
+  bo: ['bo'],
+  beshalach: ['beshalach', 'beshalah'],
+  yitro: ['yitro', 'yisro'],
+  mishpatim: ['mishpatim'],
+  terumah: ['terumah', 'trumah'],
+  tetzaveh: ['tetzaveh', 'tetzave'],
+  'ki-tisa': ['ki tisa', 'ki sisa', 'ki tissa'],
+  vayakhel: ['vayakhel', 'vayakheil'],
+  pekudei: ['pekudei', 'pekudey'],
+  vayikra: ['vayikra'],
+  tzav: ['tzav'],
+  shemini: ['shemini', 'shmini'],
+  tazria: ['tazria', 'tazriah'],
+  metzora: ['metzora', 'metzorah'],
+  'achrei-mot': ['achrei mot', 'acharei mot', 'acharei mos', 'achrei mos'],
+  kedoshim: ['kedoshim', 'kedoshem'],
+  emor: ['emor'],
+  behar: ['behar'],
+  bechukotai: ['bechukotai', 'bechukosai', 'bechukosay'],
+  bamidbar: ['bamidbar'],
+  nasso: ['nasso', 'naso'],
+  behaalotcha: ['behaalotcha', 'behaaloscha', 'behaalosecha'],
+  shlach: ['shelach', 'shlach'],
+  korach: ['korach', 'korah'],
+  chukat: ['chukat', 'chukas', 'chukkat'],
+  balak: ['balak'],
+  pinchas: ['pinchas', 'pinchos'],
+  matot: ['matot', 'matos', 'mattot'],
+  masei: ['masei', 'massei'],
+  devarim: ['devarim'],
+  vaetchanan: ['vaetchanan', 'vaeschanan'],
+  eikev: ['eikev', 'ekev'],
+  reeh: ['reeh', 'raeh'],
+  shoftim: ['shoftim'],
+  'ki-teitzei': ['ki teitzei', 'ki seitzei', 'ki tetzei', 'ki setzei'],
+  'ki-tavo': ['ki tavo', 'ki savo', 'ki tovo'],
+  nitzavim: ['nitzavim'],
+  vayeilech: ['vayeilech', 'vayelech'],
+  haazinu: ['haazinu', 'haazeinu'],
+  'vezot-haberakhah': ['vezos haberacha', 'vezot haberakhah'],
+};
+for (const [slug, variants] of Object.entries(EN_NAMES)) NAMES.push([slug, variants, true]);
+
 // Abbreviations of double readings as they appear in file names (quotes dropped).
 const COMBO_ABBR = [
   ['נצו"י', ['nitzavim', 'vayeilech']],
@@ -119,7 +183,7 @@ for (const [slug, variants, ambiguous] of NAMES) {
     if (seen.has(key)) continue;
     seen.add(key);
     // "אחרי" alone is ambiguous even though "אחרי מות" is not.
-    PHRASES.push({ slug, words, ambiguous: ambiguous && words.length === 1 });
+    PHRASES.push({ slug, words, ambiguous: ambiguous && (words.length === 1 || /^[a-z]/.test(words[0])) });
   }
 }
 // Longest first: "אחרי מות" beats "אחרי", "שלח לך" beats "שלח".
@@ -127,9 +191,9 @@ PHRASES.sort((a, b) => b.words.length - a.words.length);
 
 // Words directly before a name that make it a parasha reference.
 const CUE_WORDS = N(['פרשת', 'פרשה', 'פר', 'בפרשת', 'לפרשת', 'ופרשת', 'פרשיית', 'פרשית', 'פרשתנו', 'שבת', 'לשבת', 'בשבת',
-  'עלון', 'גליון', 'גיליון', 'parashat', 'parshas', 'parsha', 'parasha', 'parashah']);
+  'עלון', 'גליון', 'גיליון', 'parashat', 'parshas', 'parshat', 'parsha', 'parasha', 'parashah', 'parshah', 'weekly']);
 // Cues removed from the display title together with the parasha.
-const CUE_REMOVE = N(['פרשת', 'פרשה', 'פר', 'בפרשת', 'לפרשת', 'ופרשת', 'פרשיית', 'פרשית', 'parashat', 'parshas', 'parsha', 'parasha', 'parashah']);
+const CUE_REMOVE = N(['פרשת', 'פרשה', 'פר', 'בפרשת', 'לפרשת', 'ופרשת', 'פרשיית', 'פרשית', 'parashat', 'parshas', 'parshat', 'parsha', 'parasha', 'parashah', 'parshah']);
 // "נח" right after a title of respect is a person, not the parasha.
 const PERSON_TITLES = N(['הרב', 'רבי', 'ר', 'מרן', 'הגאון', 'הצדיק', 'הרה', 'הגה', 'האדמור', 'הרבי', 'רבינו', 'מו']);
 
@@ -155,8 +219,11 @@ function matchAt(tokens, i) {
  */
 export function detectParasha(tokens, { expect = [] } = {}) {
   const yearIdx = tokens.map((t, i) => (parseYearWord(t.n) ? i : -1)).filter((i) => i >= 0);
+  // "שמיני עצרת" is a festival, not parashat Shemini.
+  const inEvent = new Set(detectEvents(tokens).flatMap((e) => Array.from({ length: e.to - e.from }, (_, k) => e.from + k)));
   const hits = [];
   for (let i = 0; i < tokens.length; i++) {
+    if (inEvent.has(i)) continue;
     const abbr = COMBO_ABBR.find(([a]) => a === tokens[i].n);
     if (abbr) { hits.push({ slugs: abbr[1], from: i, to: i + 1, strong: true }); continue; }
     const p = matchAt(tokens, i);
@@ -440,11 +507,14 @@ export function analyzeTitle(text, { expect = [], parasha = true } = {}) {
 export function weekLabelParts(text) {
   const tokens = tokenize(stripFileNoise(text));
   const slugs = new Set();
+  const events = detectEvents(tokens);
+  const inEvent = new Set(events.flatMap((e) => Array.from({ length: e.to - e.from }, (_, k) => e.from + k)));
   for (let i = 0; i < tokens.length; i++) {
+    if (inEvent.has(i)) continue;
     const abbr = COMBO_ABBR.find(([a]) => a === tokens[i].n);
     if (abbr) { abbr[1].forEach((s) => slugs.add(s)); continue; }
     const p = matchAt(tokens, i);
     if (p) { slugs.add(p.slug); i += p.words.length - 1; }
   }
-  return { slugs, events: detectEvents(tokens).map((e) => e.slug) };
+  return { slugs, events: events.map((e) => e.slug) };
 }
