@@ -1971,6 +1971,28 @@ kbd {
   border-color: transparent;
 }
 
+.viewer-stack {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-height: 0;
+}
+
+.viewer-stack .viewer-frame {
+  flex: 1;
+  min-height: 0;
+}
+
+.viewer-banner {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-3);
+  align-items: center;
+  padding: var(--space-2) var(--space-4);
+  color: var(--color-on-primary-container);
+  background: var(--color-primary-container);
+}
+
 .details-related {
   display: flex;
   flex-direction: column;

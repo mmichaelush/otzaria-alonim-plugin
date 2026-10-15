@@ -100,6 +100,44 @@
     return rules.length;
   }
 
-  A.Bulk = { exportLine, exportText, download, favorite, read, hideSeries, MAX_LINKED_EXPORT };
+  /** האם אפשר להדפיס גיליונות ישירות (מארח חדש: ui.printFile). */
+  const canPrint = (app) => Boolean(app.caps && app.caps.has('printFile'));
+
+  /**
+   * מדפיס גיליון אחד דרך המארח: מכין קובץ (מרוחק, או מהתיקייה) ומבקש הדפסה.
+   * מחזיר `{ printed }`; זורק `UnsupportedError` כשאין יכולת, ו-[FileError] בכשל קובץ.
+   */
+  async function printOne(app, item) {
+    const full = app.files.hasFolder && app.files.isDownloaded(item) ? item : await app.full(item);
+    if (!full) throw Object.assign(new Error('missing_data'), { code: 'missing_data' });
+    const file = await app.files.openForReading(full);
+    if (!file.token) throw Object.assign(new Error('no_token'), { code: 'failed' });
+    const result = await app.files.printToken(file.token, [item.seriesTitle || item.title, Core.weekLabel(item)].filter(Boolean).join(' · '));
+    if (result.printed) app.state.logEvent('printed', item);
+    return result;
+  }
+
+  /**
+   * מדפיס ברצף את [items]. [onStatus](index, status) עם `printing | printed |
+   * cancelled | failed`. עוצר בביטול או בכשל ומחזיר `{ done, stoppedAt, reason }`.
+   */
+  async function printSequence(app, items, onStatus, options) {
+    const from = (options && options.from) || 0;
+    const limit = options && options.single ? from + 1 : items.length;
+    for (let k = from; k < limit; k++) {
+      onStatus(k, 'printing');
+      try {
+        const result = await printOne(app, items[k]);
+        onStatus(k, result.printed ? 'printed' : 'cancelled');
+        if (!result.printed) return { done: k - from, stoppedAt: k, reason: 'cancelled' };
+      } catch (error) {
+        onStatus(k, 'failed');
+        return { done: k - from, stoppedAt: k, reason: error.code || 'failed' };
+      }
+    }
+    return { done: limit - from, stoppedAt: -1, reason: '' };
+  }
+
+  A.Bulk = { exportLine, canPrint, printOne, printSequence, exportText, download, favorite, read, hideSeries, MAX_LINKED_EXPORT };
   if (typeof module === 'object' && module.exports) module.exports = A.Bulk;
 })(typeof self !== 'undefined' ? self : globalThis);

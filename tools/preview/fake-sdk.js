@@ -5,7 +5,8 @@
 // `pickUserFolder`/`listUserFolder`/`openFolderFile`, ו-`network.download` שיוצר
 // PDF מינימלי תקין. תרחישים (`scenario`): offline, blocked, slow, bad-schema,
 // rate-limit, download-blocked, download-html, no-folder-permission,
-// reader-permission, folder-gone.
+// reader-permission, folder-gone, legacy-host (אוצריא 0.9.98: בלי `network.fetchFile`
+// ו-`ui.printFile`), fetchfile-blocked, fetchfile-html, print-cancel.
 (function (root) {
   'use strict';
 
@@ -51,7 +52,15 @@
       tokens: 50,
       refilledAt: now(),
       streams: 0,
+      /** קבצים מרוחקים שהמארח הוריד לתיקיית מטמון פרטית (`network.fetchFile`). */
+      fetchedFiles: [],
+      /** קריאות `ui.printFile` שהתקבלו. */
+      printed: [],
+      /** token ← תוכן, לכל קובץ שהמארח הוענק לתוסף (תיקייה או fetchFile). */
+      fileTokens: new Map(),
+      revoked: [],
     };
+    const legacyHost = scenario === 'legacy-host' || o.legacyHost === true;
 
     const folderRoot = 'C:/Users/Me/Documents/עלונים';
 
@@ -155,6 +164,7 @@
         const file = sdk.userFs.get(abs);
         if (!file) return err('error.not_found');
         const token = 'file-' + p.path.length + '-' + file.size;
+        sdk.fileTokens.set(token, file.content);
         return { cancelled: false, token, url: o.fileUrl ? o.fileUrl(abs, file) : dataUrl(file.content), name: p.path.split('/').pop(), size: file.size, access: 'read' };
       },
       'fs.deleteFile': (p) => {
@@ -185,6 +195,36 @@
         if (wanted > content.length) content = content + '%'.padEnd(wanted - content.length, 'x');
         sdk.userFs.set(p.destPath, { type: 'file', size: content.length, modified: new Date(now()).toISOString(), content });
         return { path: p.destPath.replace(/\//g, '\\'), filename: p.destPath.split('/').pop() };
+      },
+
+      // אוצריא 0.9.99: קובץ מרוחק בלי הורדה לתיקיית המשתמש, והדפסת קובץ.
+      'network.fetchFile': legacyHost
+        ? undefined
+        : async (p) => {
+            sdk.fetchedFiles.push(p);
+            if (o.downloadDelay) await sleep(o.downloadDelay);
+            if (scenario === 'fetchfile-blocked' || scenario === 'blocked' || scenario === 'download-blocked') return err('error.forbidden', 'URL not in allowlist');
+            if (!/^https:\/\/(ladaat\.co|tashma\.co\.il|gilyoines\.com|alonolam\.com)\//.test(String(p.url))) return err('error.forbidden', 'URL not in allowlist');
+            const html = scenario === 'fetchfile-html';
+            let content = html ? '<html>' + 'x'.repeat(2000) + '</html>' : minimalPdf(String(p.url).split('/').pop());
+            const wanted = o.sizeFor ? o.sizeFor(p.url) : 0;
+            if (!html && wanted > content.length) content = content + '%'.padEnd(wanted - content.length, 'x');
+            const token = 'remote-' + sdk.fetchedFiles.length;
+            sdk.fileTokens.set(token, content);
+            return { token, url: dataUrl(content), name: String(p.url).split('/').pop() || 'file.pdf', size: content.length, mime: html ? 'text/html' : 'application/pdf' };
+          },
+      'ui.printFile': legacyHost
+        ? undefined
+        : (p) => {
+            sdk.printed.push(p);
+            if (!sdk.fileTokens.has(p.token)) return err('error.not_found', 'unknown file token');
+            if (scenario === 'print-cancel') return { printed: false };
+            return { printed: true };
+          },
+      'fs.revokeFile': (p) => {
+        sdk.revoked.push(p.token);
+        sdk.fileTokens.delete(p.token);
+        return true;
       },
 
       'app.openUrl': (p) => {

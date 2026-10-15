@@ -49,6 +49,10 @@
       "permission": null,
       "since": "0.9.97"
     },
+    "fs.revokeFile": {
+      "permission": "fs.user_files.read",
+      "since": "0.9.94"
+    },
     "fs.revokeFolder": {
       "permission": "fs.user_files.read",
       "since": "0.9.98"
@@ -84,6 +88,19 @@
     "storage.set": {
       "permission": "plugin.storage.write",
       "since": "0.9.89"
+    }
+  },
+  "optional": {
+    "comment": "שיטות של מארח חדש (docs/HOST_API_PROPOSAL.md): התוסף קורא להן רק אחרי בדיקת יכולת (alonim-capabilities.js).",
+    "methods": {
+      "network.fetchFile": {
+        "permission": "network.access",
+        "since": "0.9.99"
+      },
+      "ui.printFile": {
+        "permission": null,
+        "since": "0.9.99"
+      }
     }
   }
 }

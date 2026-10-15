@@ -21,6 +21,9 @@
   const CONCURRENCY = 2;
   const START_GAP_MS = 400;
   const SCAN_PARALLEL = 3;
+  /** קובץ מרוחק שהוענק: כמה זמן משתמשים בו בלי לבקש שוב, וכמה מחזיקים. */
+  const REMOTE_TTL_MS = 10 * 60 * 1000;
+  const REMOTE_KEEP = 6;
 
   const sleepDefault = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
   const trimSlash = (p) => String(p || '').replace(/[\\/]+$/, '');
@@ -67,6 +70,10 @@
       this.preferredSource = o.preferredSource || (() => '');
       /** `(id) => [מזהים קודמים]`: קובץ שירד תחת מזהה ישן עדיין שייך לגיליון. */
       this.previousIds = o.previousIds || (() => []);
+      /** `Capabilities`: יכולות חדשות של המארח (fetchFile, printFile). בלי זה — מסלול ישן בלבד. */
+      this.caps = o.caps || null;
+      /** מזהה גיליון ← קובץ מרוחק שהמארח הוריד לתיקיית מטמון פרטית: `{ token, url, name, size, at }`. */
+      this.remote = new Map();
       this.fetchImpl = o.fetch || (typeof root.fetch === 'function' ? root.fetch.bind(root) : null);
       /** מזהה קצר ← `{ path, size, modified, name }`. */
       this.disk = new Map();
@@ -555,6 +562,79 @@
       return removed;
     }
 
+    // ------------------------------------------- קובץ מרוחק (0.9.99)
+
+    /** האם אפשר לקרוא גיליון בלי תיקייה: `network.fetchFile` זמין. */
+    get canReadRemote() {
+      return Boolean(this.caps && this.caps.has('fetchFile'));
+    }
+
+    /**
+     * קובץ הגיליון מהמקור ישירות למטמון פרטי של המארח, בלי לשמור בתיקיית המשתמש:
+     * `{ url, token, name, size, remote: true }`. אותה בדיקת allowlist כמו הורדה.
+     * זורק `UnsupportedError` כשהיכולת חסרה (הקורא נופל להורדה), ו-[FileError] אחרת.
+     */
+    async openRemote(item) {
+      const cached = this.remote.get(item.id);
+      if (cached && this.now() - cached.at < REMOTE_TTL_MS) return { ...cached, remote: true, saved: false };
+      const { asset, reason } = pickAsset(item, this.preferredSource(item), this.hiddenSources(item));
+      if (!asset) throw new FileError(reason === 'blocked' ? 'blocked' : 'no_direct_link');
+      const url = Core.parseUrl(asset.url).href;
+      let data;
+      try {
+        data = await this.caps.call('fetchFile', this.runtime, { url, timeoutMs: 90000, maxBytes: MAX_INLINE_BYTES });
+      } catch (error) {
+        if (error && error.isUnsupported && error.name === 'UnsupportedError') throw error;
+        if (error.code === 'error.forbidden') throw new FileError('blocked');
+        if (error.code === 'permission_denied' || error.code === 'error.permission_denied') throw new FileError('permission');
+        if (error.code === 'error.timeout') throw new FileError('timeout');
+        if (error.code === 'error.too_large') throw new FileError('too_large');
+        throw new FileError('failed', error.code);
+      }
+      if (!data || !data.token || !data.url) throw new FileError('failed', 'bad fetchFile result');
+      // דף שגיאה (HTML) במקום PDF: מוחקים את ההענקה ולא מציגים.
+      if ((data.mime && !/pdf/i.test(String(data.mime))) || (data.size > 0 && data.size < MIN_PDF_BYTES)) {
+        this.releaseToken(data.token);
+        throw new FileError('not_pdf');
+      }
+      const entry = { token: data.token, url: data.url, name: data.name || 'file.pdf', size: data.size || 0, at: this.now() };
+      this.remote.set(item.id, entry);
+      this._pruneRemote();
+      return { ...entry, remote: true, saved: false };
+    }
+
+    /** משאיר רק את הקבצים המרוחקים האחרונים (ההענקה האחרת מבוטלת). */
+    _pruneRemote() {
+      while (this.remote.size > REMOTE_KEEP) {
+        const [id, entry] = this.remote.entries().next().value;
+        this.remote.delete(id);
+        this.releaseToken(entry.token);
+      }
+    }
+
+    /** מבטל הענקת קובץ (fs.revokeFile); כשל אינו מפריע. */
+    releaseToken(token) {
+      if (token) this.runtime.callSoft('fs.revokeFile', { token });
+    }
+
+    /** מבטל את כל ההענקות של קבצים מרוחקים (סגירת התוסף, ניקוי). */
+    releaseRemote() {
+      for (const entry of this.remote.values()) this.releaseToken(entry.token);
+      this.remote.clear();
+    }
+
+    /**
+     * הדפסת קובץ דרך המארח (`ui.printFile`): `{ printed }`. זורק `UnsupportedError`
+     * כשהיכולת חסרה. דורש פעולת משתמש (המארח קובע).
+     */
+    async printToken(token, jobName) {
+      if (!this.caps) throw new A.Capabilities.UnsupportedError('printFile', 'no-caps');
+      const payload = { token };
+      if (jobName) payload.jobName = String(jobName).slice(0, 120);
+      const result = await this.caps.call('printFile', this.runtime, payload);
+      return { printed: Boolean(result && result.printed) };
+    }
+
     // ----------------------------------------------------------- קריאה
 
     /**
@@ -563,8 +643,16 @@
      * זורק [FileError].
      */
     async openForReading(item, onJob) {
+      const rel = this.hasFolder && this.isDownloaded(item) ? this.diskEntry(item).path : null;
+      // יכולת חדשה: קובץ מרוחק בלי שמירה. נכשלה כיכולת — יורדים לתיקייה כמקודם.
+      if (!rel && this.canReadRemote) {
+        try {
+          return await this.openRemote(item);
+        } catch (error) {
+          if (!(error && error.name === 'UnsupportedError')) throw error;
+        }
+      }
       if (!this.hasFolder) throw new FileError('no_folder');
-      const rel = this.isDownloaded(item) ? this.diskEntry(item).path : null;
       let target = rel;
       if (!target) {
         const job = this.enqueue(item, 'read');
@@ -591,6 +679,7 @@
      * ודף התוסף הוא `file://` (ממקור אחר), ולכן `<iframe src=url>` נחסם. `fetch`
      * מותר (CORS), וכתובת `blob:` אינה נושאת את הכותרת. זורק [FileError].
      */
+    /** כתובת להצגה ב-iframe. מהמארח החדש — הכתובת ישירות; אחרת Blob (ראו README: X-Frame-Options). */
     async readBlobUrl(file) {
       const urlApi = root.URL;
       if (!this.fetchImpl || !urlApi || typeof urlApi.createObjectURL !== 'function') throw new FileError('open_failed', 'no fetch/blob');

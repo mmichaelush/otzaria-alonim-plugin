@@ -44,6 +44,7 @@
   }
   const sdk = window.FakeSdk.createFakeSdk({
     scenario,
+    legacyHost: params.get('host') === 'legacy',
     catalog: fixture.files,
     sizeFor: (url) => sizes.get(url) || 0,
     netDelay: Number(params.get('netdelay') || 40),
@@ -130,7 +131,7 @@
     if (window.__seedDownloads) window.__seedDownloads();
     const payload = {
       plugin: { id: 'com.otzaria-alonim', version: '0.1.0' },
-      app: { version: '0.9.98', platform: params.get('platform') || 'windows', language: params.get('lang') || 'he', locale: 'he-IL', textDirection: 'rtl' },
+      app: { version: scenario === 'legacy-host' || params.get('host') === 'legacy' ? '0.9.98' : '0.9.99', platform: params.get('platform') || 'windows', language: params.get('lang') || 'he', locale: 'he-IL', textDirection: 'rtl' },
       connectivity: { isOnline: scenario === 'offline' ? false : true },
       permissions: ['network.access', 'fs.user_files.read', 'app.open_url'],
       theme: { mode: dark ? 'dark' : 'light', colorScheme: dark ? schemes.dark : schemes.light, typography: { uiFontFamily: 'Rubik', fontFamily: 'FrankRuhlCLM', fontSize: 25 } },

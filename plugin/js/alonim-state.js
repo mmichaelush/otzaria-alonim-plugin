@@ -44,6 +44,8 @@
     welcomeSeen: false,
     /** שמירת היסטוריה מקומית (נפתחו, נקראו, הורדו, הודפסו, חיפושים). */
     history: true,
+    /** תאימות לאחור: להתעלם מהיכולות החדשות של המארח (אבחון ובדיקות). */
+    legacyHost: false,
     /** לשונית פתיחה: week | all | series | mine. */
     startTab: 'week',
   });
@@ -111,6 +113,7 @@
       out.autoCount = Math.max(0, Math.round(num(p.autoCount, 0)));
       out.welcomeSeen = p.welcomeSeen === true;
       out.history = p.history !== false;
+      out.legacyHost = p.legacyHost === true;
       out.startTab = ['week', 'all', 'series', 'mine'].includes(p.startTab) ? p.startTab : 'week';
       out.folder =
         isObject(p.folder) && typeof p.folder.token === 'string' && p.folder.token

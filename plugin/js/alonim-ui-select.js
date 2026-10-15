@@ -10,6 +10,7 @@
   const I18n = A.I18n;
   const { el } = Ui;
   const t = (text, vars) => I18n.t(text, vars);
+  const N = (text) => text;
 
   /** כמה תוצאות "בחר הכול" בוחר לכל היותר. */
   const SELECT_ALL_CAP = 2000;
@@ -35,6 +36,44 @@
     } finally {
       area.remove();
     }
+  }
+
+  /** חלון הדפסה מרובה: רשימה עם סטטוס, "הדפסה ברצף" ו"הדפס הבא". */
+  function printDialog(app, items) {
+    const status = items.map(() => 'pending');
+    const LABEL = { pending: N('ממתין'), printing: N('מדפיס…'), printed: N('הודפס'), cancelled: N('בוטל'), failed: N('נכשל') };
+    const list = el('ul', { class: 'queue-list', 'aria-label': t('הגיליונות להדפסה') });
+    const note = el('p', { class: 'setting-help', role: 'status' });
+    let running = false;
+    const draw = () => {
+      Ui.fill(list, items.map((item, k) => el('li', { class: 'queue-row is-' + (status[k] === 'printed' ? 'done' : status[k] === 'failed' ? 'failed' : 'queued') }, el('span', { class: 'queue-title', dir: 'auto' }, [item.seriesTitle || item.title, Core.weekLabel(item)].filter(Boolean).join(' · ')), el('span', { class: 'queue-status' }, t(LABEL[status[k]])))));
+    };
+    const nextIndex = () => status.findIndex((s) => s === 'pending' || s === 'cancelled' || s === 'failed');
+    async function run(single) {
+      if (running) return;
+      const from = nextIndex();
+      if (from < 0) return;
+      running = true;
+      note.textContent = '';
+      const result = await A.Bulk.printSequence(app, items, (k, s) => { status[k] = s; draw(); }, { from, single });
+      running = false;
+      if (result.reason === 'cancelled') note.textContent = t('ההדפסה בוטלה. אפשר להמשיך בלחיצה על "הדפס הבא".');
+      else if (result.reason) note.textContent = t('ההדפסה נעצרה (קוד: {code}). אפשר לנסות שוב, או להדפיס מהצפיין.', { code: result.reason });
+      else if (nextIndex() < 0) note.textContent = t('כל הגיליונות נשלחו להדפסה.');
+    }
+    draw();
+    const dlg = Ui.dialog({
+      title: t('הדפסת הגיליונות שנבחרו'),
+      size: 'small',
+      body: el('div', {}, el('p', { class: 'dialog-text' }, t('לכל גיליון נפתח דיאלוג ההדפסה של המערכת. "הדפסה ברצף" ממשיכה לגיליון הבא אחרי כל הדפסה; אם היא נעצרת, "הדפס הבא" ממשיך בלחיצה.')), list, note),
+      actions: [
+        Ui.button('text', t('סגירה'), () => dlg.close()),
+        Ui.button('tonal', t('הדפס הבא'), () => run(true), { icon: 'document_pdf_24_regular', key: 'next' }),
+        Ui.button('filled', t('הדפסה ברצף'), () => run(false), { icon: 'document_pdf_24_regular', key: 'all' }),
+      ],
+      focus: '[data-key="all"]',
+    });
+    return dlg;
   }
 
   class SelectionBar {
@@ -79,6 +118,9 @@
         Ui.button('tonal', t('הורדה'), run((list) => A.Bulk.download(app, list)), { icon: 'arrow_download_24_regular', className: 'button-small', disabled: none }),
         Ui.button('tonal', t('למועדפים'), run((list) => A.Bulk.favorite(app, list, true)), { icon: 'star_24_regular', className: 'button-small', disabled: none }),
         Ui.button('tonal', t('לאוסף…'), run((list) => app.addToListDialog(list)), { icon: 'bookmark_multiple_24_regular', className: 'button-small', disabled: none }),
+        A.Bulk.canPrint(app)
+          ? Ui.button('tonal', t('הדפסה'), () => printDialog(app, items()), { icon: 'document_pdf_24_regular', className: 'button-small', disabled: none })
+          : null,
         Ui.button('tonal', t('העתקה כטקסט'), async () => {
           const { text, linked } = await A.Bulk.exportText(app, items());
           const ok = await copyToClipboard(text);
@@ -90,6 +132,6 @@
     }
   }
 
-  A.Selection = { modeButton, SelectionBar, copyToClipboard, SELECT_ALL_CAP };
+  A.Selection = { modeButton, SelectionBar, copyToClipboard, printDialog, SELECT_ALL_CAP };
   if (typeof module === 'object' && module.exports) module.exports = A.Selection;
 })(typeof self !== 'undefined' ? self : globalThis);

@@ -43,8 +43,11 @@ const scenarios = [
   ['settings-backup', 'page=settings&section=backup', "document.querySelector('.code-area')"],
   ['details', 'details=0', "document.querySelector('.dialog .asset-list')"],
   ['viewer', 'open=0', "document.querySelector('.viewer-frame')"],
-  ['viewer-nofolder', 'open=0&nofolder=1', "document.querySelector('.viewer .state-card')"],
-  ['viewer-print', 'open=0&print=1&xorigin=1', "document.querySelector('.print-dialog')"],
+  ['viewer-legacy', 'open=0&host=legacy', "document.querySelector('.viewer-frame')"],
+  ['viewer-nofolder', 'open=0&nofolder=1', "document.querySelector('.viewer-frame')"],
+  ['viewer-nofolder-legacy', 'open=0&nofolder=1&host=legacy', "document.querySelector('.viewer .state-card')"],
+  ['viewer-print', 'open=0&print=1&xorigin=1', "document.querySelector('.viewer-banner')"],
+  ['viewer-print-legacy', 'open=0&print=1&xorigin=1&host=legacy', "document.querySelector('.print-dialog')"],
   ['viewer-linux', 'open=0&platform=linux', "document.querySelector('.viewer .state-card')"],
   ['offline', 'scenario=offline&page=week&warm=1', "document.querySelector('.hero-title') && document.querySelectorAll('.card').length > 3"],
   ['offline-nocache', 'scenario=offline&page=week&seed=0&nocache=1', 'true'],
@@ -417,6 +420,72 @@ async function selectionFlows(browser, open, check) {
   await browser.closePage(page);
 }
 
+/**
+ * שני מסלולי המארח, בדפדפן אמיתי: חדש (0.9.99: קריאה בלי הורדה, תצוגה ישירה,
+ * הדפסת קובץ) וישן (Blob, הורדה לתיקיית קריאה, הדפסה מהקורא).
+ */
+async function hostFlows(browser, open, check) {
+  // חדש
+  let page = await open('open=40');
+  await page.sleep(900);
+  check('מארח חדש: קריאה מהמקור בלי הורדה ובלי כתיבה לתיקיית המשתמש', await page.eval("window.__sdk.fetchedFiles.length === 1 && window.__sdk.downloads.length === 0 && ![...window.__sdk.userFs.keys()].some((k) => k.includes('_קריאה'))"));
+  check('מארח חדש: iframe ישיר על כתובת המארח (לא blob)', await page.eval("(() => { const f = document.querySelector('.viewer-frame'); return Boolean(f) && !f.src.startsWith('blob:') && f.src.length > 20; })()"));
+  check('מארח חדש: כפתור תצוגה חלופית זמין', await page.eval("Boolean(document.querySelector('[data-key=alt-view]'))"));
+  await page.eval("document.querySelector('[data-key=alt-view]').click()");
+  await page.sleep(900);
+  check('תצוגה חלופית: עוברת ל-Blob', await page.eval("document.querySelector('.viewer-frame').src.startsWith('blob:') && !document.querySelector('[data-key=alt-view]')"));
+  await page.eval("window.__alonimApp.print(window.__alonimApp.viewer.item)");
+  await page.sleep(900);
+  await browser.closePage(page);
+
+  page = await open('open=40&print=1&xorigin=1');
+  await page.sleep(1500);
+  check('מארח חדש: הדפסה מציגה כפתור "הדפסה" (לחיצה טרייה) במקום לקרוא בלי מחווה', await page.eval("Boolean(document.querySelector('.viewer-banner [data-key=print-now]')) && window.__sdk.printed.length === 0"));
+  await page.eval("document.querySelector('[data-key=print-now]').click()");
+  await page.sleep(500);
+  check('מארח חדש: ui.printFile נקרא עם ה-token של הקובץ', await page.eval("window.__sdk.printed.length === 1 && window.__sdk.fileTokens.has(window.__sdk.printed[0].token) && Boolean(window.__sdk.printed[0].jobName)"));
+  check('מארח חדש: לא נפתח דיאלוג הדרכה', await page.eval("!document.querySelector('.print-dialog')"));
+  await browser.closePage(page);
+
+  page = await open('open=40&print=1&xorigin=1&scenario=print-cancel');
+  await page.sleep(1500);
+  await page.eval("document.querySelector('[data-key=print-now]').click()");
+  await page.sleep(500);
+  check('הדפסה שבוטלה בדיאלוג המערכת: הודעה, בלי דיאלוג הדרכה', await page.eval("/ההדפסה בוטלה/.test(document.body.innerText) && !document.querySelector('.print-dialog')"));
+  await browser.closePage(page);
+
+  // ישן
+  page = await open('open=40&host=legacy');
+  await page.sleep(1500);
+  check('מארח ישן: הורדה ל-_קריאה, בלי fetchFile', await page.eval("window.__sdk.fetchedFiles.length === 0 && window.__sdk.downloads.length === 1 && /_קריאה/.test(window.__sdk.downloads[0].destPath)"));
+  check('מארח ישן: iframe על blob, בלי כפתור תצוגה חלופית', await page.eval("document.querySelector('.viewer-frame').src.startsWith('blob:') && !document.querySelector('[data-key=alt-view]')"));
+  check('מארח ישן: אין קריאה לשיטות החדשות', await page.eval("!window.__sdk.calls.some((c) => c.method === 'network.fetchFile' || c.method === 'ui.printFile')"));
+  await browser.closePage(page);
+
+  // הדפסה מרובה: מארח חדש מציע, מארח ישן לא
+  page = await open('page=all');
+  await page.eval("document.querySelector('[data-key=select-mode]').click()");
+  await page.sleep(250);
+  await page.eval("[...document.querySelectorAll('.select-check')].slice(0, 2).forEach((b) => b.click())");
+  await page.sleep(250);
+  check('הדפסה מרובה: כפתור בשורת הבחירה (מארח חדש)', await page.eval("[...document.querySelectorAll('.selection-bar button')].some((b) => b.textContent.trim() === 'הדפסה')"));
+  await page.eval("[...document.querySelectorAll('.selection-bar button')].find((b) => b.textContent.trim() === 'הדפסה').click()");
+  await page.sleep(300);
+  await page.eval("document.querySelector('.dialog [data-key=all]').click()");
+  await page.sleep(2200);
+  check('הדפסה ברצף: שני הגיליונות נשלחו, בלי הורדה', await page.eval("window.__sdk.printed.length === 2 && window.__sdk.downloads.length === 0"), String(await page.eval('window.__sdk.printed.length')));
+  check('הדפסה ברצף: סטטוס "הודפס" לכל גיליון', await page.eval("document.querySelectorAll('.dialog .queue-row.is-done').length === 2"));
+  await browser.closePage(page);
+  page = await open('page=all&host=legacy');
+  await page.eval("document.querySelector('[data-key=select-mode]').click()");
+  await page.sleep(250);
+  await page.eval("document.querySelector('.select-check').click()");
+  await page.sleep(250);
+  check('הדפסה מרובה: אין כפתור במארח ישן', await page.eval("![...document.querySelectorAll('.selection-bar button')].some((b) => b.textContent.trim() === 'הדפסה')"));
+  check('מסלולי המארח: בלי שגיאות קונסול', page.errors.length === 0, page.errors.join('\n'));
+  await browser.closePage(page);
+}
+
 /** תרחישי זרימה: נבדקים בפועל, לא רק נטענים. */
 async function flows(browser) {
   const open = async (query, base, width) => {
@@ -491,13 +560,15 @@ async function flows(browser) {
   await browser.closePage(page);
 
   // הדפסה: iframe חסום ב-WebView האמיתי → דיאלוג עם מסלול קורא אוצריא
-  page = await open('open=0&print=1&xorigin=1');
+  page = await open('open=0&print=1&xorigin=1&host=legacy');
   await page.sleep(2200);
   check('הדפסה: דיאלוג עם מסלול הקורא וההנחיה', await page.eval("document.querySelector('.print-dialog') && document.querySelector('.print-guide')"));
   await page.click('.print-dialog [data-key=reader]');
   await page.sleep(1500);
   check('פתיחה בקורא של אוצריא (מדומה)', (await page.eval("window.__sdk.calls.some((c) => c.method === 'reader.openBook')")) === true);
   await browser.closePage(page);
+
+  await hostFlows(browser, open, check);
 
   // כללים: "הסתר סדרה" מכרטיס, ביטול (Undo)
   page = await open('page=all');

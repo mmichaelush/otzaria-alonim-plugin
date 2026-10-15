@@ -66,6 +66,8 @@
       this.dataTimer = null;
       this.newCutoff = Date.now() - NEW_DAYS * DAY_MS;
 
+      /** יכולות המארח (fetchFile, printFile): המקור היחיד לשאלה "האם יש". */
+      this.caps = new A.Capabilities.Capabilities({ log: this.log });
       this.state = new A.State.State(this.runtime, { log: this.log });
       this.index = new A.Index.CatalogIndex({ source: (id) => this.sourceInfo(id).name });
       this.catalog = new A.Catalog.Catalog(this.runtime, { log: this.log, online: () => this.online });
@@ -76,11 +78,14 @@
         hiddenSources: (item) => (this.index.decision(this.index.get(item.id) || item).hiddenSources || []),
         preferredSource: (item) => this.state.preferredSource(item.series),
         previousIds: (id) => this.index.previousIdsOf(id),
+        caps: this.caps,
       });
 
       /** מצב התצוגה של המסכים: שורד מעבר בין לשוניות. */
       this.view = {
         route: { tab: 'week', series: null },
+        /** 'blob' אחרי שהמשתמש ביקש הצגה חלופית: הצפיין לא משתמש ב-iframe ישיר עד הסגירה. */
+        viewerMode: '',
         weekDate: '',
         weekMore: 12,
         all: { query: '', filters: {}, sort: 'relevance', group: '', includeHidden: false, builder: false, scroll: 0 },
@@ -122,6 +127,7 @@
       const host = p.app || {};
       this.platform = host.platform || '';
       this.hostVersion = host.version || '';
+      this.caps.setHost(this.hostVersion);
       this.hostLanguage = host.language || 'he';
       this.permissions = Array.isArray(p.permissions) ? p.permissions : [];
       const connectivity = p.connectivity || {};
@@ -132,6 +138,7 @@
 
       await this.state.load();
       this.applyPrefs();
+      this.caps.setOverride(this.state.prefs.legacyHost);
       this.state.beginVisit();
       this.restoreViews();
       this.state.onChange((domains) => this.onStateChange(domains));
@@ -155,7 +162,10 @@
         root.addEventListener('online', () => this.setOnline(true));
         root.addEventListener('offline', () => this.setOnline(false));
         // שמירה מאוחדת (debounce) אינה אמורה לאבד שינוי שהמשתמש עשה לפני שהלשונית נסגרה.
-        root.addEventListener('pagehide', () => this.state.flush());
+        root.addEventListener('pagehide', () => {
+          this.state.flush();
+          this.files.releaseRemote();
+        });
         this.doc.addEventListener('visibilitychange', () => {
           if (this.doc.visibilityState === 'hidden') this.state.flush();
         });
@@ -219,6 +229,7 @@
     onStateChange(domains) {
       if (domains.includes('rules')) this.index.setRules(this.state.rules);
       if (domains.includes('prefs')) {
+        this.caps.setOverride(this.state.prefs.legacyHost);
         const before = I18n.language;
         this.applyPrefs();
         this.emit('prefs', { languageChanged: before !== I18n.language });
@@ -498,6 +509,7 @@
     }
 
     closeViewer(silent) {
+      this.view.viewerMode = '';
       if (!this.viewer) return;
       this.viewer = null;
       this.viewerToken++;
