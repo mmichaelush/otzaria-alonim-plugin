@@ -10,6 +10,7 @@
   const I18n = A.I18n;
   const { el, icon } = Ui;
   const t = (text, vars) => I18n.t(text, vars);
+  const N = (text) => text;
 
   /** גיליון "מדומה" מתצלום שמור, לפני שהשרד שלו נטען: מספיק להצגה ולפתיחה. */
   function pseudoItem(snap) {
@@ -95,6 +96,7 @@
     ['lists', 'רשימות'],
     ['shabbat', 'אוסף שבת'],
     ['downloads', 'הורדות'],
+    ['history', 'היסטוריה'],
   ];
 
   class MineScreen {
@@ -165,6 +167,7 @@
       if (v.tab === 'favorites') this.renderFavorites();
       else if (v.tab === 'lists') this.renderLists();
       else if (v.tab === 'shabbat') this.renderShabbat();
+      else if (v.tab === 'history') this.renderHistory();
       else this.renderDownloads();
     }
 
@@ -237,12 +240,12 @@
       const items = list ? list.entries.map((e) => this.resolve(e)) : [];
       const downloaded = items.filter((it) => app.files.isDownloaded(it)).length;
       const busy = items.some((it) => { const j = app.files.jobFor(it); return j && (j.status === 'queued' || j.status === 'active'); });
-      const week = new A.WeekScreen(app).currentWeek();
+      const week = app.currentWeekView();
       const addMine = Ui.button('tonal', t('הוסף את גיליונות השבוע שלי'), () => {
         const index = app.index;
         const followed = new Set(app.state.followedIds());
         let n = 0;
-        for (const i of index.forWeek(week)) {
+        for (const i of week ? index.forWeek(week.row) : []) {
           const it = index.item(i);
           if (followed.has(it.series) && !app.state.isMuted(it.series) && !list.entries.some((e) => e.id === it.id)) {
             app.state.addToList(list.id, it);
@@ -321,6 +324,87 @@
       const list = this.list(items, t('הקבצים שהורדו'), (item) => this.confirmDelete(item), header);
       list.removeLabel = t('מחיקת קובץ');
       list.layout();
+    }
+
+    // ----------------------------------------------------- היסטוריה
+
+    /**
+     * מה נעשה: נפתחו, נקראו, הורדו, הודפסו; "המשך קריאה" למעלה. הכול מקומי
+     * (נשמר במכשיר בלבד), אפשר למחוק אירוע בודד, לנקות הכול, או לכבות בהגדרות.
+     */
+    renderHistory() {
+      const { app } = this;
+      const v = app.view.mine;
+      const kinds = [['', N('הכול')], ['opened', N('נפתחו')], ['read', N('נקראו')], ['downloaded', N('הורדו')], ['printed', N('הודפסו')]];
+      const events = app.state.historyEvents(v.historyKind || '');
+      const reading = app.state.continueReading(6);
+      const nodes = [];
+      if (!app.state.historyOn) {
+        nodes.push(el('p', { class: 'hint-card' }, icon('info_24_regular'), el('span', { class: 'hint-text' }, t('שמירת ההיסטוריה כבויה. אפשר להפעיל אותה בהגדרות.')), Ui.button('text', t('להגדרות'), () => app.go('settings', { section: 'general' }), { className: 'button-small' })));
+      }
+      if (reading.length) {
+        const list = el('div', { class: 'compact-list', role: 'list', 'aria-label': t('המשך קריאה') });
+        for (const snap of reading) {
+          const item = this.resolve(snap);
+          list.appendChild(
+            el(
+              'div',
+              { class: 'history-row', role: 'listitem' },
+              el('button', { type: 'button', class: 'history-open', onclick: () => app.openIssue(item) }, icon('book_open_24_regular'), el('span', { class: 'compact-title', dir: 'auto' }, item.seriesTitle || item.title), el('span', { class: 'compact-meta', dir: 'auto' }, [Core.parashaLabel(snap.p), snap.hy ? Core.hyLetters(snap.hy) : ''].filter(Boolean).join(' · '))),
+              Ui.iconButton('dismiss_24_regular', t('הסרה מההמשך קריאה'), () => app.state.removeOpened(snap.id), { className: 'history-remove' }),
+            ),
+          );
+        }
+        nodes.push(el('section', { class: 'week-section' }, el('h2', { class: 'section-title' }, t('המשך קריאה')), list));
+      }
+      const select = Ui.selectField(t('סוג פעולה'), kinds.map(([value, label]) => ({ value, label: t(label) })), v.historyKind || '', (value) => {
+        v.historyKind = value;
+        this.render();
+      });
+      const clear = Ui.button('text', t('ניקוי ההיסטוריה'), () => {
+        const old = app.state.clearEvents();
+        app.toast(t('ההיסטוריה נוקתה'), { action: { label: t('ביטול הפעולה'), run: () => app.state.restoreEvents(old) } });
+      }, { icon: 'delete_24_regular', className: 'button-small', disabled: !app.state.historyEvents().length });
+      const header = el('div', { class: 'list-header' }, el('div', { class: 'shabbat-summary' }, el('h2', { class: 'series-title' }, t('היסטוריה')), el('p', { class: 'card-meta' }, t('נשמרת במכשיר הזה בלבד.'))), el('div', { class: 'list-tools' }, select, clear));
+      nodes.push(header);
+      if (!events.length) {
+        nodes.push(Ui.stateCard({ icon: 'history_24_regular', title: t('אין היסטוריה'), text: t('גיליונות שתפתחו, תקראו, תורידו או תדפיסו יופיעו כאן.'), actions: [Ui.button('tonal', t('לכל העלונים'), () => app.go('all'))], compact: true }));
+        this.body.replaceChildren(el('div', { class: 'history-page' }, ...nodes));
+        return;
+      }
+      const KIND = { opened: [N('נפתח'), 'book_open_24_regular'], read: [N('נקרא'), 'checkmark_circle_24_regular'], downloaded: [N('הורד'), 'arrow_download_24_regular'], printed: [N('הודפס'), 'document_pdf_24_regular'] };
+      const limit = v.historyMore || 60;
+      let day = '';
+      const list = el('div', { class: 'compact-list', role: 'list', 'aria-label': t('היסטוריה') });
+      for (const e of events.slice(0, limit)) {
+        const date = new Date(e.t);
+        const key = Core.ymd(date);
+        if (key !== day) {
+          day = key;
+          list.appendChild(el('h3', { class: 'history-day', role: 'presentation' }, Core.dateLine(date, { weekday: true })));
+        }
+        const item = this.resolve(e);
+        const [label, iconName] = KIND[e.k];
+        const hh = String(date.getHours()).padStart(2, '0') + ':' + String(date.getMinutes()).padStart(2, '0');
+        list.appendChild(
+          el(
+            'div',
+            { class: 'history-row', role: 'listitem' },
+            el(
+              'button',
+              { type: 'button', class: 'history-open', onclick: () => app.openIssue(item) },
+              icon(iconName),
+              el('span', { class: 'compact-title', dir: 'auto' }, item.seriesTitle || item.title, el('span', { class: 'history-kind' }, t(label))),
+              el('span', { class: 'compact-meta', dir: 'auto' }, [Core.weekLabel(item), item.hy ? Core.hyLetters(item.hy) : ''].filter(Boolean).join(' · ')),
+              el('span', { class: 'history-time' }, hh),
+            ),
+            Ui.iconButton('dismiss_24_regular', t('הסרה מההיסטוריה'), () => app.state.removeEvent(e), { className: 'history-remove' }),
+          ),
+        );
+      }
+      nodes.push(list);
+      if (events.length > limit) nodes.push(el('div', { class: 'load-more' }, Ui.button('outlined', t('הצג עוד'), () => { v.historyMore = limit + 60; this.render(); })));
+      this.body.replaceChildren(el('div', { class: 'history-page' }, ...nodes));
     }
 
     confirmDelete(item) {

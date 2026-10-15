@@ -95,7 +95,8 @@
       this.list = new Ui.VList({ className: 'series-list', label: t('רשימת הסדרות') });
       this.list.onResize = () => this.runList();
       this.listHost.appendChild(this.list.root);
-      this.host.replaceChildren(el('div', { class: 'page fill-page' }, el('div', { class: 'toolbar' }, el('div', { class: 'search-bar' }, icon('search_24_regular'), input), filters, this.countLine), this.listHost));
+      this.recentHost = el('div', { class: 'recent-series' });
+      this.host.replaceChildren(el('div', { class: 'page fill-page' }, el('div', { class: 'toolbar' }, el('div', { class: 'search-bar' }, icon('search_24_regular'), input), filters, this.recentHost, this.countLine), this.listHost));
       this.listInput = input;
       this.runList();
       this.unsub.push(
@@ -117,6 +118,19 @@
       this.list.root.addEventListener('scroll', () => { v.scroll = this.list.root.scrollTop; }, { passive: true });
     }
 
+    /** "נצפו לאחרונה": סדרות שנפתחו לאחרונה, לגישה מהירה (כשלא מחפשים). */
+    renderRecent() {
+      const { app } = this;
+      const v = app.view.seriesList;
+      const recent = v.query ? [] : app.state.recentSeries().map((r) => app.index.seriesById.get(app.index.resolveSeriesId(r.id))).filter(Boolean).slice(0, 6);
+      Ui.fill(
+        this.recentHost,
+        recent.length
+          ? [el('span', { class: 'recent-label' }, t('נצפו לאחרונה')), ...recent.map((s) => el('button', { type: 'button', class: 'filter-tag', onclick: () => app.openSeries(s.id) }, el('span', { class: 'filter-tag-text', dir: 'auto' }, s.title)))]
+          : null,
+      );
+    }
+
     runList(keep) {
       const { app } = this;
       const v = app.view.seriesList;
@@ -129,6 +143,7 @@
         return true;
       });
       app.state.setViewState('seriesList', { query: v.query, circle: v.circle, lang: v.lang, mode: v.mode });
+      this.renderRecent();
       this.listHost.querySelector('.state-card, .skeleton-list')?.remove();
       this.list.root.hidden = this.rows.length === 0;
       this.countLine.replaceChildren(el('span', { class: 'results-count' }, t('{n} סדרות', { n: Core.formatCount(this.rows.length) })));
@@ -180,6 +195,7 @@
       const series = app.index.seriesById.get(seriesId);
       const v = app.view.seriesPage;
       this.seriesId = seriesId;
+      app.state.viewSeries(seriesId);
       const render = () => this.renderPage();
       this.pageQuery = el('input', { class: 'search-input', type: 'search', value: v.query, placeholder: t('חיפוש בתוך הסדרה'), 'aria-label': t('חיפוש בתוך הסדרה'), dir: 'auto', autocomplete: 'off' });
       this.pageQuery.addEventListener('input', () => {

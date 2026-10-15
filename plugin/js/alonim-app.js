@@ -315,6 +315,13 @@
       return this._weekViews.views;
     }
 
+    /** תצוגת "השבוע" הנוכחי (לפי היום), או `null` כשאין לוח. */
+    currentWeekView() {
+      const views = this.weekViews();
+      const cur = A.Weeks.current(views, Core.ymd(this.today()));
+      return views[cur.index] || null;
+    }
+
     cardState(item) {
       const decision = this.index.decision(item);
       const hidden = decision.action === 'hide';
@@ -399,7 +406,9 @@
     }
 
     toggleRead(item) {
-      this.state.markRead(item, !this.state.isRead(item.id));
+      const read = !this.state.isRead(item.id);
+      this.state.markRead(item, read);
+      if (read) this.state.logEvent('read', item);
     }
 
     toggleFollow(seriesId) {
@@ -426,12 +435,14 @@
     /** פתיחת גיליון: ברירת המחדל של לחיצה — צפיין פנימי. */
     openIssue(item, ctx, options) {
       this.state.addOpened(item);
+      this.state.logEvent('opened', item);
       this.viewer = { item, ctx: ctx || null, options: options || {}, token: (this.viewerToken = (this.viewerToken || 0) + 1) };
       Ui.closeMenu();
       this.emit('viewer', this.viewer);
     }
 
     print(item, ctx) {
+      this.state.logEvent('printed', item);
       this.openIssue(item, ctx, { print: true });
     }
 
@@ -482,7 +493,9 @@
         this.toast(this.fileErrorText('missing_data'), { error: true });
         return null;
       }
-      return this.files.enqueue(full, 'save', src);
+      const job = this.files.enqueue(full, 'save', src);
+      if (job && job.done) job.done.then((done) => done && done.status === 'done' && this.state.logEvent('downloaded', item));
+      return job;
     }
 
     /** תיבת בירור אחרי כשל: מה קרה, ומה אפשר לעשות. */

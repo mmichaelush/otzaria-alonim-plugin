@@ -56,12 +56,25 @@
       this.input.addEventListener('input', () => {
         v.query = this.input.value;
         this.clearBtn.hidden = !v.query;
+        this.renderSuggest();
         this.schedule();
       });
+      // חיפוש שהושלם (Enter או יציאה מהשדה) נכנס להיסטוריית החיפושים.
+      this.input.addEventListener('change', () => app.state.addSearch(this.input.value));
+      this.input.addEventListener('focus', () => this.renderSuggest(true));
+      this.input.addEventListener('blur', () => setTimeout(() => !this.suggestHost.contains(document.activeElement) && this.hideSuggest(), 120));
       this.input.addEventListener('keydown', (event) => {
-        if (event.key === 'ArrowDown') {
+        if (event.key === 'ArrowDown' && !this.suggestHost.hidden) {
+          event.preventDefault();
+          const first = this.suggestHost.querySelector('button');
+          if (first) first.focus();
+        } else if (event.key === 'ArrowDown') {
           event.preventDefault();
           Cards.focusItem(this.list, 0, this.perRow);
+        } else if (event.key === 'Escape' && !this.suggestHost.hidden) {
+          event.preventDefault();
+          event.stopPropagation();
+          this.hideSuggest();
         } else if (event.key === 'Escape' && v.query) {
           event.preventDefault();
           event.stopPropagation();
@@ -79,6 +92,9 @@
       }, { className: 'search-tool', expanded: v.builder, pressed: v.builder });
       this.filtersBtn = Ui.button('tonal', '', () => this.openPanel(), { icon: 'filter_24_regular', className: 'filters-toggle button-small', key: 'filters' });
 
+      this.suggestHost = el('div', { class: 'search-suggest', hidden: true, role: 'group', 'aria-label': t('חיפושים אחרונים ושמורים') });
+      this.suggestHost.addEventListener('keydown', (event) => this.onSuggestKey(event));
+      this.suggestHost.addEventListener('focusout', () => setTimeout(() => !this.suggestHost.contains(document.activeElement) && document.activeElement !== this.input && this.hideSuggest(), 120));
       const searchBar = el('div', { class: 'search-bar' }, icon('search_24_regular'), this.input, this.clearBtn, this.builderBtn, this.filtersBtn);
       this.builderHost = el('div', { class: 'builder-host' });
       this.filterRow = el('div', { class: 'filter-row is-always' });
@@ -93,7 +109,7 @@
       this.perRow = 1;
 
       host.replaceChildren(
-        el('div', { class: 'page fill-page all-page' }, el('div', { class: 'toolbar' }, searchBar, this.builderHost, this.filterRow, this.chipsHost, this.countLine), this.listHost),
+        el('div', { class: 'page fill-page all-page' }, el('div', { class: 'toolbar' }, el('div', { class: 'search-wrap' }, searchBar, this.suggestHost), this.builderHost, this.filterRow, this.chipsHost, this.countLine), this.listHost),
       );
       this.renderQuickRow();
       this.renderChips();
@@ -130,6 +146,67 @@
       this.list.destroy();
     }
 
+    // --------------------------------- חיפושים אחרונים ושמורים
+
+    hideSuggest() {
+      this.suggestHost.hidden = true;
+    }
+
+    /** מציג חיפושים שמורים ואחרונים כשהשדה ריק; נעלם עם הקלדה. */
+    renderSuggest(focusing) {
+      const { app } = this;
+      const presets = app.state.presets;
+      const searches = app.state.searches;
+      if (this.v.query || (!presets.length && !searches.length)) {
+        this.hideSuggest();
+        return;
+      }
+      if (!focusing && this.suggestHost.hidden) return;
+      const row = (label, iconName, onPick, onRemove, removeLabel) =>
+        el(
+          'div',
+          { class: 'suggest-row' },
+          el('button', { type: 'button', class: 'suggest-pick', onclick: onPick }, icon(iconName), el('span', { class: 'suggest-text', dir: 'auto' }, label)),
+          onRemove ? Ui.iconButton('dismiss_24_regular', removeLabel, onRemove, { className: 'suggest-remove' }) : null,
+        );
+      const nodes = [];
+      if (presets.length) {
+        nodes.push(el('h3', { class: 'suggest-title' }, t('הגדרות שמורות')));
+        for (const p of presets) nodes.push(row(p.name, 'bookmark_multiple_24_regular', () => { this.applyPreset(p); this.hideSuggest(); }));
+      }
+      if (searches.length) {
+        nodes.push(
+          el(
+            'h3',
+            { class: 'suggest-title' },
+            t('חיפושים אחרונים'),
+            el('button', { type: 'button', class: 'link-button', onclick: () => { app.state.clearSearches(); this.renderSuggest(true); } }, t('ניקוי')),
+          ),
+        );
+        for (const s of searches.slice(0, 8)) {
+          nodes.push(row(s.q, 'history_24_regular', () => { this.setQuery(s.q); this.hideSuggest(); this.input.focus(); }, () => { app.state.removeSearch(s.q); this.renderSuggest(true); }, t('הסרת החיפוש מההיסטוריה')));
+        }
+      }
+      Ui.fill(this.suggestHost, nodes);
+      this.suggestHost.hidden = false;
+    }
+
+    onSuggestKey(event) {
+      const buttons = [...this.suggestHost.querySelectorAll('button')];
+      const at = buttons.indexOf(document.activeElement);
+      if (event.key === 'ArrowDown' || event.key === 'ArrowUp') {
+        event.preventDefault();
+        const next = at + (event.key === 'ArrowDown' ? 1 : -1);
+        if (next < 0) this.input.focus();
+        else if (buttons[next]) buttons[next].focus();
+      } else if (event.key === 'Escape') {
+        event.preventDefault();
+        event.stopPropagation();
+        this.hideSuggest();
+        this.input.focus();
+      }
+    }
+
     // -------------------------------------------------- מצב ושמירה
 
     setQuery(text) {
@@ -137,6 +214,7 @@
       this.input.value = text;
       this.clearBtn.hidden = !text;
       this.schedule();
+      if (text) this.hideSuggest();
     }
 
     /** מחליף את המסננים: מציג תגיות, טוען שנים שחסרות, ומריץ מחדש. */
