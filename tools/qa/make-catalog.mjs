@@ -21,10 +21,13 @@ await cp(from, out, { recursive: true });
 const WEEK = '2026-10-17';
 const SERIES = 's_cf55df3e80';
 const qaItems = [
-  ['i_qa0000000001', 'qa-ok.pdf', 'QA תקין'],
-  ['i_qa0000000002', 'qa-big.pdf', 'QA גדול 60MB'],
-  ['i_qa0000000003', 'qa-html.pdf', 'QA HTML במקום PDF'],
-  ['i_qa0000000004', 'qa-slow.pdf', 'QA איטי'],
+  ['i_a1c0de000000', 'qa-ok.pdf', 'QA תקין'],
+  ['i_a2c0de000000', 'qa-big.pdf', 'QA גדול 60MB'],
+  ['i_a3c0de000000', 'qa-html.pdf', 'QA HTML במקום PDF'],
+  ['i_a4c0de000000', 'qa-slow.pdf', 'QA איטי'],
+  ['i_a5c0de000000', 'qa-ok2.pdf', 'QA תקין ב'],
+  ['i_a6c0de000000', 'qa-ok3.pdf', 'QA תקין ג'],
+  ['i_a7c0de000000', 'qa-huge.pdf', 'QA ענק 110MB'],
 ].map(([id, file, title], k) => ({
   added: '2026-10-15T08:00:00Z',
   assets: [{ ext: `qa${k + 1}`, src: 'ladaat', url: file, pages: 4 }],
@@ -45,7 +48,7 @@ const order = (a, b) => {
 const sha = (text) => createHash('sha256').update(text, 'utf8').digest('hex');
 
 const OLD_ID = 'i_011b3555e667'; // ladaat, השבוע, פרשת נח
-const NEW_ID = 'i_qamigrated01';
+const NEW_ID = 'i_b0c0de000001';
 
 async function patch(rel) {
   const path = join(out, rel);
@@ -69,6 +72,6 @@ const manifest = JSON.parse(await readFile(manifestPath, 'utf8'));
 Object.assign(manifest.files.recent, await patch('recent.json'));
 const shard = manifest.shards.find((s) => s.id === '5787');
 Object.assign(shard, await patch('issues/5787.json'));
-if (prev) manifest.catalogVersion += 60;
+manifest.catalogVersion += (prev ? 60 : 30) + Number(arg('--bump', 0));
 await writeFile(manifestPath, JSON.stringify(manifest, null, 2));
 console.log(`QA catalog written to ${out}${prev ? ' (with previousIds migration ' + OLD_ID + ' -> ' + NEW_ID + ')' : ''}`);

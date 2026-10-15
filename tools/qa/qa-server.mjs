@@ -132,10 +132,10 @@ createServer(async (req, res) => {
     if (qaFile) {
       const name = qaFile[1];
       if (name === 'qa-slow.pdf') await new Promise((r) => setTimeout(r, 25000));
-      if (name === 'qa-html.pdf') return res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' }).end('<!doctype html><title>login</title><p>not a pdf</p>');
-      if (name === 'qa-big.pdf') {
-        // 60MB: מעל תקרת ברירת המחדל של network.fetchFile (50MB). ה-PDF תקין רק בכותרת.
-        const size = 60 * 1024 * 1024;
+      if (name === 'qa-html.pdf') return res.writeHead(200, { 'Content-Type': 'text/html; charset=utf-8' }).end('<!doctype html><title>login</title><p>not a pdf</p>' + '<!-- padding -->'.repeat(300));
+      if (name === 'qa-big.pdf' || name === 'qa-huge.pdf') {
+        // 60MB: מעל ברירת המחדל של network.fetchFile (50MB); 110MB: מעל התקרה של המארח (100MB). ה-PDF תקין רק בכותרת.
+        const size = (name === 'qa-huge.pdf' ? 110 : 60) * 1024 * 1024;
         res.writeHead(200, { 'Content-Type': 'application/pdf', 'Content-Length': size });
         const chunk = Buffer.alloc(1 << 20, 32);
         chunk.write('%PDF-1.4\n');
