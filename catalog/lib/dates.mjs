@@ -1,6 +1,6 @@
 // Resolving which Shabbat/festival an item belongs to, from week labels,
 // parasha + year, or an upload time. Pure functions over lib/calendar.mjs.
-import { weeksBetween, weeksOfYear, hyOfIso, addDays, daysBetween, isoOfGreg } from './calendar.mjs';
+import { weeksBetween, weeksOfYear, hyOfIso, addDays, daysBetween, isoOfGreg, rowHasEvent } from './calendar.mjs';
 
 const dayOf = (isoTs) => {
   const d = new Date(isoTs);
@@ -26,7 +26,7 @@ export function resolveWeekLabel({ slugs, events }, refIso) {
     return near(cands);
   }
   for (const ev of events) {
-    const cands = rows.filter((r) => r.event === ev);
+    const cands = rows.filter((r) => rowHasEvent(r, ev));
     if (!cands.length) continue;
     const best = near(cands);
     // First day of that festival run (rows within 10 days belong to one run).

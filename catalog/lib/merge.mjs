@@ -4,13 +4,14 @@
 // unambiguous. When unsure they stay separate; no source copy is ever dropped.
 import { normalizeKey } from './normalize.mjs';
 import { sha1 } from './enrich.mjs';
+import { isArchive } from './archive.mjs';
 
 /** Preference order of copies inside one issue (quality and reliability of the source). */
 export const SOURCE_ORDER = ['ladaat', 'tashma', 'gilyoines', 'alonolam'];
 const rank = (src) => { const i = SOURCE_ORDER.indexOf(src); return i < 0 ? SOURCE_ORDER.length : i; };
 
 /** Group key: which items may even be compared. */
-function groupKey(it) {
+export function groupKey(it) {
   const s = it.series.id;
   if (it.date) return `d|${s}|${it.date}`;
   if (it.hy && it.slugs.length) return `p|${s}|${it.hy}|${it.slugs.join('+')}`;
@@ -18,14 +19,15 @@ function groupKey(it) {
   return `t|${s}|${normalizeKey(it.title)}`;
 }
 
-function compatible(cluster, it) {
-  if (cluster.items.some((x) => x.src === it.src)) return false; // two files from one source are two issues
+/** Why `it` cannot join the cluster, or null when nothing contradicts. */
+function conflict(cluster, it) {
+  if (cluster.items.some((x) => x.src === it.src)) return 'כבר יש עותק מאותו מקור (שני קבצים של מקור אחד הם שני גיליונות)';
   for (const x of cluster.items) {
-    if (x.no != null && it.no != null && x.no !== it.no) return false;
-    if (x.variant && it.variant && x.variant !== it.variant) return false;
-    if (x.pages != null && it.pages != null && x.pages !== it.pages) return false;
+    if (x.no != null && it.no != null && x.no !== it.no) return `מספר גיליון שונה (${x.no} מול ${it.no})`;
+    if (x.variant && it.variant && x.variant !== it.variant) return `שאריות כותרת שונות ("${x.variant}" מול "${it.variant}")`;
+    if (x.pages != null && it.pages != null && x.pages !== it.pages) return `מספר עמודים שונה (${x.pages} מול ${it.pages})`;
   }
-  return true;
+  return null;
 }
 
 function score(cluster, it) {
@@ -39,8 +41,16 @@ function score(cluster, it) {
   return s;
 }
 
-/** Clusters one group's items into issues. */
-export function clusterItems(items) {
+const label = (it) => `${it.src}:${it.ext}`;
+
+/**
+ * Clusters one group's items into issues. `trace` (optional) receives one line per decision,
+ * which is how `--explain` shows why copies were joined or kept apart.
+ * @param {object[]} items  enriched items of one group (same series, same week)
+ * @param {string[]} [trace]
+ */
+export function clusterItems(items, trace = null) {
+  const T = (line) => trace?.push(line);
   const sorted = [...items].sort((a, b) => rank(a.src) - rank(b.src) || (a.ext < b.ext ? -1 : a.ext > b.ext ? 1 : 0));
   // Copies that a previous run already joined stay together (`cid` = the earlier issue id):
   // re-reading the catalog must not reshuffle decisions, or every run would be a new commit.
@@ -52,15 +62,25 @@ export function clusterItems(items) {
     let c = byCid.get(it.cid);
     if (!c) { c = { items: [] }; byCid.set(it.cid, c); clusters.push(c); }
     if (c.items.some((x) => x.src === it.src)) loose.push(it); // never two copies of one source in an issue
-    else c.items.push(it);
+    else { c.items.push(it); T(`${label(it)}: נשאר בגיליון הקודם ${it.cid} (החלטה קודמת נשמרת)`); }
   }
   for (const it of loose) {
-    const cands = clusters.filter((c) => compatible(c, it));
+    const conflicts = clusters.map((c) => ({ c, why: conflict(c, it) }));
+    const cands = conflicts.filter((x) => !x.why).map((x) => x.c);
     let target = null;
     if (cands.length) {
       const scored = cands.map((c) => ({ c, s: score(c, it) })).sort((x, y) => y.s - x.s);
       // A tie between candidate clusters means we cannot tell which one: do not guess.
-      if (scored.length === 1 || scored[0].s > scored[1].s) target = scored[0].c;
+      if (scored.length === 1 || scored[0].s > scored[1].s) {
+        target = scored[0].c;
+        T(`${label(it)}: אוחד עם ${target.items.map(label).join(', ')} (ניקוד ${scored[0].s}${scored.length > 1 ? ` מול ${scored[1].s}` : ''})`);
+      } else {
+        T(`${label(it)}: נשאר נפרד: שוויון בין ${scored.length} מועמדים (ניקוד ${scored[0].s}); אין ודאות`);
+      }
+    } else if (conflicts.length) {
+      T(`${label(it)}: נשאר נפרד: ${conflicts.map((x) => `${x.c.items.map(label).join(',')} - ${x.why}`).join('; ')}`);
+    } else {
+      T(`${label(it)}: גיליון ראשון בקבוצה`);
     }
     if (target) target.items.push(it);
     else clusters.push({ items: [it] });
@@ -70,7 +90,7 @@ export function clusterItems(items) {
 
 const first = (list, f) => { for (const x of list) { const v = f(x); if (v != null && v !== '') return v; } return null; };
 
-function buildIssue(cluster, { now, prevAdded }) {
+function buildIssue(cluster, { now, prevAdded, bulkDays }) {
   const items = [...cluster.items].sort((a, b) => rank(a.src) - rank(b.src) || (a.ext < b.ext ? -1 : 1));
   const lead = items[0];
   const no = first(items.filter((i) => i.noStrong), (i) => i.no) ?? first(items, (i) => i.no);
@@ -81,8 +101,13 @@ function buildIssue(cluster, { now, prevAdded }) {
     return a;
   });
   // Earliest sighting: the source's own upload time, else the first run that saw it.
-  const addedCandidates = items.map((i) => i.addedAt || prevAdded?.get(`${i.src}:${i.ext}`)).filter(Boolean).sort();
-  const added = addedCandidates[0] || now;
+  const sightings = items
+    .map((i) => ({ added: i.addedAt || prevAdded?.get(`${i.src}:${i.ext}`), src: i.src }))
+    .filter((x) => x.added)
+    .sort((a, b) => (a.added < b.added ? -1 : a.added > b.added ? 1 : 0));
+  const added = sightings[0]?.added || now;
+  // `archive`: the upload time says nothing about when this became available (lib/archive.mjs).
+  const archive = items.some((i) => i.archive) || (sightings[0] ? isArchive({ ...sightings[0], date: lead.date, hy: lead.hy }, bulkDays) : false);
   const issue = {
     series: lead.series.id,
     title: first(items, (i) => i.title) || lead.series.displayTitle,
@@ -94,6 +119,7 @@ function buildIssue(cluster, { now, prevAdded }) {
     lang: lead.lang,
     pages: first(items, (i) => i.pages),
     added,
+    archive: archive || undefined,
     assets,
     _base: `${lead.series.id}|${lead.hy ?? ''}|${slugs.join('+') || lead.event || lead.date || ''}|${no ?? ''}`,
     _first: `${lead.src}:${lead.ext}`,
@@ -105,14 +131,14 @@ function buildIssue(cluster, { now, prevAdded }) {
  * @param items enriched items (lib/enrich.mjs)
  * @returns { series:[], issues:[] } unsorted-stable: both sorted deterministically
  */
-export function mergeAll(items, { now, prevAdded = null, aliasIndex = null } = {}) {
+export function mergeAll(items, { now, prevAdded = null, aliasIndex = null, bulkDays = new Set() } = {}) {
   const groups = new Map();
   for (const it of items) {
     const k = groupKey(it);
     (groups.get(k) ?? groups.set(k, []).get(k)).push(it);
   }
   const issues = [];
-  for (const g of groups.values()) for (const c of clusterItems(g)) issues.push(buildIssue(c, { now, prevAdded }));
+  for (const g of groups.values()) for (const c of clusterItems(g)) issues.push(buildIssue(c, { now, prevAdded, bulkDays }));
 
   // Ids: stable hash; when two distinct issues share it (same week, same number, but not
   // mergeable), the lead copy's source id tells them apart. Nothing derived from titles goes in,
@@ -144,8 +170,12 @@ export function mergeAll(items, { now, prevAdded = null, aliasIndex = null } = {
     const iss = issueBySeries.get(s.id) || [];
     const titles = [...s.titles.entries()].sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1)).map((x) => x[0]);
     const dates = iss.map((i) => i.date).filter(Boolean).sort();
+    const years = [...new Set(iss.map((i) => i.hy).filter(Boolean))].sort((a, b) => a - b);
     const circle = [...s.circles.entries()].sort((a, b) => b[1] - a[1] || (a[0] < b[0] ? -1 : 1))[0]?.[0];
     const named = s.items[0].series.named;
+    const canon = aliasIndex?.canonicalTitle.get(s.key.split('|')[0]);
+    if (canon && !titles.includes(canon)) titles.unshift(canon);
+    else if (canon) titles.splice(titles.indexOf(canon), 1), titles.unshift(canon);
     series.push({
       id: s.id,
       title: named ? titles[0] : `${titles[0]} (ללא שם סדרה)`,
@@ -156,6 +186,7 @@ export function mergeAll(items, { now, prevAdded = null, aliasIndex = null } = {
       kind: iss.some((i) => i.date || i.parasha || i.event) ? 'weekly' : 'timeless',
       sources: [...s.sources.values()].sort((a, b) => rank(a.src) - rank(b.src) || (a.ext < b.ext ? -1 : 1)),
       issueCount: iss.length,
+      years,
       first: dates[0],
       last: dates[dates.length - 1],
     });

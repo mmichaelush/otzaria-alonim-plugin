@@ -79,7 +79,7 @@ const NAMES = [
   ['nasso', ['נשא', 'נשוא'], true],
   ['behaalotcha', ['בהעלותך', 'בהעלתך'], false],
   ['shlach', ['שלח', 'שלח לך'], true],
-  ['korach', ['קרח'], true],
+  ['korach', ['קרח', 'קורח'], true],
   ['chukat', ['חוקת', 'חקת'], false],
   ['balak', ['בלק'], true],
   ['pinchas', ['פינחס', 'פנחס'], true],
@@ -165,6 +165,7 @@ const COMBO_ABBR = [
   ['אחו"ק', ['achrei-mot', 'kedoshim']],
   ['תזו"מ', ['tazria', 'metzora']],
   ['בחו"ב', ['behar', 'bechukotai']],
+  ['ויקה"פ', ['vayakhel', 'pekudei']],
 ].map(([a, s]) => [normalizeKey(a), s]);
 
 const ORDER = new Map(PARASHA_SLUGS.map((s, i) => [s, i]));
@@ -197,6 +198,27 @@ const CUE_REMOVE = N(['פרשת', 'פרשה', 'פר', 'בפרשת', 'לפרשת'
 // "נח" right after a title of respect is a person, not the parasha.
 const PERSON_TITLES = N(['הרב', 'רבי', 'ר', 'מרן', 'הגאון', 'הצדיק', 'הרה', 'הגה', 'האדמור', 'הרבי', 'רבינו', 'מו']);
 
+// Relaxed mode (titles of a series known to be weekly): an ambiguous name counts when it ends
+// the title, or is followed by a number or a short year ("תרומה פה"), and is not part of a
+// phrase like "ספר שמות". See build.mjs for how a series is judged weekly.
+const TRAILING_NOISE = N(['מחובר', 'חוברת', 'למייל', 'לדפוס', 'להדפסה', 'מוכן', 'מורחב', 'דיגיטל', 'גליון', 'עלון', 'a4', 'compressed', 'copy']);
+const RELAXED_BLOCK_BEFORE = N(['ספר', 'בספר', 'מסכת', 'פרק', 'על', 'את', 'של', 'בעל']);
+function relaxedOk(tokens, i, to) {
+  const prev = tokens[i - 1]?.n;
+  if (prev && RELAXED_BLOCK_BEFORE.has(prev)) return false;
+  // what may follow the name: nothing, a number, a short year, or file-name noise ("בא מחובר")
+  const rest = tokens.slice(to);
+  if (rest.every((t) => TRAILING_NOISE.has(t.n))) return true;
+  const next = tokens[to];
+  return /^d+$/.test(next.n) || looseShortYear(next.n) !== null;
+}
+
+/** "פה", "פו": a short year without quotes (5780-5799), only meaningful right after a parasha. */
+export function looseShortYear(n) {
+  const m = /^([פצ])([א-ט])$/.exec(n);
+  return m ? 5700 + TENS[m[1]] + UNITS[m[2]] : null;
+}
+
 function comboOf(slugs) {
   const sorted = [...new Set(slugs)].sort((a, b) => ORDER.get(a) - ORDER.get(b));
   return VALID_COMBOS.has(sorted.join(',')) ? sorted : null;
@@ -217,7 +239,7 @@ function matchAt(tokens, i) {
  * Returns { slugs, from, to } or null. `expect` is a list of slugs the caller
  * already predicts (e.g. from the upload week); it licenses ambiguous words.
  */
-export function detectParasha(tokens, { expect = [] } = {}) {
+export function detectParasha(tokens, { expect = [], relaxed = false } = {}) {
   const yearIdx = tokens.map((t, i) => (parseYearWord(t.n) ? i : -1)).filter((i) => i >= 0);
   // "שמיני עצרת" is a festival, not parashat Shemini.
   const inEvent = new Set(detectEvents(tokens).flatMap((e) => Array.from({ length: e.to - e.from }, (_, k) => e.from + k)));
@@ -230,16 +252,21 @@ export function detectParasha(tokens, { expect = [] } = {}) {
     if (!p) continue;
     const to = i + p.words.length;
     const prev = tokens[i - 1]?.n;
-    let strong;
+    let strong, relaxedOnly = false;
     if (!p.ambiguous) {
       strong = !(p.slug === 'noach' && prev && PERSON_TITLES.has(prev));
     } else {
       const cue = prev ? CUE_WORDS.has(prev) : false;
-      strong = cue || yearIdx.includes(to) || yearIdx.includes(i - 1) || tokens.length === 1 || expect.includes(p.slug);
+      strong = cue || yearIdx.includes(to) || yearIdx.includes(i - 1) || tokens.length === 1 || expect.includes(p.slug)
+        // "אמור פ''ג": a quoted short year right after the name is as good as a cue
+        || (tokens[to] ? parseShortYear(tokens[to].w) !== null : false);
+      if (!strong && relaxed && relaxedOk(tokens, i, to)) { strong = true; relaxedOnly = true; }
     }
-    hits.push({ slugs: [p.slug], from: i, to, strong });
+    hits.push({ slugs: [p.slug], from: i, to, strong, relaxedOnly, ambiguous: p.ambiguous });
     i = to - 1;
   }
+  // Relaxed matches are only trusted when they are the one ambiguous name in the title.
+  if (hits.filter((h) => h.relaxedOnly).length > 1) for (const h of hits) if (h.relaxedOnly) h.strong = false;
   const first = hits.find((h) => h.strong);
   if (!first) return null;
   let { slugs, from, to } = first;
@@ -272,37 +299,89 @@ export function detectParasha(tokens, { expect = [] } = {}) {
 
 // ---- events (special Shabbatot and festivals) ----------------------------
 
+// Phrases that name an event in a title (normalized by normalizeKey, so quotes and
+// maqaf do not matter). The longest phrase at a position wins, which is why
+// "חול המועד סוכות" beats "סוכות" and "שושן פורים" beats "פורים".
 const EVENT_PHRASES = [
   ['rosh-hashana', ['ראש השנה']],
+  ['tzom-gedaliah', ['צום גדליה']],
   ['yom-kippur', ['יום כיפור', 'יום הכיפורים', 'יום כיפורים', 'יו"כ']],
   ['shabbat-shuva', ['שבת שובה', 'שבת תשובה']],
-  ['sukkot', ['סוכות', 'הושענא רבה']],
-  ['shemini-atzeret', ['שמיני עצרת', 'שמחת תורה']],
+  ['sukkot', ['סוכות']],
+  ['chol-hamoed-sukkot', ['חול המועד סוכות', 'חוה"מ סוכות']],
+  ['hoshana-raba', ['הושענא רבה']],
+  ['shemini-atzeret', ['שמיני עצרת']],
+  ['simchat-torah', ['שמחת תורה']],
   ['chanukah', ['חנוכה']],
+  ['asara-btevet', ['עשרה בטבת']],
   ['shabbat-shirah', ['שבת שירה']],
   ['shabbat-shekalim', ['שבת שקלים']],
   ['shabbat-zachor', ['שבת זכור']],
+  ['taanit-esther', ['תענית אסתר']],
   ['purim', ['פורים']],
+  ['shushan-purim', ['שושן פורים']],
   ['shabbat-parah', ['שבת פרה']],
   ['shabbat-hachodesh', ['שבת החודש', 'שבת החדש']],
   ['shabbat-hagadol', ['שבת הגדול']],
   ['pesach', ['פסח', 'ליל הסדר']],
+  ['chol-hamoed-pesach', ['חול המועד פסח', 'חוה"מ פסח']],
+  ['shvii-shel-pesach', ['שביעי של פסח', 'אחרון של פסח']],
   ['shavuot', ['שבועות']],
+  ['shiva-asar-btammuz', ['י"ז בתמוז', 'שבעה עשר בתמוז']],
   ['shabbat-chazon', ['שבת חזון']],
   ['tisha-bav', ['תשעה באב', 'ט באב']],
   ['shabbat-nachamu', ['שבת נחמו']],
   ['tu-bishvat', ['טו בשבט']],
   ['lag-baomer', ['לג בעומר']],
+  ['rosh-chodesh', ['ראש חודש']],
 ].map(([slug, vs]) => ({ slug, phrases: vs.map((v) => normalizeKey(v).split(' ')) }));
 
-/** Events mentioned in the tokens, in text order: [{slug, from, to}]. */
+// Hebrew month names as they follow "ראש חודש" (Hebcal month names, see lib/events.mjs).
+const MONTH_WORDS = new Map([
+  ['תשרי', 'Tishrei'], ['חשוון', 'Cheshvan'], ['חשון', 'Cheshvan'], ['מרחשוון', 'Cheshvan'], ['מרחשון', 'Cheshvan'],
+  ['כסלו', 'Kislev'], ['טבת', 'Tevet'], ['שבט', "Sh'vat"], ['אדר', 'Adar'], ['ניסן', 'Nisan'], ['אייר', 'Iyyar'],
+  ['סיוון', 'Sivan'], ['סיון', 'Sivan'], ['תמוז', 'Tamuz'], ['אב', 'Av'], ['מנחם אב', 'Av'], ['אלול', 'Elul'],
+].map(([w, m]) => [normalizeKey(w), m]));
+
+// Rosh Hashana and Shevuot are also Talmud tractates ("מסכת שבועות דף יב", "שבועות ל״ד עד ...").
+const TRACTATE_EVENTS = new Set(['shavuot', 'rosh-hashana']);
+const TRACTATE_WORDS = N(['מסכת', 'מס', 'עד', 'דף', 'הדף']);
+function isTractateMention(tokens, from, len) {
+  if (TRACTATE_WORDS.has(tokens[from - 1]?.n)) return true;
+  // a daf number right after the name: a 1-3 letter numeral up to 49 (Shevuot has 49 pages)
+  const next = tokens[from + len]?.n;
+  if (TRACTATE_WORDS.has(next)) return true;
+  return !!next && /^[א-ת]{1,3}$/.test(next) && (gematria(next) ?? 999) <= 49 && parseYearWord(next) === null;
+}
+
+/**
+ * Events mentioned in the tokens, in text order: [{slug, from, to, month?}].
+ * "ראש חודש חשוון" carries the month so the date can be found.
+ */
 export function detectEvents(tokens) {
   const out = [];
   for (let i = 0; i < tokens.length; i++) {
+    let best = null;
     for (const e of EVENT_PHRASES) {
-      const hit = e.phrases.find((ph) => ph.every((w, k) => tokens[i + k]?.n === w));
-      if (hit) { out.push({ slug: e.slug, from: i, to: i + hit.length }); i += hit.length - 1; break; }
+      for (const ph of e.phrases) {
+        if (ph.every((w, k) => tokens[i + k]?.n === w) && (!best || ph.length > best.len)) best = { slug: e.slug, len: ph.length };
+      }
     }
+    if (!best) continue;
+    if (TRACTATE_EVENTS.has(best.slug) && isTractateMention(tokens, i, best.len)) { i += best.len - 1; continue; }
+    const hit = { slug: best.slug, from: i, to: i + best.len };
+    if (best.slug === 'rosh-chodesh') {
+      const m = MONTH_WORDS.get(tokens[hit.to]?.n);
+      if (m) {
+        hit.month = m;
+        hit.to += 1;
+        // leap years: "אדר א׳" / "אדר ב׳"
+        const suffix = m === 'Adar' ? { 'א': 'Adar I', 'ב': 'Adar II' }[tokens[hit.to]?.n] : null;
+        if (suffix) { hit.month = suffix; hit.to += 1; }
+      }
+    }
+    out.push(hit);
+    i = hit.to - 1;
   }
   return out;
 }
@@ -341,6 +420,8 @@ export function detectHebrewYear(tokens) {
     // the text, after "שנת", or written with the ה prefix.
     const bareTens = /^תש[יכלמנסעפצ]$/.test(tokens[i].n);
     if (bareTens && i !== tokens.length - 1 && !['שנת', 'ה'].includes(tokens[i - 1]?.n)) continue;
+    // "תשעה" (5775 without quotes) is the number nine in "תשעה באב" and "תשעה עשר".
+    if (tokens[i].n === 'תשעה' && !/["'׳״]/.test(tokens[i].w) && ['באב', 'עשר'].includes(tokens[i + 1]?.n)) continue;
     return { hy, index: i };
   }
   return null;
@@ -469,11 +550,11 @@ const TRIM_RE = /^[\s\-–—־,.:;|]+|[\s\-–—־,.:;|]+$/g;
  * { slugs, events, hy, no, noStrong, title } where `title` is the display title
  * without parasha, cue words, year and issue number (possibly empty).
  */
-export function analyzeTitle(text, { expect = [], parasha = true } = {}) {
+export function analyzeTitle(text, { expect = [], parasha = true, relaxed = false } = {}) {
   const tokens = tokenize(stripFileNoise(text));
   const yr = detectHebrewYear(tokens);
   const events = detectEvents(tokens);
-  const par = parasha ? detectParasha(tokens, { expect }) : null;
+  const par = parasha ? detectParasha(tokens, { expect, relaxed }) : null;
   const drop = new Set();
   let hy = yr ? yr.hy : null;
   if (par) {
@@ -483,7 +564,7 @@ export function analyzeTitle(text, { expect = [], parasha = true } = {}) {
     // "נח פ''ז": abbreviated year right after the name.
     const after = tokens[par.to];
     if (!hy && after) {
-      const short = parseShortYear(after.w);
+      const short = parseShortYear(after.w) ?? (relaxed ? looseShortYear(after.n) : null);
       if (short) { hy = short; drop.add(par.to); }
     }
   }
@@ -499,6 +580,7 @@ export function analyzeTitle(text, { expect = [], parasha = true } = {}) {
   return {
     slugs: par ? par.slugs : [],
     events: events.map((e) => e.slug),
+    rcMonth: events.find((e) => e.slug === 'rosh-chodesh')?.month ?? null,
     hy,
     no: no ? no.no : null,
     noStrong: no ? no.strong : false,

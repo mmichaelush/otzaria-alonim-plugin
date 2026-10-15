@@ -188,3 +188,45 @@ test('re-reading the previous catalog is a fixed point, even with ties and a re-
     prev = next;
   }
 });
+
+test('events: a festival title with a year gets the festival date of that Hebrew year; Rosh Chodesh needs its month', () => {
+  const it = (title, extra = {}) => enrich(raw({ src: 'tashma', ext: title, rawTitle: title, seriesHint: { title: 'X' }, addedAt: null, ...extra }), { now: NOW, aliasIndex: noAliases });
+  const chanukah = it('חנוכה תשפז');
+  assert.equal(chanukah.date, '2026-12-04');
+  assert.equal(chanukah.event, 'chanukah');
+  assert.equal(it('פורים תשפו').date, '2026-03-03');
+  assert.equal(it('סוכות תשפז').date, '2026-09-26');
+  const rc = it('ראש חודש חשוון תשפז');
+  assert.equal(rc.date, '2026-10-11');
+  assert.equal(rc.event, 'rosh-chodesh');
+  assert.equal(it('ראש חודש תשפז').date, null);
+  // the source's own date wins, and the row supplies the event: ladaat files Yom Kippur under 2026-09-21
+  const yk = enrich(raw({ src: 'ladaat', ext: '1', rawTitle: 'X יום הכיפורים', seriesHint: { title: 'X' }, dateHint: '2026-09-21' }), { now: NOW, aliasIndex: noAliases });
+  assert.equal(yk.event, 'yom-kippur');
+  assert.equal(yk.hy, 5787);
+  assert.deepEqual(yk.slugs, []);
+});
+
+test('weekly series: relaxed reading applies only where most titles name a parasha', async () => {
+  const { weeklySeriesOf, weeklyKey } = await import('../lib/enrich.mjs');
+  const mkRaw = (title, series, i) => raw({ src: 'tashma', ext: `${series}${i}`, rawTitle: title, seriesHint: { title: series }, contextTitles: ['תשפ"ו'], addedAt: null });
+  const weekly = ['נח', 'לך לך', 'וירא', 'חיי שרה', 'תולדות'].map((t, i) => mkRaw(`פרשת ${t}`, 'שבועי', i));
+  const other = ['א', 'ב', 'ג', 'ד', 'ה'].map((t, i) => mkRaw(`עלון ${t}`, 'אחר', i));
+  const set = weeklySeriesOf([...weekly, ...other]);
+  assert.ok(set.has(weeklyKey(weekly[0])));
+  assert.ok(!set.has(weeklyKey(other[0])));
+  const a = enrich(mkRaw('דברים טובים שלח', 'שבועי', 9), { now: NOW, aliasIndex: noAliases, weeklySeries: set });
+  assert.deepEqual(a.slugs, ['shlach']);
+  assert.equal(a.date, '2026-06-13');
+  const b2 = enrich(mkRaw('דברים טובים שלח', 'אחר', 9), { now: NOW, aliasIndex: noAliases, weeklySeries: set });
+  assert.deepEqual(b2.slugs, []);
+});
+
+test('aliases: the canonical title is the one shown, the others are aliases', () => {
+  const aliases = buildAliasIndex({ merge: [{ canonical: 'אסיפת גליונות', aliases: ['אסיפת גליונות - ליקוט'] }] });
+  const variant = [1, 2, 3].map((i) => raw({ src: 'tashma', ext: `v${i}`, rawTitle: `ליקוט נח ${i}`, contextTitles: ['תשפ"ז'], seriesHint: { title: 'אסיפת גליונות - ליקוט' } }));
+  const { series } = build([...variant, ladaatAsifat], aliases);
+  assert.equal(series.length, 1);
+  assert.equal(series[0].title, 'אסיפת גליונות');
+  assert.deepEqual(series[0].aliases, ['אסיפת גליונות - ליקוט']);
+});

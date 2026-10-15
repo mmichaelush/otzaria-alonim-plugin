@@ -2,7 +2,7 @@
 //   GET /gilyonot/api/files?name=&language=&category=&date=YYYY-MM-DD&sort=&offset=&limit=500
 // The date select on the home page lists only the recent weeks; the API with an
 // empty date returns just the current week, so older weeks are probed by date.
-import { collapse, encodePath, isoSeconds } from './util.mjs';
+import { collapse, encodePath, isoSeconds, softFail, expectShape } from './util.mjs';
 import { langFromName } from '../lib/parasha.mjs';
 import { weeksBetween, addDays } from '../lib/calendar.mjs';
 
@@ -33,6 +33,7 @@ export function parseHome(html) {
 
 /** One /api/files response -> RawIssue[]. Pure. */
 export function parseFiles(json) {
+  expectShape(Array.isArray(json?.files), 'ladaat /api/files has no files array');
   const out = [];
   for (const f of json?.files || []) {
     if (!f?.file_path || !/\.pdf$/i.test(f.file_path)) continue;
@@ -78,7 +79,8 @@ export async function probe({ http }) {
  * Full: additionally every Shabbat/festival date of the last three years,
  * because older weeks are not listed anywhere (most are empty).
  */
-export async function* crawl({ http, now, log }, { full = false } = {}) {
+export async function* crawl(ctx, { full = false } = {}) {
+  const { http, now, log } = ctx;
   const html = await http.getText(BASE, { accept: 'text/html' });
   const dates = new Set(parseHome(html).dates.map((d) => d.date));
   if (full) {
@@ -87,10 +89,16 @@ export async function* crawl({ http, now, log }, { full = false } = {}) {
   }
   for (const date of [...dates].sort().reverse()) {
     for (let offset = 0; ; offset += PAGE_LIMIT) {
-      const json = await http.getJson(filesUrl(date, offset));
-      const items = parseFiles(json);
+      let json, items;
+      try {
+        json = await http.getJson(filesUrl(date, offset));
+        items = parseFiles(json);
+      } catch (e) {
+        softFail(ctx, `date ${date}`, e);
+        break;
+      }
       for (const it of items) yield it;
-      if (!json?.hasMore || !(json?.files || []).length) break;
+      if (!json.hasMore || !json.files.length) break;
     }
     log?.(`ladaat ${date} done`);
   }

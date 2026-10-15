@@ -6,7 +6,7 @@
 // File: /gilyonot/file/{id} (PDF), thumbnail: /gilyonot/thumb/{id}.png,
 // page: /gilyonot/{id}. We never touch admin/*, publisher/*, sendMail,
 // api-internal or the content search.
-import { collapse } from './util.mjs';
+import { collapse, softFail, expectShape } from './util.mjs';
 
 export const id = 'tashma';
 export const name = 'תא שמע';
@@ -45,6 +45,7 @@ const isPdf = (f) => String(f.fileExtension || /\.(\w+)$/.exec(f.name || '')?.[1
 
 /** /gilyonot/new -> RawIssue[]. object_key is "gilyonot/<series>/<folder>/<file>". */
 export function parseNew(json) {
+  expectShape(Array.isArray(json?.items), 'tashma /new has no items array');
   const out = [];
   for (const f of json?.items || []) {
     if (!isPdf(f)) continue;
@@ -59,11 +60,13 @@ export function parseNew(json) {
 
 /** /gilyonot/list -> series folder names. */
 export function parseSeriesList(json) {
+  expectShape(Array.isArray(json?.items), 'tashma /list has no items array');
   return (json?.items || []).filter((i) => i.type === 'folder').map((i) => i.name);
 }
 
 /** Inertia series page (props.years[].items[]) -> RawIssue[]. */
 export function parseSeriesPage(json, series) {
+  expectShape(Array.isArray(json?.props?.years), `tashma series page "${series}" has no props.years`);
   const out = [];
   for (const group of json?.props?.years || []) {
     for (const f of group.items || []) {
@@ -87,7 +90,8 @@ export async function probe({ http }) {
   return { status: 'ok', note: '' };
 }
 
-export async function* crawl({ http, log }, { full = false } = {}) {
+export async function* crawl(ctx, { full = false } = {}) {
+  const { http, log } = ctx;
   if (!full) {
     for (const it of parseNew(await http.getJson(`${BASE}/new`))) yield it;
     return;
@@ -98,8 +102,13 @@ export async function* crawl({ http, log }, { full = false } = {}) {
   const headers = { 'X-Requested-With': 'XMLHttpRequest', 'X-Inertia': 'true', ...(version ? { 'X-Inertia-Version': version } : {}) };
   let n = 0;
   for (const s of seriesNames) {
-    const page = await http.getJson(`${BASE}/g/${encodeURIComponent(s)}`, { headers });
-    for (const it of parseSeriesPage(page, s)) yield it;
+    let items = [];
+    try {
+      items = parseSeriesPage(await http.getJson(`${BASE}/g/${encodeURIComponent(s)}`, { headers }), s);
+    } catch (e) {
+      softFail(ctx, `series ${s}`, e);
+    }
+    for (const it of items) yield it;
     if (++n % 25 === 0) log?.(`tashma ${n}/${seriesNames.length} series`);
   }
 }

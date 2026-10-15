@@ -74,28 +74,9 @@ jobs:
           [ -n "$PREV" ] && args+=(--prev "$PREV")
           node catalog/tools/sanity.mjs "${args[@]}"
 
-      - name: Changed?
-        id: changed
-        env:
-          PREV: ${{ steps.prev.outputs.dir }}
-        run: |
-          if [ -n "$PREV" ] && diff -r -q --exclude=.git "$PREV" "$RUNNER_TEMP/out" >/dev/null; then
-            echo "changed=false" >> "$GITHUB_OUTPUT"
-            echo "Catalog unchanged; nothing to publish."
-          else
-            echo "changed=true" >> "$GITHUB_OUTPUT"
-          fi
-
-      - name: Publish to branch data (single commit, force-pushed)
-        if: steps.changed.outputs.changed == 'true'
+      - name: Publish to branch data (single commit, force-pushed, only when changed)
         env:
           GH_TOKEN: ${{ github.token }}
         run: |
-          version=$(node -p "require('$RUNNER_TEMP/out/manifest.json').catalogVersion")
-          cd "$RUNNER_TEMP/out"
-          git init -q -b data
-          git config user.name "github-actions[bot]"
-          git config user.email "41898282+github-actions[bot]@users.noreply.github.com"
-          git add -A
-          git commit -q -m "catalog $version"
-          git push --force "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git" data
+          bash catalog/tools/publish-data-branch.sh "$RUNNER_TEMP/out" \
+            "https://x-access-token:${GH_TOKEN}@github.com/${{ github.repository }}.git" data

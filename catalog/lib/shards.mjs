@@ -3,7 +3,7 @@ import { createHash } from 'node:crypto';
 import { mkdir, writeFile, rm } from 'node:fs/promises';
 import { dirname, join } from 'node:path';
 import { issueCompare } from './merge.mjs';
-import { addDays, shabbatOnOrAfter, weeksBetween } from './calendar.mjs';
+import { addDays, shabbatOnOrAfter, weeksBetween, weeksOfYear } from './calendar.mjs';
 import { toWire, assertRoundTrip } from './wire.mjs';
 import { prune, stableStringify } from './json.mjs';
 
@@ -57,7 +57,7 @@ export function selectRecent(issues, today, maxBytes = RECENT_MAX_BYTES) {
   const picked = [];
   for (const i of issues) {
     if (i.date) { if (i.date >= from && i.date <= to) picked.push([i.date, i]); continue; }
-    if (i.added >= fromTs && i.assets.some((a) => a.src !== 'tashma')) picked.push([i.added.slice(0, 10), i]);
+    if (i.added >= fromTs && !i.archive && i.assets.some((a) => a.src !== 'tashma')) picked.push([i.added.slice(0, 10), i]);
   }
   picked.sort(([da, a], [db, b]) => (da < db ? 1 : da > db ? -1 : b.assets.length - a.assets.length || (a.id < b.id ? -1 : 1)));
   const out = [];
@@ -69,6 +69,27 @@ export function selectRecent(issues, today, maxBytes = RECENT_MAX_BYTES) {
     out.push(i);
   }
   return out.sort(issueCompare).map((i) => prune(recentView(i)));
+}
+
+/**
+ * A weeks.json row as written. parasha, parashaIL and event are always present, even
+ * when empty or null: an empty parashaIL means something (a festival Shabbat abroad).
+ */
+export function weekRowOut(r) {
+  const row = { date: r.date, hy: r.hy, hebrew: r.hebrew, parasha: r.parasha, parashaIL: r.parashaIL, label: r.label, event: r.event ?? null };
+  if (r.events) row.events = r.events;
+  if (!r.shabbat) row.shabbat = false;
+  return row;
+}
+
+/** First day of the earliest Hebrew year that has at least MIN_ARCHIVE_ISSUES dated issues. */
+const MIN_ARCHIVE_ISSUES = 20;
+export function archiveStart(issues) {
+  const perYear = new Map();
+  for (const i of issues) if (i.date && i.hy) perYear.set(i.hy, (perYear.get(i.hy) || 0) + 1);
+  const years = [...perYear].filter(([, n]) => n >= MIN_ARCHIVE_ISSUES).map(([y]) => y).sort((x, y) => x - y);
+  if (!years.length) return null;
+  return weeksOfYear(years[0])[0]?.date ?? null;
 }
 
 /** weeks.json range: a year back, a year ahead, aligned to Shabbat. */
@@ -104,13 +125,11 @@ export async function writeCatalog(outDir, { series, issues: memIssues, today, s
   files.series = { ...(await put(outDir, 'series.json', stableStringify(sers))), count: sers.length };
 
   const { from, to } = weeksRange(today);
-  // weeks.json keeps empty parasha arrays and a null event on purpose (parashaIL vs parasha differ in meaning).
-  const weeks = weeksBetween(from, to).map((r) => {
-    const row = { date: r.date, hy: r.hy, parasha: r.parasha, parashaIL: r.parashaIL, label: r.label, event: r.event ?? null };
-    if (!r.shabbat) row.shabbat = false;
-    return row;
-  });
-  files.weeks = await put(outDir, 'weeks.json', stableStringify(weeks));
+  files.weeks = await put(outDir, 'weeks.json', stableStringify(weeksBetween(from, to).map(weekRowOut)));
+  // Older years (back to the first year with real data) in a separate file the plugin can load lazily.
+  const archiveFrom = archiveStart(issues);
+  const archiveRows = archiveFrom && archiveFrom < from ? weeksBetween(archiveFrom, addDays(from, -1)) : [];
+  if (archiveRows.length) files.weeksArchive = { ...(await put(outDir, 'weeks-archive.json', stableStringify(archiveRows.map(weekRowOut)))), count: archiveRows.length };
 
   const recent = selectRecent(issues, today);
   files.recent = { ...(await put(outDir, 'recent.json', stableStringify(recent))), count: recent.length };

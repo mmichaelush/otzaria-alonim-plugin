@@ -2,7 +2,7 @@
 // upload/delete/sync/track/counters/bulk endpoints of that API are never called.
 // The list is a flat array of files with only the file name as metadata, so the
 // series, parasha and year are derived from the name (confidence in rawMeta).
-import { collapse } from './util.mjs';
+import { collapse, expectShape } from './util.mjs';
 import { analyzeTitle, stripFileNoise, stripLanguage, guessLang } from '../lib/parasha.mjs';
 
 export const id = 'alonolam';
@@ -31,8 +31,9 @@ export function uploadMonth(u) {
 
 /** /wp-json/gallery/v1/list -> RawIssue[]. PDFs only. */
 export function parseList(json) {
+  expectShape(Array.isArray(json), 'alonolam gallery list is not an array');
   const out = [];
-  for (const f of Array.isArray(json) ? json : []) {
+  for (const f of json) {
     if (String(f.ext).toLowerCase() !== 'pdf' || !f.url) continue;
     const original = collapse(f.originalName || f.name);
     const a = analyzeTitle(original);

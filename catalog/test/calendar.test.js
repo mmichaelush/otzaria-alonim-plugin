@@ -104,3 +104,71 @@ test('expectedSlugs covers the reading around an upload date', () => {
   assert.ok(e.includes('lech-lecha'));
   assert.ok(!e.includes('vayera') || addDays('2026-10-14', 24) >= '2026-10-31');
 });
+
+import { HDate } from '@hebcal/core';
+import { hebrewDateOf, rowHasEvent } from '../lib/calendar.mjs';
+import { EVENTS, EVENT_PRIORITY, hebrewDateString } from '../lib/events.mjs';
+
+test('Hebrew date strings agree with Hebcal gematria for every day of ten years', () => {
+  const strip = (s) => s.replace(/[֑-ׇ]/g, '').replace(/וו/g, 'ו');
+  for (let abs = new HDate(1, 'Tishrei', 5780).abs(); abs < new HDate(1, 'Tishrei', 5790).abs(); abs++) {
+    const hd = new HDate(abs);
+    const theirs = strip(hd.renderGematriya(true)).split(' ');
+    const mine = strip(hebrewDateString(hd)).split(' ');
+    assert.equal(mine[0], theirs[0], `${hd}`); // day
+    assert.equal(mine.at(-1), theirs.at(-1), `${hd}`); // year without the thousands
+    assert.equal(mine.slice(1, -1).join(' ').replace(/^ב/, ''), theirs.slice(1, -1).join(' '), `${hd}`);
+  }
+  assert.equal(hebrewDateOf('2026-10-17'), 'ו׳ בחשוון תשפ״ז');
+  assert.equal(hebrewDateOf('2026-04-02'), 'ט״ו בניסן תשפ״ו');
+  assert.equal(hebrewDateOf('2026-09-12'), 'א׳ בתשרי תשפ״ז');
+});
+
+test('every requested festival, fast and special Shabbat has a row in every year (2020-2035)', () => {
+  const required = ['rosh-hashana', 'tzom-gedaliah', 'shabbat-shuva', 'yom-kippur', 'sukkot', 'chol-hamoed-sukkot', 'hoshana-raba',
+    'shemini-atzeret', 'simchat-torah', 'chanukah', 'asara-btevet', 'tu-bishvat', 'taanit-esther', 'purim', 'shushan-purim', 'pesach',
+    'chol-hamoed-pesach', 'shvii-shel-pesach', 'shavuot', 'shiva-asar-btammuz', 'tisha-bav', 'shabbat-shekalim', 'shabbat-zachor',
+    'shabbat-parah', 'shabbat-hachodesh', 'shabbat-hagadol', 'shabbat-chazon', 'shabbat-nachamu', 'shabbat-shirah', 'rosh-chodesh'];
+  for (let hy = 5780; hy <= 5795; hy++) {
+    const rows = weeksOfYear(hy);
+    for (const ev of required) assert.ok(rows.some((r) => rowHasEvent(r, ev)), `${hy} has no ${ev}`);
+    // Shabbat Mevarchim is carried by Shabbat rows (never the primary event)
+    assert.ok(rows.some((r) => r.shabbat && r.events?.includes('shabbat-mevarchim')), `${hy} mevarchim`);
+    assert.ok(rows.every((r) => r.event !== 'shabbat-mevarchim' && r.event !== 'aseret-yemei-teshuva'));
+    assert.ok(rows.every((r) => r.hebrew && r.label && r.hy === hyOfIso(r.date)));
+  }
+  assert.deepEqual([...new Set(EVENT_PRIORITY)].sort(), Object.keys(EVENTS).sort(), 'every event has a priority and a name');
+});
+
+test('weekday event rows: dates, labels and multi-day events', () => {
+  const rows = weeksOfYear(5787);
+  const at = (d) => rows.find((r) => r.date === d);
+  assert.equal(at('2026-09-13'), undefined, 'second day of Rosh Hashana has no row of its own');
+  assert.equal(at('2026-09-14').event, 'tzom-gedaliah');
+  assert.equal(at('2026-09-21').event, 'yom-kippur');
+  assert.equal(at('2026-09-28').event, 'chol-hamoed-sukkot');
+  assert.equal(at('2026-10-02').event, 'hoshana-raba');
+  assert.equal(at('2026-10-03').event, 'shemini-atzeret');
+  assert.equal(at('2026-10-04').event, 'simchat-torah');
+  assert.equal(at('2026-10-11').event, 'rosh-chodesh');
+  assert.equal(at('2026-10-11').label, 'ראש חודש חשוון');
+  // Shabbat before Rosh Chodesh Cheshvan: Bereshit, with Mevarchim only as a secondary event
+  assert.equal(at('2026-10-10').event, null);
+  assert.deepEqual(at('2026-10-10').events, ['shabbat-mevarchim']);
+  // Chanukah: one weekday row on 25 Kislev; the Shabbatot inside carry the event
+  assert.equal(at('2026-12-04').event, 'chanukah');
+  assert.equal(rows.filter((r) => r.event === 'chanukah' && !r.shabbat).length, 1);
+  assert.equal(at('2026-12-05').event, 'chanukah');
+  // Pesach 5787 starts on 22.4.2027; the first Chol HaMoed weekday row is the day after
+  assert.equal(rows.find((r) => r.event === 'pesach').date, '2027-04-22');
+  assert.equal(at('2027-04-24').event, 'chol-hamoed-pesach'); // Chol HaMoed starts on Shabbat that year: no weekday row
+});
+
+test('findDate by event, including Rosh Chodesh with its month', () => {
+  assert.equal(findDate({ hy: 5787, event: 'rosh-chodesh', month: 'Cheshvan' }), '2026-10-11');
+  assert.equal(findDate({ hy: 5787, event: 'rosh-chodesh' }), null, 'a month is required');
+  assert.equal(findDate({ hy: 5787, event: 'chanukah' }), '2026-12-04');
+  assert.equal(findDate({ hy: 5786, event: 'purim' }), '2026-03-03');
+  assert.equal(findDate({ hy: 5787, event: 'simchat-torah' }), '2026-10-04');
+  assert.equal(findDate({ hy: 5787, event: 'tisha-bav' }), '2027-08-12');
+});

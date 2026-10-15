@@ -141,3 +141,54 @@ test('years split by underscore or space, and the number nine that looks like a 
   assert.equal(analyzeTitle('פרשת נצבים וילך תשע').hy, 5770);
   assert.equal(analyzeTitle('גליון תשע"ז').hy, 5777);
 });
+
+test('events: festivals, fasts and Rosh Chodesh with its month; the longest phrase wins', () => {
+  const ev = (t) => analyzeTitle(t).events;
+  assert.deepEqual(ev('חול המועד סוכות'), ['chol-hamoed-sukkot']);
+  assert.deepEqual(ev('חוה"מ פסח תשפו'), ['chol-hamoed-pesach']);
+  assert.deepEqual(ev('שביעי של פסח'), ['shvii-shel-pesach']);
+  assert.deepEqual(ev('פסח'), ['pesach']);
+  assert.deepEqual(ev('שושן פורים'), ['shushan-purim']);
+  assert.deepEqual(ev('תענית אסתר פורים'), ['taanit-esther', 'purim']);
+  assert.deepEqual(ev('הושענא רבה'), ['hoshana-raba']);
+  assert.deepEqual(ev('שמיני עצרת - שמחת תורה'), ['shemini-atzeret', 'simchat-torah']);
+  assert.deepEqual(ev('י"ז בתמוז'), ['shiva-asar-btammuz']);
+  assert.deepEqual(ev('עשרה בטבת'), ['asara-btevet']);
+  assert.deepEqual(ev('צום גדליה'), ['tzom-gedaliah']);
+  const rc = analyzeTitle('ראש חודש חשוון תשפז');
+  assert.deepEqual(rc.events, ['rosh-chodesh']);
+  assert.equal(rc.rcMonth, 'Cheshvan');
+  assert.equal(analyzeTitle('ראש חודש אדר ב').rcMonth, 'Adar II');
+  assert.equal(analyzeTitle('ראש חודש').rcMonth, null);
+  assert.deepEqual(analyzeTitle('פרשת נח').events, []);
+});
+
+test('false friends: tractates Shevuot and Rosh Hashana, and תשעה as the number nine', () => {
+  for (const t of ['מסכת שבועות גיליון 4 דף כו - לב', 'תמצית הדף היומי 131 שבועות ל"ד עד עבודה זרה', 'ראש השנה דף ג', 'מסכת ראש השנה']) assert.deepEqual(analyzeTitle(t).events, [], t);
+  assert.deepEqual(analyzeTitle('החיזוק היומי שבועות תשפד').events, ['shavuot']);
+  assert.deepEqual(analyzeTitle('הלכות שבועות').events, ['shavuot']);
+  assert.deepEqual(analyzeTitle('שבועות פד').events, ['shavuot']); // 84 is beyond the tractate: a short year
+  assert.equal(analyzeTitle('דיני תשעה באב תשפו').hy, 5786);
+  assert.equal(analyzeTitle('שנת תשע"ה תשעה באב').hy, 5775);
+});
+
+test('short years and spellings: a quoted short year licenses an ambiguous name, קורח, ויקה"פ', () => {
+  assert.deepEqual(slugs("טועמיה חיים זכו צו פ''ד"), ['tzav']);
+  assert.equal(analyzeTitle("טועמיה חיים זכו צו פ''ד").hy, 5784);
+  assert.deepEqual(slugs('קובץ באר התורה קעו פרשת קורח'), ['korach']);
+  assert.deepEqual(slugs('באר הפרשה - ויקה"פ תשפ"ו'), ['vayakhel', 'pekudei']);
+  // still silent without any help
+  assert.deepEqual(slugs('דברים טובים שלח'), []);
+});
+
+test('relaxed mode (weekly series): ends the title, number, short year or file noise; never after "ספר"', () => {
+  const r = (t) => analyzeTitle(t, { relaxed: true }).slugs;
+  assert.deepEqual(r('דברים טובים שלח'), ['shlach']);
+  assert.deepEqual(r('בא מחובר'), ['bo']);
+  assert.deepEqual(r('נשא חוברת'), ['nasso']);
+  assert.deepEqual(r('משנת תרומה פה'), ['terumah']);
+  assert.equal(analyzeTitle('משנת תרומה פה', { relaxed: true }).hy, 5785);
+  assert.deepEqual(r('שיעור בספר שמות'), []);
+  assert.deepEqual(r('בא לפרעה ואמר'), [], 'a name in the middle of a sentence');
+  assert.deepEqual(r('בא ועקב'), [], 'two relaxed candidates: no guess');
+});
