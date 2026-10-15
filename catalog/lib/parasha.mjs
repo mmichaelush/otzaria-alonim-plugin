@@ -316,6 +316,17 @@ const MONTH_WORDS = new Map([
   ['סיוון', 'Sivan'], ['סיון', 'Sivan'], ['תמוז', 'Tamuz'], ['אב', 'Av'], ['מנחם אב', 'Av'], ['אלול', 'Elul'],
 ].map(([w, m]) => [normalizeKey(w), m]));
 
+// Rosh Hashana and Shevuot are also Talmud tractates ("מסכת שבועות דף יב", "שבועות ל״ד עד ...").
+const TRACTATE_EVENTS = new Set(['shavuot', 'rosh-hashana']);
+const TRACTATE_WORDS = N(['מסכת', 'מס', 'עד', 'דף', 'הדף']);
+function isTractateMention(tokens, from, len) {
+  if (TRACTATE_WORDS.has(tokens[from - 1]?.n)) return true;
+  // a daf number right after the name: a 1-3 letter numeral up to 49 (Shevuot has 49 pages)
+  const next = tokens[from + len]?.n;
+  if (TRACTATE_WORDS.has(next)) return true;
+  return !!next && /^[א-ת]{1,3}$/.test(next) && (gematria(next) ?? 999) <= 49 && parseYearWord(next) === null;
+}
+
 /**
  * Events mentioned in the tokens, in text order: [{slug, from, to, month?}].
  * "ראש חודש חשוון" carries the month so the date can be found.
@@ -330,6 +341,7 @@ export function detectEvents(tokens) {
       }
     }
     if (!best) continue;
+    if (TRACTATE_EVENTS.has(best.slug) && isTractateMention(tokens, i, best.len)) { i += best.len - 1; continue; }
     const hit = { slug: best.slug, from: i, to: i + best.len };
     if (best.slug === 'rosh-chodesh') {
       const m = MONTH_WORDS.get(tokens[hit.to]?.n);
@@ -381,6 +393,8 @@ export function detectHebrewYear(tokens) {
     // the text, after "שנת", or written with the ה prefix.
     const bareTens = /^תש[יכלמנסעפצ]$/.test(tokens[i].n);
     if (bareTens && i !== tokens.length - 1 && !['שנת', 'ה'].includes(tokens[i - 1]?.n)) continue;
+    // "תשעה" (5775 without quotes) is the number nine in "תשעה באב" and "תשעה עשר".
+    if (tokens[i].n === 'תשעה' && !/["'׳״]/.test(tokens[i].w) && ['באב', 'עשר'].includes(tokens[i + 1]?.n)) continue;
     return { hy, index: i };
   }
   return null;

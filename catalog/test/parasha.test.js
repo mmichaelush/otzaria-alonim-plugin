@@ -162,3 +162,12 @@ test('events: festivals, fasts and Rosh Chodesh with its month; the longest phra
   assert.equal(analyzeTitle('ראש חודש').rcMonth, null);
   assert.deepEqual(analyzeTitle('פרשת נח').events, []);
 });
+
+test('false friends: tractates Shevuot and Rosh Hashana, and תשעה as the number nine', () => {
+  for (const t of ['מסכת שבועות גיליון 4 דף כו - לב', 'תמצית הדף היומי 131 שבועות ל"ד עד עבודה זרה', 'ראש השנה דף ג', 'מסכת ראש השנה']) assert.deepEqual(analyzeTitle(t).events, [], t);
+  assert.deepEqual(analyzeTitle('החיזוק היומי שבועות תשפד').events, ['shavuot']);
+  assert.deepEqual(analyzeTitle('הלכות שבועות').events, ['shavuot']);
+  assert.deepEqual(analyzeTitle('שבועות פד').events, ['shavuot']); // 84 is beyond the tractate: a short year
+  assert.equal(analyzeTitle('דיני תשעה באב תשפו').hy, 5786);
+  assert.equal(analyzeTitle('שנת תשע"ה תשעה באב').hy, 5775);
+});
