@@ -90,8 +90,9 @@
     const opts = o || {};
     const state = app.cardState(item);
     const mode = opts.mode === 'row' ? 'row' : 'card';
-    const title = titleOf(item);
-    const meta = metaParts(item).join(' · ');
+    // בדף סדרה שם הסדרה חוזר בכל שורה: הכותרת היא השבוע, והמשנה — השנה והמספר.
+    const title = opts.inSeries ? Core.weekLabel(item) || item.date || titleOf(item) : titleOf(item);
+    const meta = opts.inSeries ? [item.hy ? Core.hyLetters(item.hy) : '', item.no ? t('גיליון {no}', { no: item.no }) : ''].filter(Boolean).join(' · ') : metaParts(item).join(' · ');
     const tokens = opts.tokens || [];
     const titleNode = el('h3', { class: 'card-title', dir: 'auto' }, Ui.marked(title, highlightSpans(title, tokens)));
     const metaNode = el('p', { class: 'card-meta', dir: 'auto' }, Ui.marked(meta, highlightSpans(meta, tokens)));

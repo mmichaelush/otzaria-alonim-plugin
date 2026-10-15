@@ -26,6 +26,7 @@
 
     mount(host) {
       this.host = host;
+      this.unsub = ['data', 'state', 'files', 'disk', 'sync'].map((name) => this.app.on(name, () => this.schedule()));
       this.render();
     }
 
@@ -33,7 +34,19 @@
       this.render();
     }
 
-    destroy() {}
+    /** ציור מאוחד: שרדים וסטטוס מגיעים בהמוניהם. */
+    schedule() {
+      if (this.pending) return;
+      this.pending = true;
+      requestAnimationFrame(() => {
+        this.pending = false;
+        if (this.host && this.host.isConnected) this.render();
+      });
+    }
+
+    destroy() {
+      for (const off of this.unsub || []) off();
+    }
 
     // ------------------------------------------------------- בחירת שבוע
 
@@ -109,7 +122,7 @@
       }
       const reading = state.continueReading(6);
       if (reading.length) page.appendChild(this.continueReading(reading));
-      this.host.replaceChildren(page);
+      Ui.preserveFocus(this.host, () => this.host.replaceChildren(page));
       if (scroller) scroller.scrollTop = keep;
     }
 

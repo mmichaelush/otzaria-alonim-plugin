@@ -84,6 +84,7 @@ export class Page {
     await this.send('Page.enable');
     await this.send('Runtime.enable');
     await this.send('Log.enable');
+    await this.send('Emulation.setFocusEmulationEnabled', { enabled: true });
     await this.setViewport(width, height, scale);
   }
 
@@ -156,7 +157,7 @@ export class Browser {
     const exe = findBrowser();
     if (!exe) throw new Error('לא נמצא Edge או Chrome');
     const dir = mkdtempSync(join(tmpdir(), 'alonim-cdp-'));
-    const proc = spawn(exe, ['--headless=new', '--disable-gpu', '--disable-extensions', '--no-first-run', '--allow-file-access-from-files', '--hide-scrollbars', '--remote-debugging-port=0', '--user-data-dir=' + dir, 'about:blank'], { stdio: ['ignore', 'ignore', 'pipe'] });
+    const proc = spawn(exe, ['--headless=new', '--disable-gpu', '--disable-extensions', '--no-first-run', '--allow-file-access-from-files', '--hide-scrollbars', '--disable-background-timer-throttling', '--disable-renderer-backgrounding', '--disable-backgrounding-occluded-windows', '--remote-debugging-port=0', '--user-data-dir=' + dir, 'about:blank'], { stdio: ['ignore', 'ignore', 'pipe'] });
     const url = await new Promise((resolve, reject) => {
       let buf = '';
       const timer = setTimeout(() => reject(new Error('browser did not start')), 15000);

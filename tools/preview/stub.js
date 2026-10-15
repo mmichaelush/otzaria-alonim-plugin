@@ -34,13 +34,22 @@
   };
 
   const fixture = window.__FIXTURE__ || { files: {} };
+  const sizes = new Map();
+  // רק בקטלוג הקטן: פענוח של קטלוג ענק בכל טעינה היה מעוות את מדידות הביצועים.
+  const small = Object.values(fixture.files).reduce((n, text) => n + text.length, 0) < 8e6;
+  for (const path of small ? Object.keys(fixture.files) : []) {
+    if (path === 'recent.json' || path.startsWith('issues/')) {
+      for (const it of JSON.parse(fixture.files[path])) for (const a of it.assets || []) if (a.url) sizes.set(a.url, Math.min(a.bytes || 0, 1500000));
+    }
+  }
   const sdk = window.FakeSdk.createFakeSdk({
     scenario,
     catalog: fixture.files,
+    sizeFor: (url) => sizes.get(url) || 0,
     netDelay: Number(params.get('netdelay') || 40),
     downloadDelay: Number(params.get('dldelay') || 350),
     slowMs: 2500,
-    fileUrl: (abs, file) => URL.createObjectURL(new Blob([file.content], { type: 'application/pdf' })),
+    fileUrl: (abs, file) => (params.get('xorigin') ? 'data:application/pdf;base64,' + btoa(unescape(encodeURIComponent(file.content))) : URL.createObjectURL(new Blob([file.content], { type: 'application/pdf' }))),
   });
 
   // ---- מצב משתמש לדוגמה (seed=1 כברירת מחדל): מעקב, מועדפים, קריאה, תיקייה והורדות
@@ -78,6 +87,23 @@
     sdk.storage.set('prefs', { v: 1, scale: Number(params.get('scale')) });
   }
 
+  // warm=1: ביקור שני. המטמון הפרטי כבר מלא, כמו אחרי סנכרון מוצלח.
+  if (params.get('warm') && files['manifest.json']) {
+    const manifest = JSON.parse(files['manifest.json']);
+    const meta = { sha: {}, use: {}, catalogVersion: manifest.catalogVersion, lastOkAt: Date.now() - 3600000, lastCheckAt: Date.now() - 3600000 };
+    const put = (path, text) => sdk.privateFs.set('catalog/' + path, { content: text, size: text.length });
+    put('manifest.json', files['manifest.json']);
+    for (const key of ['series', 'weeks', 'recent']) {
+      put(key + '.json', files[key + '.json']);
+      meta.sha[key + '.json'] = manifest.files[key].sha256;
+    }
+    for (const s of manifest.shards) {
+      put('issues/' + s.id + '.json', files['issues/' + s.id + '.json']);
+      meta.sha['issues/' + s.id + '.json'] = s.sha256;
+    }
+    put('meta.json', JSON.stringify(meta));
+  }
+
   window.Otzaria = sdk;
   window.__sdk = sdk;
 
@@ -108,5 +134,7 @@
       if (params.get('print')) app.print(item);
       else app.openIssue(item);
     }
+    await wait(250);
+    document.documentElement.dataset.previewReady = '1';
   });
 })();

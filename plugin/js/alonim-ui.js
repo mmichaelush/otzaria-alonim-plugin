@@ -113,6 +113,36 @@
     );
   }
 
+  /** מחלקות יציבות של כפתור (בלי מצב), כדי למצוא אותו אחרי בנייה מחדש. */
+  const stableClass = (node) => String(node.className).split(/\s+/).filter((c) => c && !c.startsWith('is-')).join(' ');
+
+  /**
+   * מריץ [fn] שבונה מחדש את תוכן [container], ומחזיר את המיקוד לאלמנט המקביל
+   * (אותו כרטיס, אותו כפתור) — בלי זה כל רענון מפיל את המיקוד ל-body.
+   */
+  function preserveFocus(container, fn) {
+    const active = document.activeElement;
+    let key = null;
+    if (active && active !== document.body && container.contains(active)) {
+      const card = active.closest('[data-id]');
+      key = { id: card ? card.dataset.id : null, label: active.getAttribute('aria-label') || '', cls: stableClass(active), tag: active.tagName, isCard: active === card };
+    }
+    fn();
+    if (!key) return;
+    const scopes = key.id ? [...container.querySelectorAll('[data-id]')].filter((n) => n.dataset.id === key.id) : [container];
+    for (const scope of scopes) {
+      if (key.isCard) {
+        scope.focus({ preventScroll: true });
+        return;
+      }
+      const match = [...scope.querySelectorAll(key.tag.toLowerCase())].find((n) => n.getAttribute('aria-label') === key.label) || [...scope.querySelectorAll(key.tag.toLowerCase())].find((n) => stableClass(n) === key.cls);
+      if (match && !match.disabled) {
+        match.focus({ preventScroll: true });
+        return;
+      }
+    }
+  }
+
   /** סרגל התקדמות. הרוחב נקבע דרך CSSOM (תכונת style בתגית עלולה להיחסם ב-CSP). */
   function progress(percent, label, max, now) {
     const bar = el('div', { class: 'progress-bar' });
@@ -553,6 +583,7 @@
     marked,
     stateCard,
     progress,
+    preserveFocus,
     skeleton,
     Toasts,
     Announcer,

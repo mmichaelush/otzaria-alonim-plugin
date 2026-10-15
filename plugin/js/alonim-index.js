@@ -447,7 +447,9 @@
 
     /** כל הסדרות, מסודרות א-ב, עם `_norm` לחיפוש. */
     seriesList() {
-      return [...this.seriesById.values()].sort((a, b) => (a._ntitle < b._ntitle ? -1 : a._ntitle > b._ntitle ? 1 : 0));
+      // כותרות בעברית קודם, ואחריהן שאר השפות.
+      const rank = (s) => (/^[֐-׿]/.test(s._ntitle) ? 0 : 1);
+      return [...this.seriesById.values()].sort((a, b) => rank(a) - rank(b) || (a._ntitle < b._ntitle ? -1 : a._ntitle > b._ntitle ? 1 : 0));
     }
 
     /** סדרות לפי טקסט ומסננים: `{ circle, lang }`. */

@@ -106,7 +106,7 @@ function smallCatalog() {
         ext: String(1000 + n * 3 + c),
         url: src === 'ladaat' ? 'https://ladaat.co/gilyonot/uploads/' + date + '/files/' + (si + 1) + '-' + slug + '.pdf' : src === 'tashma' ? 'https://tashma.co.il/gilyonot/file/' + (5000 + n) : src === 'gilyoines' ? 'https://gilyoines.com/files/' + n + '.pdf' : 'https://alonolam.com/wp-content/uploads/' + date.slice(0, 7) + '/' + n + '.pdf',
         page: 'https://' + { ladaat: 'ladaat.co/gilyonot/view/', tashma: 'tashma.co.il/gilyonot/', gilyoines: 'gilyoines.com/g/', alonolam: 'alonolam.com/g/' }[src] + n,
-        bytes: 600000 + ((n * 7919) % 18000000),
+        bytes: 200000 + ((n * 7919) % 1000000),
         pages: 4 + ((n * 13) % 40),
         downloads: (n * 37) % 700,
       }));

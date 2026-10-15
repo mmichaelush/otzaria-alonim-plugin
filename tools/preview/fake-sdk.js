@@ -172,7 +172,10 @@
         if (scenario === 'download-blocked' || scenario === 'blocked') return err('error.forbidden', 'URL not in allowlist');
         if (!inApproved(p.destPath)) return err('error.forbidden', 'destPath outside approved folder');
         const html = scenario === 'download-html';
-        const content = html ? '<html>' + 'x'.repeat(2000) + '</html>' : minimalPdf(p.destPath.split('/').pop());
+        let content = html ? '<html>' + 'x'.repeat(2000) + '</html>' : minimalPdf(p.destPath.split('/').pop());
+        // גודל כמו בקטלוג (כדי שבדיקת "ההורדה נקטעה" תעבור על קובץ תקין).
+        const wanted = o.sizeFor ? o.sizeFor(p.url) : 0;
+        if (wanted > content.length) content = content + '%'.padEnd(wanted - content.length, 'x');
         sdk.userFs.set(p.destPath, { type: 'file', size: content.length, modified: new Date(now()).toISOString(), content });
         return { path: p.destPath.replace(/\//g, '\\'), filename: p.destPath.split('/').pop() };
       },

@@ -618,7 +618,7 @@
           { class: 'series-actions' },
           Ui.button(st.follow ? 'tonal' : 'outlined', st.follow ? t('עוקב') : t('עקוב'), () => app.toggleFollow(id), { icon: st.follow ? 'alert_24_filled' : 'alert_24_regular', pressed: st.follow, className: 'button-small' }),
           Ui.button(st.mute ? 'tonal' : 'outlined', st.mute ? t('מושתקת') : t('השתק'), () => app.state.setSeries(id, { mute: !st.mute }), { icon: 'alert_off_24_regular', pressed: st.mute, className: 'button-small' }),
-          Ui.button(st.fav ? 'tonal' : 'outlined', st.fav ? t('מועדפת') : t('מועדפת?'), () => app.state.setSeries(id, { fav: !st.fav }), { icon: st.fav ? 'star_24_filled' : 'star_24_regular', pressed: st.fav, className: 'button-small' }),
+          Ui.button(st.fav ? 'tonal' : 'outlined', t('מועדפת'), () => app.state.setSeries(id, { fav: !st.fav }), { icon: st.fav ? 'star_24_filled' : 'star_24_regular', pressed: st.fav, className: 'button-small' }),
           sources.size > 1
             ? el('label', { class: 'inline-field' }, el('span', {}, t('מקור מועדף')), selectField(t('מקור מועדף'), srcOptions, st.src || '', (value) => app.state.setSeries(id, { src: value })))
             : null,
@@ -678,7 +678,7 @@
           }
           node.classList.add('is-grid');
           node.style.setProperty('--cols', '1');
-          node.appendChild(Cards.render(app, d.item, { mode, tokens: q.tokens, index: d.k, total: ctxCount, ctx: { count: ctxCount, at: (k) => this.pageItems[k], index: d.k }, showLang: false }));
+          node.appendChild(Cards.render(app, d.item, { mode, tokens: q.tokens, index: d.k, total: ctxCount, ctx: { count: ctxCount, at: (k) => this.pageItems[k], index: d.k }, showLang: false, inSeries: true }));
         },
       });
       this.renderHead();
