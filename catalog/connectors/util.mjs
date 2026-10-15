@@ -29,3 +29,19 @@ export function safeUrl(u) {
   }
   return out;
 }
+
+/**
+ * A failure of one unit of work (one date, one series page, one week) must not end the
+ * crawl: it is recorded (the source becomes "degraded") and the crawl goes on. A host that
+ * blocks us is the exception: that always stops the source.
+ * @param {{soft?: (unit: string, err: Error) => void}} ctx
+ */
+export function softFail(ctx, unit, err) {
+  if (err?.name === 'HostBlockedError' || typeof ctx?.soft !== 'function') throw err;
+  ctx.soft(unit, err);
+}
+
+/** Throws a descriptive error when a response does not have the shape the parser relies on. */
+export function expectShape(ok, what) {
+  if (!ok) throw new Error(`unexpected response shape: ${what}`);
+}

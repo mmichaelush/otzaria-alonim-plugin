@@ -3,7 +3,7 @@
 //   GET /api/home/getGilyoines/<weekId>/<siteViewId>   any week (ids are not in
 //        /api/home beyond the last 9; 191 is the first with data, March 2026)
 // PDF: /storage/<pdf>. There is no per-gilyon page, so `page` is the site root.
-import { collapse, isoSeconds, medianIso, safeUrl } from './util.mjs';
+import { collapse, isoSeconds, medianIso, safeUrl, softFail, expectShape } from './util.mjs';
 import { langFromName, stripLanguage } from '../lib/parasha.mjs';
 
 export const id = 'gilyoines';
@@ -46,6 +46,7 @@ export function parseItem(g) {
 
 /** /api/home or getGilyoines response -> RawIssue[]. */
 export function parseGilyoines(json) {
+  expectShape(Array.isArray(json?.gilyoines), 'gilyoines response has no gilyoines array');
   return (json?.gilyoines || []).map(parseItem).filter(Boolean);
 }
 
@@ -63,7 +64,8 @@ export async function probe({ http }) {
   return { status: 'ok', note: '' };
 }
 
-export async function* crawl({ http, log }, { full = false } = {}) {
+export async function* crawl(ctx, { full = false } = {}) {
+  const { http, log } = ctx;
   const home = await http.getJson(`${ORIGIN}/api/home`);
   const current = Number(home.currentWeek);
   const view = home.site_view_id;
@@ -73,9 +75,16 @@ export async function* crawl({ http, log }, { full = false } = {}) {
   // Incremental: the last two weeks and the next few (published ahead of time).
   const from = full ? FIRST_WEEK_ID : current - 2;
   for (let w = from; w <= current + 4; w++) {
-    const j = await http.getJson(`${ORIGIN}/api/home/getGilyoines/${w}/${view}`, { allow404: true });
-    if (!j) continue;
-    yield* emit(parseGilyoines(j));
+    let items;
+    try {
+      const j = await http.getJson(`${ORIGIN}/api/home/getGilyoines/${w}/${view}`, { allow404: true });
+      if (!j) continue;
+      items = parseGilyoines(j);
+    } catch (e) {
+      softFail(ctx, `week ${w}`, e);
+      continue;
+    }
+    yield* emit(items);
     if (full && w % 10 === 0) log?.(`gilyoines week ${w}`);
   }
 }

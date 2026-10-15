@@ -262,3 +262,54 @@ test('recent.json selection: window, no undated tashma files, hard cap that cuts
   const capped = selectRecent(issues, '2026-10-15', size('i_next') + size('i_in2') + 3).map((i) => i.id).sort();
   assert.deepEqual(capped, ['i_in2', 'i_next'], 'the oldest week and the undated one are cut first');
 });
+
+test('one failing unit degrades the source but keeps the rest; a changed response shape marks it down and keeps old data', async () => {
+  await withTmp(async (dir) => {
+    const r1 = await runBuild({ out: join(dir, 'a'), now: NOW, http: fakeHttp(routes()), log: SILENT });
+    const total = r1.manifest.sources.find((s) => s.id === 'ladaat').issueCount;
+    const page = { ...fixtureJson('ladaat-files.json'), hasMore: false };
+    // one date answers with broken JSON-ish content, the others are fine
+    const flaky = routes({
+      'https://ladaat.co/gilyonot/api/files': (u) => (u.includes('date=2026-10-17') ? '{"success":true,"nofiles":1}' : page),
+    });
+    const r2 = await runBuild({ out: join(dir, 'b'), now: '2026-10-15T14:00:00Z', prev: join(dir, 'a'), http: fakeHttp(flaky), log: SILENT });
+    const ladaat = r2.manifest.sources.find((s) => s.id === 'ladaat');
+    assert.equal(ladaat.status, 'degraded');
+    assert.match(ladaat.note, /חלק מהנתונים/);
+    assert.ok(ladaat.issueCount >= total, 'nothing was dropped');
+    const run = r2.results.find((r) => r.id === 'ladaat');
+    assert.equal(run.softErrorCount, 1);
+    assert.match(run.softErrors[0].unit, /2026-10-17/);
+    assert.match(run.softErrors[0].message, /unexpected response shape/);
+    // tashma changes its structure: the source is down, its copies stay
+    const changed = routes({ 'https://tashma.co.il/gilyonot/new': { message: 'moved' } });
+    const r3 = await runBuild({ out: join(dir, 'c'), now: '2026-10-15T15:00:00Z', prev: join(dir, 'a'), http: fakeHttp(changed), log: SILENT });
+    const tashma = r3.manifest.sources.find((s) => s.id === 'tashma');
+    assert.equal(tashma.status, 'down');
+    assert.equal(tashma.issueCount, r1.manifest.sources.find((s) => s.id === 'tashma').issueCount);
+    // and a response that is not JSON at all
+    const garbage = routes({ 'https://alonolam.com/wp-json/gallery/v1/list': () => { throw new Error('invalid JSON from https://alonolam.com/...'); } });
+    const r4 = await runBuild({ out: join(dir, 'd'), now: '2026-10-15T16:00:00Z', prev: join(dir, 'a'), http: fakeHttp(garbage), log: SILENT });
+    assert.equal(r4.manifest.sources.find((s) => s.id === 'alonolam').status, 'down');
+  });
+});
+
+test('--explain shows raw title, decisions and the merge, and writes nothing', async () => {
+  await withTmp(async (dir) => {
+    const { manifest } = await runBuild({ out: join(dir, 'a'), now: NOW, http: fakeHttp(routes()), log: SILENT });
+    const shard = await readJson(join(dir, 'a'), manifest.shards[0].path);
+    const merged = (await Promise.all(manifest.shards.map((s) => readJson(join(dir, 'a'), s.path)))).flat().find((i) => i.assets.length > 1);
+    assert.ok(merged, 'fixtures contain a merged issue');
+    const { explain } = await runBuild({ explain: merged.id, now: NOW, http: fakeHttp(routes()), log: SILENT });
+    assert.match(explain, new RegExp(merged.id));
+    assert.match(explain, /רמזי המקור/);
+    assert.match(explain, /נקבע על ידי/);
+    assert.match(explain, /איחוד בקבוצה/);
+    assert.match(explain, /אוחד עם/);
+    for (const a of merged.assets) assert.match(explain, new RegExp(`${a.src}:${a.ext}`));
+    assert.ok(shard.length > 0);
+    assert.match((await runBuild({ explain: 'i_000000000000', now: NOW, http: fakeHttp(routes()), log: SILENT })).explain, /לא נמצא/);
+    const bySeries = await runBuild({ explain: merged.series, now: NOW, http: fakeHttp(routes()), log: SILENT });
+    assert.match(bySeries.explain, /סדרה s_/);
+  });
+});
