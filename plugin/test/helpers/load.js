@@ -17,6 +17,8 @@ const PURE = [
   'js/alonim-log.js',
   'js/alonim-runtime.js',
   'js/alonim-capabilities.js',
+  'js/alonim-errors.js',
+  'js/alonim-boundary.js',
   'js/alonim-theme.js',
   'js/alonim-weeks.js',
   'js/alonim-rules.js',

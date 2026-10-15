@@ -27,26 +27,10 @@
     { id: 'settings', label: N('הגדרות'), icon: 'settings_24_regular' },
   ]);
 
+  /** אירועי ציור: כשלם מטופל בגבול השגיאות של המסך, לא בהודעה. */
+  const RENDER_EVENTS = Object.freeze(['data', 'state', 'files', 'disk', 'sync', 'prefs', 'route', 'selection', 'focus-search', 'escape']);
   const NEW_DAYS = 7;
   const DAY_MS = 86400000;
-
-  /** הודעות כשל קבועות (קוד → טקסט). ההחלטות בקוד נשענות על הקוד, לא על הטקסט. */
-  const FILE_ERRORS = Object.freeze({
-    no_folder: N('עוד לא נבחרה תיקייה לשמירת העלונים.'),
-    blocked: N('הכתובת של הקובץ טרם אושרה באוצריא, ולכן אי אפשר להוריד אותו דרך התוסף. אפשר לפתוח את הגיליון באתר המקור.'),
-    no_direct_link: N('המקור הזה מספק קישור לאתר בלבד, בלי הורדה ישירה.'),
-    permission: N('לתוסף אין הרשאה לשמור קבצים בתיקייה.'),
-    not_pdf: N('הקובץ שירד אינו PDF תקין, ולכן נמחק. אפשר לנסות שוב או לפתוח באתר המקור.'),
-    truncated: N('ההורדה נקטעה באמצע. אפשר לנסות שוב.'),
-    timeout: N('ההורדה לקחה יותר מדי זמן. אפשר לנסות שוב.'),
-    failed: N('ההורדה נכשלה. אפשר לנסות שוב.'),
-    missing_file: N('הקובץ נמחק מהתיקייה. אפשר להוריד אותו שוב.'),
-    open_failed: N('אוצריא לא הצליחה לפתוח את הקובץ.'),
-    cancelled: N('ההורדה בוטלה.'),
-    missing_data: N('פרטי הגיליון אינם זמינים כרגע (הקטלוג עדיין נטען, או שאין חיבור). אפשר לנסות שוב או לפתוח באתר המקור.'),
-    forbidden_folder: N('אוצריא אינה מאפשרת לבחור את התיקייה הזו (תיקיית מערכת או שורש כונן). בחרו תיקייה ייעודית, למשל תחת "מסמכים".'),
-    pick_failed: N('בחירת התיקייה נכשלה.'),
-  });
 
   class App {
     constructor(bridge, doc) {
@@ -114,7 +98,9 @@
         try {
           fn(payload);
         } catch (error) {
-          this.log.error('listener ' + name + ' failed', error);
+          this.log.scoped('ui').error('listener ' + name + ' failed', error);
+          // אירוע של חלון או פעולה (לא ציור מסך): המשתמש צריך לדעת שמשהו לא נפתח.
+          if (!RENDER_EVENTS.includes(name)) this.toast(A.Errors.text('dialog_failed'), { error: true });
         }
       }
     }
@@ -568,7 +554,7 @@
     }
 
     fileErrorText(code) {
-      return t(FILE_ERRORS[code] || FILE_ERRORS.failed);
+      return A.Errors.text(code);
     }
 
     /** פתיחת דף הגיליון/האתר של המקור המועדף. */
@@ -672,7 +658,7 @@
     }
   }
 
-  const api = { App, TABS, DEFAULT_SOURCES, FILE_ERRORS, NEW_DAYS };
+  const api = { App, TABS, DEFAULT_SOURCES, NEW_DAYS };
   A.AppModule = api;
   if (typeof module === 'object' && module.exports) module.exports = api;
 })(typeof self !== 'undefined' ? self : globalThis);

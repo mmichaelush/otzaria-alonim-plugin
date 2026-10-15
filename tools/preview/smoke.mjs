@@ -488,6 +488,27 @@ async function hostFlows(browser, open, check) {
   await browser.closePage(page);
 }
 
+/** כשל במסך או בחלון אינו משאיר דף ריק: כרטיס שגיאה עם ניסיון חוזר, והלשוניות ממשיכות לעבוד. */
+async function failureFlows(browser, open, check) {
+  const page = await open('page=week');
+  await page.eval("(() => { const a = window.__alonimApp; window.__origForWeek = a.index.forWeek; a.index.forWeek = () => { throw new Error('injected failure'); }; a.emit('data', 'x'); })()");
+  await page.sleep(500);
+  check('כשל בציור מסך: כרטיס שגיאה במקום דף ריק', await page.eval("Boolean(document.querySelector('.state-card.is-error')) && /משהו השתבש במסך הזה/.test(document.querySelector('.state-card').textContent) && /screen_failed/.test(document.querySelector('.state-card').textContent)"));
+  check('כרטיס השגיאה מציע ניסיון חוזר והעתקת פרטים', await page.eval("Boolean(document.querySelector('.state-card [data-key=retry]')) && [...document.querySelectorAll('.state-card button')].length >= 3"));
+  check('הכשל נרשם ביומן בקטגוריית ui עם הקוד', await page.eval("window.__alonimApp.log.filter({ level: 'error', cat: 'ui' }).some((e) => e.code === 'screen_failed')"));
+  await page.eval("window.__alonimApp.go('all')");
+  await page.sleep(500);
+  check('שאר התוסף ממשיך לעבוד: לשונית אחרת נטענת', await page.eval("document.querySelectorAll('.card').length > 3"));
+  await page.eval("window.__alonimApp.index.forWeek = window.__origForWeek; window.__alonimApp.go('week')");
+  await page.sleep(500);
+  check('אחרי התיקון המסך חוזר', await page.eval("Boolean(document.querySelector('.hero-title')) && !document.querySelector('.state-card.is-error')"));
+  // חלון שנכשל
+  await page.eval("(() => { window.__origDetails = window.Alonim.Dialogs.showDetails; window.Alonim.Dialogs.showDetails = async () => { throw new Error('injected dialog failure'); }; window.__alonimApp.showDetails(window.__alonimApp.index.item(0)); })()");
+  await page.sleep(500);
+  check('חלון שנכשל: הודעה עם קוד, לא שתיקה', await page.eval("/dialog_failed/.test(document.body.innerText)"));
+  await browser.closePage(page);
+}
+
 /** תרחישי זרימה: נבדקים בפועל, לא רק נטענים. */
 async function flows(browser) {
   const open = async (query, base, width) => {
@@ -546,6 +567,7 @@ async function flows(browser) {
   await weekFlows(browser, open, check);
   await filterFlows(browser, open, check);
   await selectionFlows(browser, open, check);
+  await failureFlows(browser, open, check);
 
   // לחיצה על כרטיס = קריאה; הורדה = שמירה קבועה ומצב "הורד" מהדיסק
   page = await open('page=all');

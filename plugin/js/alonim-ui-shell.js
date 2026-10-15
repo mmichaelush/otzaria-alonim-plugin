@@ -72,17 +72,62 @@
         this.renderRoute();
       }
     });
-    this.on('details', ({ item, ctx }) => A.Dialogs.showDetails(this, item, ctx));
+    // חלונות אסינכרוניים: כשל בהבטחה אינו נבלע ("לא נפתח" בלי הסבר).
+    const guardAsync = (fn) => (payload) => Promise.resolve().then(() => fn(payload)).catch((error) => this.reportFailure('dialog_failed', error));
+    this.on('details', guardAsync(({ item, ctx }) => A.Dialogs.showDetails(this, item, ctx)));
     this.on('add-to-list', (item) => A.Dialogs.addToList(this, item));
     this.on('download-failed', ({ item, code }) => A.Dialogs.downloadFailed(this, item, code));
     this.on('need-folder', ({ then }) => A.Dialogs.needFolder(this, then));
     this.on('shortcuts', () => A.Dialogs.shortcuts());
     this.on('viewer', () => this.updateStatus());
 
+    for (const Screen of Object.values(SCREENS())) A.Boundary.protect(Screen, (screen, method, error) => this.screenFailed(screen, method, error));
     this.renderRoute();
     this.updateStatus();
     // הפעלה ראשונה: אחרי שהמסך הראשון צויר.
     if (!this.state.prefs.welcomeSeen) setTimeout(() => !this.state.prefs.welcomeSeen && A.HelpUi.firstRun(this), 700);
+  };
+
+  /** כשל שאינו של מסך (חלון, פעולה): נרשם ביומן, והמשתמש רואה הודעה עם הקוד. */
+  App.prototype.reportFailure = function reportFailure(code, error) {
+    this.log.scoped('ui').error(code, error);
+    this.toast(A.Errors.text(code) + ' ' + t('קוד: {code}', { code }), { error: true });
+  };
+
+  /**
+   * מסך שנכשל בציור: מציגים במקומו כרטיס שגיאה (הודעה, ניסיון חוזר, העתקת פרטים),
+   * במקום דף ריק. הלשוניות והפס העליון ממשיכים לעבוד.
+   */
+  App.prototype.screenFailed = function screenFailed(screen, method, error) {
+    this.log.scoped('ui').error('screen ' + method + ' failed', Object.assign(new Error(error && error.message), { code: 'screen_failed' }));
+    if (error && error.stack) this.log.scoped('ui').debug(String(error.stack).split('\n').slice(0, 4).join(' | '));
+    const host = (screen && screen.host) || this.column;
+    if (!host) return;
+    try {
+      host.replaceChildren(
+        el(
+          'div',
+          { class: 'page' },
+          Ui.stateCard({
+            icon: 'warning_24_regular',
+            error: true,
+            title: t('משהו השתבש במסך הזה'),
+            text: [A.Errors.text('screen_failed'), t('שאר התוסף ממשיך לעבוד. אפשר לנסות שוב, או להעתיק את הפרטים לדיווח.')],
+            note: t('קוד: {code}', { code: 'screen_failed' }) + ' · ' + method,
+            actions: [
+              Ui.button('filled', t('נסה שוב'), () => this.renderRoute(), { icon: 'arrow_clockwise_24_regular', key: 'retry' }),
+              Ui.button('tonal', t('העתקת פרטים לדיווח'), async () => {
+                const ok = await A.Selection.copyToClipboard(A.Diagnostics.report(this, { filter: { level: 'warn' } }));
+                this.toast(ok ? t('הדיווח הועתק (בלי נתיבים)') : t('ההעתקה נכשלה'), { error: !ok });
+              }, { icon: 'copy_24_regular' }),
+              Ui.button('text', t('לשבוע'), () => this.go('week')),
+            ],
+          }),
+        ),
+      );
+    } catch (inner) {
+      this.log.scoped('ui').error('boundary render failed', inner);
+    }
   };
 
   App.prototype.applyLanguage = function applyLanguage() {
