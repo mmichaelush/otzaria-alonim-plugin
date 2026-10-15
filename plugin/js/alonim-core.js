@@ -149,6 +149,18 @@
     'tu-bishvat': N('ט״ו בשבט'),
     'shabbat-shirah': N('שבת שירה'),
     'lag-baomer': N('ל״ג בעומר'),
+    'tzom-gedaliah': N('צום גדליה'),
+    'chol-hamoed-sukkot': N('חול המועד סוכות'),
+    'hoshana-raba': N('הושענא רבה'),
+    'asara-btevet': N('עשרה בטבת'),
+    'taanit-esther': N('תענית אסתר'),
+    'shushan-purim': N('שושן פורים'),
+    'chol-hamoed-pesach': N('חול המועד פסח'),
+    'shvii-shel-pesach': N('שביעי של פסח'),
+    'shiva-asar-btammuz': N('י״ז בתמוז'),
+    'rosh-chodesh': N('ראש חודש'),
+    'aseret-yemei-teshuva': N('עשרת ימי תשובה'),
+    'shabbat-mevarchim': N('שבת מברכים'),
   });
 
   /** שם הפרשה בעברית; סלאג לא מוכר חוזר כמות שהוא, בלי מקפים. */

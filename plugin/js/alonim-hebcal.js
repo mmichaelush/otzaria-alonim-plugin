@@ -234,7 +234,8 @@
   function format(date, options) {
     const o = options || {};
     if (!(date instanceof Date) || Number.isNaN(date.getTime())) return '';
-    const hebrew = o.hebrew === false ? '' : formatHebrew(date, o);
+    // טקסט עברי מוכן (מ-weeks.json) גובר על החישוב; בשפות אחרות מחשבים.
+    const hebrew = o.hebrew === false ? '' : o.hebrewText && isHebrewUi(o.lang) ? o.hebrewText : formatHebrew(date, o);
     const gregorian = o.gregorian === false ? '' : formatGregorian(date, o);
     const day = o.weekday ? weekdayName(date, o.lang) : '';
     const body = [hebrew, gregorian].filter(Boolean).join(' · ');

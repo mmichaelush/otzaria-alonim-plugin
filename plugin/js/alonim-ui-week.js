@@ -165,7 +165,7 @@
       const { view, views, i, rel } = sel;
       const away = rel.kind !== 'current';
       const day = Weeks.displayDay(view);
-      const sub = day ? Core.dateLine(day, { weekday: true }) : view.date;
+      const sub = day ? Core.dateLine(day, { weekday: true, hebrewText: view.hebrew }) : view.date;
       const prev = views[i - 1];
       const next = views[i + 1];
       const status = sel.cur.status;
@@ -184,6 +184,7 @@
             view.kind === 'special' && view.parashaLabel && view.eventLabel ? Ui.chip(view.eventLabel, { kind: 'reason', icon: 'calendar_star_24_regular' }) : null,
             view.kind === 'holiday' ? Ui.chip(t('חג באמצע השבוע'), { kind: 'reason', icon: 'calendar_star_24_regular' }) : null,
             away ? Ui.chip(this.relationText(rel), { kind: 'away', icon: 'clock_24_regular' }) : Ui.chip(t('השבוע'), { kind: 'now' }),
+            ...view.secondary.map((slug) => Ui.chip(Core.eventName(slug), { kind: 'source' })),
             view.derived ? Ui.chip(t('לפי העלונים'), { kind: 'source', title: t('השנה הזו אינה בלוח הקטלוג; התאריך נלקח מהעלונים עצמם.') }) : null,
             count ? Ui.chip(t('{n} גיליונות', { n: Core.formatCount(count) }), { kind: 'source' }) : null,
           ),

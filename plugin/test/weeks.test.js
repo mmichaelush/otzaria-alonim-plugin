@@ -138,12 +138,51 @@ test('weeks.years ו-ofYear', () => {
   assert.ok(Weeks.ofYear(il, 5787).every((v) => v.hy === 5787));
 });
 
-test('weeks.displayDay: חנוכה מוצג ביום הראשון, שאר החגים כמות שהם', () => {
-  const chanukah = il.find((v) => v.event === 'chanukah' && v.kind === 'holiday');
-  assert.equal(Core.ymd(Weeks.displayDay(chanukah)), '2025-12-15');
-  assert.equal(chanukah.date, '2025-12-14');
-  const pesach = il.find((v) => v.event === 'pesach' && v.kind === 'holiday');
-  assert.equal(Core.ymd(Weeks.displayDay(pesach)), pesach.date);
+test('weeks.displayDay: תאריך השורה כמות שהוא', () => {
+  for (const v of il.slice(0, 40)) assert.equal(Core.ymd(Weeks.displayDay(v)), v.date);
+});
+
+test('weeks: הטקסט העברי שבקטלוג זהה לחישוב של התוסף (כל שורות הלוח והארכיון)', () => {
+  const archive = JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', 'weeks-archive-real.json'), 'utf8'));
+  let checked = 0;
+  for (const row of rows.concat(archive)) {
+    assert.equal(HebCal.formatHebrew(Core.parseYmd(row.date)), row.hebrew, row.date);
+    checked++;
+  }
+  assert.ok(checked > 2700, 'נבדקו ' + checked);
+});
+
+test('weeks: מועדים חדשים — שורות ראש חודש וצום, שמות, אירועים משניים, וסלאג לא מוכר שורד', () => {
+  const rc = il.find((v) => v.event === 'rosh-chodesh');
+  assert.equal(rc.kind, 'holiday');
+  assert.match(rc.title, /^ראש חודש /, 'התווית מהקטלוג נושאת את החודש');
+  assert.equal(rc.hebrew, rc.row.hebrew);
+  const mevarchim = il.find((v) => v.secondary.includes('shabbat-mevarchim'));
+  assert.equal(mevarchim.kind, 'shabbat', 'אירוע משני אינו הופך שבת רגילה למיוחדת');
+  assert.equal(mevarchim.event, null);
+  for (const slug of Object.keys(A.Core.EVENTS)) assert.ok(A.Core.eventName(slug), slug);
+  const odd = Weeks.build([{ date: '2026-10-21', hy: 5787, parasha: [], parashaIL: [], label: 'מועד חדש', event: 'brand-new-event', shabbat: false }], {})[0];
+  assert.equal(odd.kind, 'holiday');
+  assert.equal(odd.title, 'מועד חדש', 'תווית הקטלוג');
+  const noLabel = Weeks.build([{ date: '2026-10-21', hy: 5787, parasha: [], parashaIL: [], event: 'brand-new-event', shabbat: false }], {})[0];
+  assert.equal(noLabel.title, 'brand new event', 'בלי תווית: הסלאג קריא');
+  A.I18n.configure('en');
+  try {
+    const en = Weeks.build([rc.row], {})[0];
+    assert.equal(en.title, 'Rosh Chodesh', 'באנגלית — השם המתורגם, לא תווית עברית');
+  } finally {
+    A.I18n.configure('he');
+  }
+});
+
+test('weeks.current: מועד קטן (ראש חודש, צום) אינו "השבוע"', () => {
+  const on = (day) => il[Weeks.current(il, day).index];
+  assert.equal(on('2025-10-20').date, '2025-10-25', 'שני לפני ראש חודש: השבת');
+  assert.equal(on('2026-03-01').date, '2026-03-03', 'ראשון לפני תענית אסתר ופורים: פורים (חג)');
+  assert.equal(on('2025-12-29').date, '2026-01-03', 'לפני עשרה בטבת: השבת הבאה');
+  assert.equal(on('2026-03-04').date, '2026-03-07', 'שושן פורים: השבת');
+  // אפשר עדיין לבחור אותם בבורר
+  assert.equal(il[Weeks.indexForDate(il, '2025-10-22')].event, 'rosh-chodesh');
 });
 
 test('weeks.build: מסיר כפילויות וממיין, ומתעלם משורות פגומות', () => {

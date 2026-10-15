@@ -16,7 +16,7 @@
     { id: 'all', label: N('הכול') },
     { id: 'shabbat', label: N('פרשות') },
     { id: 'special', label: N('שבתות מיוחדות') },
-    { id: 'holiday', label: N('חגים') },
+    { id: 'holiday', label: N('חגים ומועדים') },
   ]);
 
   const yearLabel = (hy) => A.UiDates.yearLabel(hy);
@@ -104,7 +104,7 @@
           { class: 'week-row-main' },
           el('span', { class: 'week-row-title', dir: 'auto' }, v.title),
           v.kind === 'special' && v.parashaLabel && v.eventLabel ? el('span', { class: 'week-row-event', dir: 'auto' }, v.eventLabel) : null,
-          el('span', { class: 'week-row-date', dir: 'auto' }, day ? Core.dateLine(day, { short: true, weekday: v.kind === 'holiday' }) : v.date),
+          el('span', { class: 'week-row-date', dir: 'auto' }, day ? Core.dateLine(day, { short: true, weekday: v.kind === 'holiday', hebrewText: v.hebrew }) : v.date),
         ),
         isCurrent ? Ui.chip(t('השבוע'), { kind: 'now' }) : null,
         el('span', { class: 'week-row-count' + (count ? '' : ' is-zero'), title: t('{n} גיליונות', { n: count }) }, Core.formatCount(count)),

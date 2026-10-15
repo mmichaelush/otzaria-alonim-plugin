@@ -7,10 +7,28 @@
 
   const A = root.Alonim;
   const Core = A.Core;
-  const t = (text, vars) => A.I18n.t(text, vars);
+  const I18n = A.I18n;
+  const t = (text, vars) => I18n.t(text, vars);
 
   /** חגים שבהם אין "פרשת השבוע" בחוץ לארץ, ובארץ ישראל לעיתים כן (יום טוב שני של גלויות). */
   const CHAG_EVENTS = Object.freeze(['rosh-hashana', 'yom-kippur', 'sukkot', 'shemini-atzeret', 'simchat-torah', 'pesach', 'shavuot']);
+
+  /**
+   * מועדים קטנים: ראש חודש, צומות וחול המועד. הם שורות בלוח (אפשר לבחור אותם),
+   * אבל "השבוע" אינו נעצר עליהם: היום שלפני שבת רגילה מציג את השבת.
+   */
+  const MINOR_EVENTS = Object.freeze([
+    'rosh-chodesh',
+    'tzom-gedaliah',
+    'asara-btevet',
+    'taanit-esther',
+    'shushan-purim',
+    'shiva-asar-btammuz',
+    'chol-hamoed-sukkot',
+    'chol-hamoed-pesach',
+    'hoshana-raba',
+    'shvii-shel-pesach',
+  ]);
 
   /** סוגי שורה: פרשה רגילה, שבת מיוחדת (או שבת חג), וחג באמצע השבוע. */
   const KINDS = Object.freeze({ shabbat: 'shabbat', special: 'special', holiday: 'holiday' });
@@ -31,6 +49,8 @@
     const ilSlugs = Array.isArray(row.parashaIL) ? slugsOf(row.parashaIL) : dSlugs;
     const parasha = isShabbat ? (diaspora ? dSlugs : ilSlugs) : [];
     let event = row.event || null;
+    // כל האירועים של היום; המשניים (שבת מברכים, עשרת ימי תשובה) רק ב-`events`.
+    const all = Array.isArray(row.events) ? row.events.filter(Boolean) : event ? [event] : [];
     if (isShabbat && !diaspora && event && CHAG_EVENTS.includes(event) && !dSlugs.length && ilSlugs.length) event = null;
     let kind = KINDS.shabbat;
     if (!isShabbat) kind = KINDS.holiday;
@@ -38,7 +58,8 @@
     const eventLabel = event ? Core.eventName(event) : '';
     const parashaLabel = parasha.length ? Core.parashaLabel(parasha) : '';
     let title;
-    if (kind === KINDS.holiday) title = eventLabel;
+    // בשורת חג בעברית התווית מהקטלוג גוברת ("ראש חודש חשוון" נושא את החודש).
+    if (kind === KINDS.holiday) title = (row.label && I18n.language === 'he' ? row.label : eventLabel) || eventLabel;
     else if (parashaLabel) title = t('פרשת {name}', { name: parashaLabel });
     else title = eventLabel || t('שבת');
     return {
@@ -50,6 +71,9 @@
       parasha,
       event,
       eventLabel,
+      secondary: all.filter((e) => e !== (row.event || null)),
+      /** תאריך עברי מוכן מהקטלוג (אם יש); ריק = לחשב. */
+      hebrew: typeof row.hebrew === 'string' ? row.hebrew : '',
       parashaLabel,
       title,
       /** השורה נגזרה מהגיליונות עצמם (שנה שאין לה לוח), לא מ-`weeks.json`. */
@@ -75,13 +99,14 @@
   };
 
   /**
-   * "השבוע" לפי היום: השורה הראשונה שתאריכה מהיום והלאה (שבת, או חג שקודם לה).
+   * "השבוע" לפי היום: השורה הראשונה שתאריכה מהיום והלאה (שבת, או חג שקודם לה;
+   * מועד קטן — ראש חודש, צום, חול המועד — אינו נחשב).
    * מחזיר `{ index, status }`: `ok`; `after` — היום אחרי סוף הלוח (נבחרת האחרונה);
    * `before` — לפני תחילתו (נבחרת הראשונה); `empty` — אין שורות.
    */
   function current(views, todayYmd) {
     if (!views.length) return { index: -1, status: 'empty' };
-    const i = views.findIndex((v) => v.date >= todayYmd);
+    const i = views.findIndex((v) => v.date >= todayYmd && !(v.kind === KINDS.holiday && MINOR_EVENTS.includes(v.event)));
     if (i < 0) return { index: views.length - 1, status: 'after' };
     const gap = dayNumber(views[i].date) - dayNumber(todayYmd);
     return { index: i, status: i === 0 && gap > 8 ? 'before' : 'ok' };
@@ -119,16 +144,10 @@
   /** השורה שעליה מצביע `weekDate` (תאריך מדויק), או -1. */
   const indexOfDate = (views, ymd) => views.findIndex((v) => v.date === ymd);
 
-  /**
-   * התאריך להצגה בכותרת. השורה של חנוכה מתוארכת בקטלוג בערב הנרות הראשון
-   * (כ״ד בכסלו); היום הראשון הוא כ״ה, ולכן מציגים את היום שאחריו.
-   */
-  function displayDay(v) {
-    if (v.event === 'chanukah' && v.kind === KINDS.holiday && v.day) return Core.addDays(v.day, 1);
-    return v.day;
-  }
+  /** התאריך להצגה: תאריך השורה (החג מתוארך ביום שבו הוא מתחיל, חנוכה בערב הנר הראשון). */
+  const displayDay = (v) => v.day;
 
-  const api = { CHAG_EVENTS, KINDS, view, build, current, indexForDate, indexOfDate, relation, years, ofYear, displayDay };
+  const api = { CHAG_EVENTS, MINOR_EVENTS, KINDS, view, build, current, indexForDate, indexOfDate, relation, years, ofYear, displayDay };
   A.Weeks = api;
   if (typeof module === 'object' && module.exports) module.exports = api;
 })(typeof self !== 'undefined' ? self : globalThis);
