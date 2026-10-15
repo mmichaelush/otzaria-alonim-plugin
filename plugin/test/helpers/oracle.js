@@ -48,7 +48,9 @@ function prepare(A, raw) {
         circleKey: normalizeKey(s.circle || ''),
         hy: it.hy || 0,
         date: it.date || '',
-        added: it.added ? Math.floor((Date.parse(it.added) || 0) / 1000) * 1000 : 0,
+        // גיליון archive אינו "חדש": זמן ההוספה שלו אינו נחשב.
+        added: it.archive === true ? 0 : it.added ? Math.floor((Date.parse(it.added) || 0) / 1000) * 1000 : 0,
+        addedRaw: it.added ? Math.floor((Date.parse(it.added) || 0) / 1000) * 1000 : 0,
         parasha,
         event: it.event || '',
         lang,

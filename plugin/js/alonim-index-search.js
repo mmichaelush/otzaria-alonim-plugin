@@ -105,7 +105,7 @@
     need('inList', (it) => Boolean(c.inList && c.inList(it)));
     need('unread', (it) => !(c.isRead && c.isRead(it)));
     need('isNew', (it) => Boolean(c.isNew && c.isNew(it)));
-    if (f.sinceVisit) add('sinceVisit', (i) => this.addedc[i] * 1000 > (c.lastVisit || 0));
+    if (f.sinceVisit) add('sinceVisit', (i) => this.newc[i] * 1000 > (c.lastVisit || 0));
     if (state.length) add('state', (i) => {
       const it = this.item(i);
       return state.every((fn) => fn(it));

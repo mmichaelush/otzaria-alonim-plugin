@@ -248,6 +248,29 @@ test('groupResults: קבוצות לפי שבוע, סדרה, שנה, חוג וש�
   assert.deepEqual(inGroup.slice().sort(), ['i_03', 'i_04'], 'חברי הקבוצה');
 });
 
+test('גיליון archive: אינו "חדש", אינו מקבל עדיפות לפי added, ואינו "חדש מאז הביקור"', () => {
+  const index = new CatalogIndex();
+  index.setSeries([{ id: 's1', title: 'עלון', lang: 'he' }]);
+  const base = { series: 's1', title: 'x', hy: 5787, parasha: ['noach'], assets: [] };
+  index.addIssues(
+    [
+      { ...base, id: 'i_old', date: '2020-10-17', added: '2026-10-14T10:00:00Z', archive: true },
+      { ...base, id: 'i_new', date: '2026-10-17', added: '2026-10-10T10:00:00Z' },
+      { ...base, id: 'i_mid', date: '2026-10-10', added: '2026-10-12T10:00:00Z' },
+    ],
+    'x',
+  );
+  const old = index.get('i_old');
+  assert.equal(old.archive, true);
+  assert.equal(old._added, 0, 'זמן "חדש" מאופס');
+  assert.equal(old.added, '2026-10-14T10:00:00.000Z', 'added האמיתי נשמר לתצוגה');
+  assert.equal(index.get('i_new').archive, undefined);
+  const byNew = index.search('', {}, {}, { sort: 'new' }).idx.map((i) => index.ids[i]);
+  assert.deepEqual(byNew, ['i_mid', 'i_new', 'i_old'], 'archive אחרון במיון "חדש", למרות ש-added שלו הוא המאוחר ביותר');
+  const since = index.search('', { sinceVisit: true }, { lastVisit: Date.parse('2026-10-01T00:00:00Z') }, {}).idx.map((i) => index.ids[i]).sort();
+  assert.deepEqual(since, ['i_mid', 'i_new']);
+});
+
 test('Core.hyLetters ו-year: סימני גרש וגרשיים שונים שקולים', () => {
   assert.equal(Core.parseYear('תשפ״ז'), 5787);
   assert.equal(Core.parseYear('תשפ"ז'), 5787);

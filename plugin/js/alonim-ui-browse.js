@@ -219,7 +219,10 @@
         app.on('escape', () => { if (v.query) { v.query = ''; this.pageQuery.value = ''; this.layoutPage(); } else app.go('series'); }),
       );
       // טעינת שנים שעוד לא נטענו (השרדים בדרך כלל כבר ברקע).
-      if (series && series.first && series.last) {
+      if (series && Array.isArray(series.years) && series.years.length) {
+        // `years`: השנים שיש בהן גיליונות; טוענים את החדשות (עד 12) בלי לנחש לפי תאריכים.
+        for (const hy of series.years.slice().sort((a, b) => b - a).slice(0, 12)) app.catalog.ensureYear(hy);
+      } else if (series && series.first && series.last) {
         const from = Number(String(series.first).slice(0, 4)) + 3760;
         const to = Number(String(series.last).slice(0, 4)) + 3761;
         for (let hy = to; hy >= from && hy > to - 12; hy--) app.catalog.ensureYear(hy);

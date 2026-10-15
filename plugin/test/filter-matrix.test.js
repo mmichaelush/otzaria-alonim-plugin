@@ -44,6 +44,7 @@ function variedCatalog(size, seed) {
     if (rand() < 0.08) for (const a of it.assets) delete a.bytes;
     if (rand() < 0.15) it.title = s.title + ' - ' + Core.PARASHOT[it.parasha[0]] + ' ' + it.no;
     if (rand() < 0.1) it.no = 0;
+    if (rand() < 0.15) it.archive = true;
   }
   const byYear = new Map();
   for (const it of issues) {
@@ -241,7 +242,7 @@ function runMatrix(name, raw, count, seed) {
     if (sort === 'date') {
       const key = (id) => {
         const rec = data.records[data.index.get(id)];
-        return [dayOf(rec.date), rec.added, -data.index.get(id)];
+        return [dayOf(rec.date), rec.addedRaw, -data.index.get(id)];
       };
       const sorted = [...expected.ids].sort((a, b) => {
         const x = key(a);

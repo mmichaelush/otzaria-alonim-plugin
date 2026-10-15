@@ -133,6 +133,10 @@
       this.hyc = [];
       this.dayc = [];
       this.addedc = [];
+      /** archive: ה-`added` אינו סימן ל"חדש" (ייבוא המוני, חומר ישן שהועלה מאוחר). */
+      this.archc = [];
+      /** זמן "חדש": `added`, או 0 לגיליון archive. משמש ל"חדש", למיון ולעדיפויות. */
+      this.newc = [];
       this.noc = [];
       this.p1 = [];
       this.p2 = [];
@@ -404,6 +408,8 @@
         this.hyc[i] = raw.hy || 0;
         this.dayc[i] = dayOf(raw.date);
         this.addedc[i] = raw.added ? Math.floor((Date.parse(raw.added) || 0) / 1000) : 0;
+        this.archc[i] = raw.archive === true ? 1 : 0;
+        this.newc[i] = this.archc[i] ? 0 : this.addedc[i];
         this.noc[i] = raw.no || 0;
         this.p1[i] = this.parashot.id(parasha[0]);
         this.p2[i] = this.parashot.id(parasha[1]);
@@ -594,8 +600,9 @@
     _cmp(key) {
       const day = this.dayc;
       const added = this.addedc;
+      const fresh = this.newc;
       const byDate = (a, b) => day[b] - day[a] || added[b] - added[a] || a - b;
-      if (key === 'new') return (a, b) => added[b] - added[a] || byDate(a, b);
+      if (key === 'new') return (a, b) => fresh[b] - fresh[a] || byDate(a, b);
       if (key === 'size') {
         const maxKb = (i) => {
           let m = 0;
@@ -714,7 +721,8 @@
         circleName: s.circle || '',
         _i: i,
         _ns: s._ntitle,
-        _added: this.addedc[i] * 1000,
+        archive: this.archc[i] === 1 || undefined,
+        _added: this.newc[i] * 1000,
         _date: this.dayc[i] * DAY_MS,
         _bytes: bytes,
         _dl: downloads,
