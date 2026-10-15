@@ -90,7 +90,7 @@
       ],
     });
     storage.set('state_opened', { v: 1, items: recent.slice(6, 8).map((it) => ({ ...snap(it), t: Date.now() - 3600000 })) });
-    const prefs = { v: 1, scale: Number(params.get('scale') || 1), lang: params.get('lang') || 'auto', view: params.get('view') === 'list' ? 'list' : 'cards', sort: 'relevance', thumbs: false, diaspora: false, autoDownload: false, autoDownloadCap: 5, autoDay: '', autoCount: 0, welcomeSeen: true, folder: params.get('nofolder') ? null : { token: 'folder-1', name: 'עלונים', path: sdk.folderRoot } };
+    const prefs = { v: 1, scale: Number(params.get('scale') || 1), lang: params.get('lang') || 'auto', view: params.get('view') === 'list' ? 'list' : 'cards', sort: 'relevance', thumbs: false, diaspora: false, autoDownload: false, autoDownloadCap: 5, autoDay: '', autoCount: 0, welcomeSeen: !params.get('welcome'), folder: params.get('nofolder') ? null : { token: 'folder-1', name: 'עלונים', path: sdk.folderRoot } };
     storage.set('prefs', prefs);
     if (!params.get('nofolder')) {
       sdk.folders.set('folder-1', { token: 'folder-1', name: 'עלונים', path: sdk.folderRoot });

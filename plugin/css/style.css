@@ -1939,6 +1939,38 @@ kbd {
   border-color: var(--color-outline-variant);
 }
 
+.syntax dt code {
+  padding: 0.1em 0.4em;
+  font-family: var(--font-mono, monospace);
+  font-size: 0.9em;
+  background: var(--color-surface-container-high);
+  border-radius: var(--radius-sm);
+  unicode-bidi: plaintext;
+}
+
+.help-list {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
+  padding-inline-start: 1.2em;
+  margin: 0;
+}
+
+.welcome {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+/* שורה לא לחיצה בתוך רשימת היסטוריה/קבצים (אותה צורה, בלי פעולה). */
+.history-open.is-static {
+  cursor: default;
+}
+
+.history-open.is-static:hover {
+  border-color: transparent;
+}
+
 .details-related {
   display: flex;
   flex-direction: column;

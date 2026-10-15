@@ -306,6 +306,6 @@
     return dlg;
   }
 
-  A.Dialogs = { showDetails, addToList, downloadFailed, needFolder, shortcuts, statusText };
+  A.Dialogs = { showDetails, addToList, downloadFailed, needFolder, shortcuts, statusText, SHORTCUTS };
   if (typeof module === 'object' && module.exports) module.exports = A.Dialogs;
 })(typeof self !== 'undefined' ? self : globalThis);

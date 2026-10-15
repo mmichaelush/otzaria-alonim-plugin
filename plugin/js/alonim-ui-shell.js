@@ -81,6 +81,8 @@
 
     this.renderRoute();
     this.updateStatus();
+    // הפעלה ראשונה: אחרי שהמסך הראשון צויר.
+    if (!this.state.prefs.welcomeSeen) setTimeout(() => !this.state.prefs.welcomeSeen && A.HelpUi.firstRun(this), 700);
   };
 
   App.prototype.applyLanguage = function applyLanguage() {

@@ -25,7 +25,7 @@
 
   const copyText = Ui.copyText;
 
-  const SECTION_IDS = ['folder', 'sync', 'queue', 'auto', 'disk', 'rules', 'sources', 'look', 'backup', 'about'];
+  const SECTION_IDS = ['folder', 'sync', 'queue', 'auto', 'general', 'disk', 'rules', 'sources', 'look', 'backup', 'help', 'about'];
 
   class SettingsScreen {
     constructor(app) {
@@ -111,11 +111,13 @@
         this.section('sync', t('סנכרון הקטלוג'), 'arrow_sync_24_regular', el('div', { 'data-live': 'sync' }, this.syncRows())),
         this.section('queue', t('תור הורדות'), 'arrow_download_24_regular', el('div', { 'data-live': 'queue' }, this.queueRows())),
         this.section('auto', t('הורדה אוטומטית'), 'alert_24_regular', ...this.autoBody()),
-        this.section('disk', t('מקום בדיסק'), 'cloud_arrow_down_24_regular', ...this.diskBody()),
+        this.section('general', t('כללי והיסטוריה'), 'settings_24_regular', ...this.generalBody()),
+        this.section('disk', t('אחסון ומטמון'), 'cloud_arrow_down_24_regular', ...this.diskBody()),
         this.section('rules', t('כללי סינון'), 'filter_24_regular', ...this.rulesBody()),
         this.section('sources', t('מקורות'), 'globe_24_regular', ...this.sourcesBody()),
         this.section('look', t('מראה ושפה'), 'eye_24_regular', ...this.lookBody()),
         this.section('backup', t('ייצוא וייבוא הגדרות'), 'arrow_export_24_regular', ...this.backupBody()),
+        this.section('help', t('עזרה וקיצורים'), 'keyboard_24_regular', ...A.HelpUi.body(app)),
         this.section('about', t('אודות ודיווח'), 'info_24_regular', ...this.aboutBody()),
       );
       this.host.replaceChildren(page);
@@ -226,21 +228,29 @@
 
     // ------------------------------------------------------------ דיסק
 
-    diskBody() {
+    // ------------------------------------------------------- כללי
+
+    /** לשונית פתיחה, תצוגה ברירת מחדל, והיסטוריה (מקומית בלבד). */
+    generalBody() {
       const { app } = this;
-      const holder = el('div', { class: 'disk-usage' });
-      app.catalog.usage().then((u) => {
-        const p = u.quota ? Math.min(100, Math.round((u.used / u.quota) * 100)) : 0;
-        Ui.fill(holder, 
-          el('p', { class: 'setting-text' }, t('מטמון הקטלוג: {used} מתוך {quota}', { used: Core.formatBytes(u.used) || '0', quota: Core.formatBytes(u.quota) || '—' })),
-          Ui.progress(p, t('מטמון הקטלוג')),
-        );
-      });
+      const prefs = app.state.prefs;
+      const tabs = [['week', t('השבוע')], ['all', t('כל העלונים')], ['series', t('סדרות')], ['mine', t('האוספים שלי')]];
       return [
-        holder,
-        el('p', { class: 'setting-help' }, t('המטמון מאפשר עבודה בלי רשת, וכשהוא מתמלא התוסף מסיר לבד שנים ישנות שלא נעשה בהן שימוש. קבצים שהורדתם אינם נוגעים בו.')),
-        Ui.button('tonal', t('ניקוי מטמון הקטלוג'), () => Ui.confirmDialog({ title: t('ניקוי המטמון'), text: t('הקטלוג יורד מחדש בסנכרון הבא. ההגדרות, המועדפים והקבצים שהורדתם לא ייפגעו.'), confirmLabel: t('ניקוי'), danger: true, onConfirm: async () => { try { await app.catalog.clearCache(); app.toast(t('המטמון נוקה')); app.catalog.sync(); } catch (error) { app.toast(t('הניקוי נכשל'), { error: true }); } } }), { icon: 'delete_24_regular', className: 'button-small' }),
+        field(t('לשונית פתיחה'), A.BrowseHelpers.selectField(t('לשונית פתיחה'), tabs.map(([value, label]) => ({ value, label })), prefs.startTab, (v) => app.state.setPref('startTab', v)), t('המסך שנפתח כשפותחים את התוסף.')),
+        field(t('תצוגת רשימות'), A.BrowseHelpers.selectField(t('תצוגת רשימות'), [{ value: 'cards', label: t('כרטיסים') }, { value: 'list', label: t('רשימה צפופה') }], prefs.view, (v) => app.state.setPref('view', v)), t('כרטיסים נוחים לעין; רשימה צפופה מציגה יותר בבת אחת.')),
+        field(t('פרשות'), A.BrowseHelpers.selectField(t('פרשות'), [{ value: 'il', label: t('לפי ארץ ישראל') }, { value: 'diaspora', label: t('לפי חוץ לארץ') }], prefs.diaspora ? 'diaspora' : 'il', (v) => app.state.setPref('diaspora', v === 'diaspora')), t('בשבתות שבהן הקריאה שונה.')),
+        toggle(t('שמירת היסטוריה במכשיר'), prefs.history, (on) => app.state.setPref('history', on), t('מה נפתח, נקרא, הורד והודפס, חיפושים אחרונים וסדרות שנצפו. נשמר במכשיר הזה בלבד ואינו נשלח לשום מקום. כיבוי עוצר את הרישום; הקיים נשאר עד ניקוי.')),
+        el(
+          'div',
+          { class: 'setting-actions' },
+          Ui.button('tonal', t('ניקוי ההיסטוריה'), () => Ui.confirmDialog({ title: t('ניקוי ההיסטוריה'), text: t('יימחקו האירועים, החיפושים האחרונים, הסדרות שנצפו וההמשך קריאה. המועדפים, האוספים וסימוני הקריאה נשארים.'), confirmLabel: t('ניקוי'), danger: true, onConfirm: () => { app.state.clearHistory(); app.toast(t('ההיסטוריה נוקתה')); } }), { icon: 'delete_24_regular', className: 'button-small' }),
+          Ui.button('text', t('ניקוי חיפושים אחרונים'), () => { app.state.clearSearches(); app.toast(t('החיפושים האחרונים נוקו')); }, { className: 'button-small' }),
+        ),
       ];
+    }
+
+    diskBody() {
+      return A.StorageUi.body(this.app, () => this.render());
     }
 
     // ---------------------------------------------------------- כללים
@@ -365,7 +375,6 @@
       return [
         field(t('גודל תצוגה'), sel(t('גודל תצוגה'), SCALES.map((s) => ({ value: s, label: Math.round(s * 100) + '%' })), p.scale, (v) => app.state.setPref('scale', Number(v)))),
         field(t('שפה'), sel(t('שפה'), [{ value: 'auto', label: t('כמו באוצריא') }, { value: 'he', label: 'עברית' }, { value: 'en', label: 'English' }], p.lang, (v) => app.state.setPref('lang', v))),
-        field(t('פרשות'), sel(t('פרשות'), [{ value: 'il', label: t('לפי ארץ ישראל') }, { value: 'diaspora', label: t('לפי חוץ לארץ') }], p.diaspora ? 'diaspora' : 'il', (v) => app.state.setPref('diaspora', v === 'diaspora')), t('בשבתות שבהן הקריאה שונה.')),
         field(t('תצוגת רשימות'), sel(t('תצוגת רשימות'), [{ value: 'cards', label: t('כרטיסים') }, { value: 'list', label: t('רשימה צפופה') }], p.view, (v) => app.state.setPref('view', v))),
         toggle(t('הצג תמונות ממוזערות'), p.thumbs, (on) => app.state.setPref('thumbs', on), t('כבוי כברירת מחדל: טעינת תמונות פונה לאתרי המקורות.')),
         el('p', { class: 'setting-help' }, t('הצבעים והגופנים נלקחים מאוצריא ומתעדכנים איתה.')),

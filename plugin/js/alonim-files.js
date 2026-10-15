@@ -527,6 +527,34 @@
       }
     }
 
+    /** כמה קבצים (ובייטים) ב-`_קריאה`, התיקייה הזמנית של הקריאה. */
+    async readCacheInfo() {
+      if (!this.hasFolder) return { count: 0, bytes: 0 };
+      try {
+        const list = await this._list(READ_DIR, ['pdf']);
+        const files = (list.entries || []).filter((e) => e.type === 'file');
+        return { count: files.length, bytes: files.reduce((n, e) => n + (e.size || 0), 0) };
+      } catch (error) {
+        return { count: 0, bytes: 0 };
+      }
+    }
+
+    /** מוחק את כל קבצי הקריאה הזמניים (לא נוגע בקבצים שנשמרו). מחזיר כמה נמחקו. */
+    async clearReadCache() {
+      if (!this.hasFolder) return 0;
+      let removed = 0;
+      try {
+        const list = await this._list(READ_DIR, ['pdf']);
+        for (const e of (list.entries || []).filter((x) => x.type === 'file')) {
+          const result = await this.runtime.callSoft('fs.deleteFile', { path: this.absolute(e.path) });
+          if (result !== null) removed++;
+        }
+      } catch (error) {
+        this.log.warn('clear read cache failed', error);
+      }
+      return removed;
+    }
+
     // ----------------------------------------------------------- קריאה
 
     /**

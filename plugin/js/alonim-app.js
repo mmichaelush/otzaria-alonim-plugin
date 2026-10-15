@@ -173,6 +173,7 @@
     restoreViews() {
       const all = this.state.viewState('all');
       this.view.all.sort = this.state.prefs.sort;
+      this.view.route.tab = this.state.prefs.startTab;
       if (all) Object.assign(this.view.all, { query: all.query, filters: all.filters, sort: all.sort, group: all.group, includeHidden: all.includeHidden });
       const series = this.state.viewState('seriesList');
       if (series) Object.assign(this.view.seriesList, series);
