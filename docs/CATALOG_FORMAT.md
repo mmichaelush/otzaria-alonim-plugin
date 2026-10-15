@@ -56,7 +56,7 @@
 
 - `catalogVersion`: שניות Unix של הבנייה. עולה בלבד. התוסף מדלג על סנכרון כשהוא זהה.
 - `sources[].mode`: `catalog` (אנחנו מושכים רשימה) או `link` (אין גישה אוטומטית, רק
-  קישור לאתר; ראו `beinenu`).
+  קישור לאתר; כרגע אין מקור כזה).
 - `sources[].urlBase`, `sources[].urlTemplates`: ראו "דחיסת URL". אופציונליים; מקור `link` לא נושא אותם.
 - `sources[].status`: `ok`, `degraded` (חלק מהפריטים נכשלו), `blocked` (חסום, למשל
   Cloudflare; לא עוקפים), `down`, `disabled`. `note` הוא משפט בעברית למשתמש.

@@ -2500,3 +2500,12 @@ kbd {
     transition-duration: 1ms !important;
   }
 }
+
+.credit-line {
+  display: flex;
+  flex-wrap: wrap;
+  gap: 0.25em 0.5em;
+  align-items: center;
+  font-size: 0.85em;
+  color: var(--color-on-surface-variant);
+}

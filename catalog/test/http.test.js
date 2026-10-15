@@ -110,19 +110,21 @@ test('404 is an error unless allowed; invalid JSON is reported', async () => {
 
 test('at most 2 requests in flight per host, and a gap between request starts', async () => {
   let inflight = 0, peak = 0;
-  const starts = [];
   const f = fetcher(async (u) => {
     if (u.endsWith('/robots.txt')) return res(404);
-    starts.push(Date.now());
     inflight++; peak = Math.max(peak, inflight);
     await new Promise((r) => setTimeout(r, 25));
     inflight--;
     return res(200, 'x');
   });
-  const http = createHttp({ fetchImpl: f, minIntervalMs: 20 });
+  // The gap is verified through the requested waits, not wall-clock timestamps (timer jitter under load).
+  const waits = [];
+  const http = createHttp({ fetchImpl: f, minIntervalMs: 200, sleep: async (ms) => { waits.push(ms); } });
   await Promise.all(Array.from({ length: 8 }, (_, i) => http.getText(`https://l.test/${i}`)));
   assert.ok(peak <= 2, `peak in flight ${peak}`);
-  for (let i = 1; i < starts.length; i++) assert.ok(starts[i] - starts[i - 1] >= 3, `gap ${starts[i] - starts[i - 1]}ms`);
+  const sorted = waits.filter((w) => w > 0).sort((a, b) => a - b);
+  assert.ok(sorted.length >= 6, `starts are spaced: ${sorted}`);
+  for (let k = 1; k < sorted.length; k++) assert.ok(sorted[k] - sorted[k - 1] >= 150, `gap ${sorted[k] - sorted[k - 1]}ms`);
 });
 
 test('disk cache: second run is served from disk (development aid)', async () => {

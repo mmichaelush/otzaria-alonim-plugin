@@ -65,7 +65,7 @@ export async function runBuild(o) {
     cacheDir: o.cacheDir || join(HERE, '.cache'),
     useCache: !!o.cache,
     log,
-    hostIntervalMs: { 'tashma.co.il': 500, 'ladaat.co': 700, 'gilyoines.com': 800, 'alonolam.com': 800, 'beinenu.com': 2000 },
+    hostIntervalMs: { 'tashma.co.il': 500, 'ladaat.co': 700, 'gilyoines.com': 800, 'alonolam.com': 800 },
   });
   const aliases = JSON.parse(await readFile(join(HERE, 'data', 'aliases.json'), 'utf8'));
   const aliasIndex = buildAliasIndex(aliases);

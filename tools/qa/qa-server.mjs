@@ -1,6 +1,7 @@
 // שרת QA מקומי: מגיש את הקטלוג האמיתי ומחליף את כתובות הקבצים והתמונות ב-
 // 127.0.0.1, כדי לבדוק באוצריא אמיתית (ללא אישור allowlist וללא פגיעה באתרי המקור).
-//   node tools/qa/qa-server.mjs [--catalog catalog/out] [--port 39811]
+//   node tools/qa/qa-server.mjs [--catalog catalog/out] [--port 39811] [--proxy]
+// --proxy: בקשת קובץ/תמונה מועברת לאתר המקור האמיתי (רק כשהמשתמש לוחץ), במקום PDF מזויף.
 import { createServer } from 'node:http';
 import { readFile, appendFile } from 'node:fs/promises';
 import { join, resolve } from 'node:path';
@@ -12,6 +13,9 @@ const arg = (name, fallback) => {
 const root = resolve(arg('--catalog', 'catalog/out'));
 const port = Number(arg('--port', '39811'));
 const origin = `http://127.0.0.1:${port}`;
+const proxy = process.argv.includes('--proxy');
+/** urlBase המקורי של כל מקור (נשמר לפני שכתוב המניפסט), לשימוש ב-proxy. */
+const origBases = new Map();
 const qaLog = resolve(arg('--qa-log', 'tools/qa/out/qa-console.log'));
 
 // ערוץ שליטה ל-qa-probe.js: הפרוב עושה long-poll ל-/qa/poll, ו-POST ל-/qa/exec מוסר לו קוד.
@@ -55,6 +59,7 @@ function rewriteManifest(text) {
   const m = JSON.parse(text);
   for (const s of m.sources || []) {
     if (s.mode !== 'catalog') continue;
+    if (s.urlBase) origBases.set(s.id, s.urlBase);
     s.urlBase = `${origin}/files/${s.id}/`;
     for (const k of Object.keys(s.urlTemplates || {})) {
       if (k === 'page') continue;
@@ -117,6 +122,19 @@ createServer(async (req, res) => {
       return res.end(body);
     }
     if (path.startsWith('/files/')) {
+      if (proxy) {
+        const [, , src, ...restParts] = url.pathname.split('/');
+        const base = origBases.get(src);
+        if (!base) throw Object.assign(new Error('manifest not served yet'), { status: 503 });
+        const target = base + restParts.join('/');
+        const upstream = await fetch(target, { headers: { 'User-Agent': 'OtzariaAlonimQA/1 (manual check by the plugin owner)', ...(req.headers.range ? { Range: req.headers.range } : {}) }, redirect: 'follow' });
+        const h = { 'Content-Type': upstream.headers.get('content-type') || 'application/octet-stream' };
+        for (const k of ['content-length', 'content-range', 'accept-ranges']) if (upstream.headers.get(k)) h[k] = upstream.headers.get(k);
+        res.writeHead(upstream.status, h);
+        if (!upstream.body) return res.end();
+        for await (const chunk of upstream.body) res.write(chunk);
+        return res.end();
+      }
       if (/\.(png|jpe?g)$/i.test(path)) {
         res.writeHead(200, { 'Content-Type': 'image/png' });
         return res.end(PNG);

@@ -158,7 +158,7 @@ test('pickAsset: מקור מועדף, מקורות מוסתרים, ואין עו
   assert.equal(pickAsset(ISSUE, 'tashma').asset.src, 'tashma');
   assert.equal(pickAsset(ISSUE, '').asset.src, 'ladaat');
   assert.equal(pickAsset(ISSUE, '', ['ladaat']).asset.src, 'tashma');
-  assert.equal(pickAsset({ assets: [{ src: 'beinenu', page: 'https://x.example' }] }).reason, 'no_link');
+  assert.equal(pickAsset({ assets: [{ src: 'linksrc', page: 'https://x.example' }] }).reason, 'no_link');
   assert.equal(pickAsset({ assets: [{ src: 'x', url: 'https://evil.example/a.pdf' }] }).reason, 'blocked');
 });
 
@@ -216,7 +216,7 @@ test('כשלים: חסימת allowlist, בלי קישור, בלי תיקייה, 
   const sdk = createFakeSdk();
   const noLink = filesFor(sdk);
   await noLink.pickFolder();
-  const c = await noLink.enqueue({ ...ISSUE, id: 'i_2', assets: [{ src: 'beinenu', page: 'https://beinenu.example/x' }] }, 'save').done;
+  const c = await noLink.enqueue({ ...ISSUE, id: 'i_2', assets: [{ src: 'linksrc', page: 'https://linksrc.example/x' }] }, 'save').done;
   assert.equal(c.error.code, 'no_direct_link');
 
   const html = createFakeSdk({ scenario: 'download-html' });

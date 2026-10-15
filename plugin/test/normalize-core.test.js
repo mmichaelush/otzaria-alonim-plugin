@@ -71,7 +71,7 @@ test('כתובות: https בלבד, דומיין ונתיב ברשימה', () =>
   assert.equal(Core.isSiteUrl('https://ladaat.co/gilyonot/view/5'), true);
   assert.equal(Core.isSiteUrl('https://www.tashma.co.il/'), true);
   assert.equal(Core.isSiteUrl('https://evil.example/'), false);
-  assert.equal(Core.isSiteUrl('https://beinenu.example/', ['beinenu.example']), true);
+  assert.equal(Core.isSiteUrl('https://linksrc.example/', ['linksrc.example']), true);
   assert.equal(Core.isSiteUrl('javascript:alert(1)'), false);
 });
 

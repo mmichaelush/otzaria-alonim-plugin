@@ -40,7 +40,7 @@
   ]);
 
   /** דומיינים שמותר לפתוח באתר (`app.openUrl`), בנוסף לאלה שבמניפסט הקטלוג. */
-  const SITE_HOSTS = Object.freeze(['ladaat.co', 'tashma.co.il', 'gilyoines.com', 'alonolam.com', 'beinenu.com']);
+  const SITE_HOSTS = Object.freeze(['ladaat.co', 'tashma.co.il', 'gilyoines.com', 'alonolam.com']);
 
   // ---------------------------------------------------------------- שפות
 

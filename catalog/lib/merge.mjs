@@ -6,7 +6,7 @@ import { normalizeKey } from './normalize.mjs';
 import { sha1 } from './enrich.mjs';
 
 /** Preference order of copies inside one issue (quality and reliability of the source). */
-export const SOURCE_ORDER = ['ladaat', 'tashma', 'gilyoines', 'alonolam', 'beinenu'];
+export const SOURCE_ORDER = ['ladaat', 'tashma', 'gilyoines', 'alonolam'];
 const rank = (src) => { const i = SOURCE_ORDER.indexOf(src); return i < 0 ? SOURCE_ORDER.length : i; };
 
 /** Group key: which items may even be compared. */

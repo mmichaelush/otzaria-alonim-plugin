@@ -51,7 +51,7 @@ const DEFAULT_SOURCES = [
   { id: 'tashma', name: 'תשמע', url: 'https://tashma.co.il/gilyonot/', mode: 'catalog', status: 'ok', checkedAt: '2026-10-15T07:39:00Z', issueCount: 100, note: '' },
   { id: 'gilyoines', name: 'גיליונס', url: 'https://gilyoines.com/', mode: 'catalog', status: 'degraded', note: 'חלק מהגיליונות לא נטענו.' },
   { id: 'alonolam', name: 'עלון עולם', url: 'https://alonolam.com/', mode: 'catalog', status: 'ok', note: '' },
-  { id: 'beinenu', name: 'בינינו', url: 'https://beinenu.example/', mode: 'link', status: 'blocked', note: 'האתר חוסם גישה אוטומטית. הקישור פותח את האתר.' },
+  { id: 'linksrc', name: 'מקור קישור', url: 'https://linksrc.example/', mode: 'link', status: 'blocked', note: 'האתר חוסם גישה אוטומטית. הקישור פותח את האתר.' },
 ];
 
 module.exports = { buildFiles, sha, DEFAULT_SOURCES };

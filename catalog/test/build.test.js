@@ -22,7 +22,6 @@ function routes(over = {}) {
     'https://gilyoines.com/api/home/getGilyoines/': gil,
     'https://gilyoines.com/api/home': gil,
     'https://alonolam.com/wp-json/gallery/v1/list': fixtureJson('alonolam-list.json'),
-    'https://beinenu.com/': new HostBlockedError('beinenu.com', 'HTTP 403'),
     ...over,
   };
 }
@@ -45,10 +44,7 @@ test('a build writes a contract-shaped catalog: manifest, series, weeks, recent,
     assert.equal(manifest.schema, 1);
     assert.equal(manifest.generatedAt, NOW);
     assert.equal(manifest.catalogVersion, Math.floor(Date.parse(NOW) / 1000));
-    assert.deepEqual(manifest.sources.map((s) => s.id), ['ladaat', 'tashma', 'gilyoines', 'alonolam', 'beinenu']);
-    assert.equal(manifest.sources.find((s) => s.id === 'beinenu').mode, 'link');
-    assert.equal(manifest.sources.find((s) => s.id === 'beinenu').status, 'blocked');
-    assert.equal(manifest.sources.find((s) => s.id === 'beinenu').issueCount, 0);
+    assert.deepEqual(manifest.sources.map((s) => s.id), ['ladaat', 'tashma', 'gilyoines', 'alonolam']);
     assert.equal(manifest.sources.find((s) => s.id === 'ladaat').mode, 'catalog');
 
     for (const key of ['series', 'weeks', 'recent']) {
@@ -109,7 +105,6 @@ test('a build writes a contract-shaped catalog: manifest, series, weeks, recent,
     assert.equal(tash.urlBase, 'https://tashma.co.il/gilyonot/');
     assert.deepEqual(tash.urlTemplates, { page: '{ext}', thumb: 'thumb/{ext}.png', url: 'file/{ext}' });
     assert.ok(all.flatMap((i) => i.assets).filter((a) => a.src === 'tashma').every((a) => a.url === undefined && a.page === undefined && a.thumb === undefined));
-    assert.equal(manifest.sources.find((s) => s.id === 'beinenu').urlBase, undefined);
   });
 });
 

@@ -96,7 +96,7 @@ test('אין בחבילה קבצי פיתוח', () => {
 });
 
 test('אין שום כתובת קשיחה לשרת שאינו בהצהרת הרשת (קוד התוסף)', () => {
-  const allowed = new Set(['raw.githubusercontent.com', 'ladaat.co', 'tashma.co.il', 'gilyoines.com', 'alonolam.com', 'beinenu.com', 'github.com', 'www.w3.org']);
+  const allowed = new Set(['raw.githubusercontent.com', 'ladaat.co', 'tashma.co.il', 'gilyoines.com', 'alonolam.com', 'linksrc.example', 'github.com', 'www.w3.org']);
   for (const name of fs.readdirSync(path.join(root, 'js'))) {
     if (name === 'alonim-icons.js') continue;
     const code = read('js', name).replace(/\/\*[\s\S]*?\*\//g, '').replace(/^\s*\/\/.*$/gm, '');

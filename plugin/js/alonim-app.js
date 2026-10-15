@@ -17,7 +17,6 @@
     tashma: { name: N('תשמע'), mode: 'catalog', status: 'ok' },
     gilyoines: { name: N('גיליונס'), mode: 'catalog', status: 'ok' },
     alonolam: { name: N('עלון עולם'), mode: 'catalog', status: 'ok' },
-    beinenu: { name: N('בינינו'), mode: 'link', status: 'blocked' },
   });
 
   const TABS = Object.freeze([
@@ -248,6 +247,12 @@
     allSources() {
       const list = this.catalog.sources.length ? this.catalog.sources.map((s) => s.id) : Object.keys(DEFAULT_SOURCES);
       return list.map((id) => this.sourceInfo(id));
+    }
+
+    /** שמות המקורות שממנו הגיליון, לקרדיט. */
+    creditNames(item) {
+      const ids = [...new Set((item.assets || []).map((a) => a.src))];
+      return ids.map((id) => this.sourceInfo(id).name).join(' · ');
     }
 
     sourceHosts() {

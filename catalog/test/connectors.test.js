@@ -5,7 +5,6 @@ import * as ladaat from '../connectors/ladaat.mjs';
 import * as tashma from '../connectors/tashma.mjs';
 import * as gilyoines from '../connectors/gilyoines.mjs';
 import * as alonolam from '../connectors/alonolam.mjs';
-import * as beinenu from '../connectors/beinenu.mjs';
 
 const collect = async (gen) => { const out = []; for await (const x of gen) out.push(x); return out; };
 
@@ -147,13 +146,3 @@ test('alonolam: only the list endpoint is ever requested', async () => {
   assert.deepEqual(http.calls.map((c) => c.url), ['https://alonolam.com/wp-json/gallery/v1/list']);
 });
 
-test('beinenu: a blocked probe is recorded, never bypassed, and yields no records', async () => {
-  const blocked = fakeHttp({ 'https://beinenu.com/': new HostBlockedError('beinenu.com', 'HTTP 403') });
-  const r = await beinenu.probe({ http: blocked });
-  assert.equal(r.status, 'blocked');
-  assert.equal(r.note, 'האתר מגביל גישה אוטומטית; הקישור פותח את האתר');
-  assert.equal(beinenu.mode, 'link');
-  assert.deepEqual(await collect(beinenu.crawl()), []);
-  assert.equal(blocked.calls.length, 1); // exactly one request: no retries, no alternates
-  assert.ok(!('headers' in (blocked.calls[0].opts || {})), 'no custom headers');
-});

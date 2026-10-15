@@ -186,7 +186,7 @@
       const focused = this.bar.contains(document.activeElement) ? document.activeElement.getAttribute('data-key') || document.activeElement.getAttribute('aria-label') : null;
       this.bar.replaceChildren(
         Ui.iconButton(rtl ? 'arrow_right_24_regular' : 'arrow_left_24_regular', t('חזרה לרשימה'), () => app.closeViewer(), { key: 'back', className: 'viewer-tool' }),
-        el('div', { class: 'viewer-title' }, el('h2', { class: 'viewer-name', dir: 'auto' }, title), el('p', { class: 'viewer-sub', dir: 'auto' }, [meta, nb.label].filter(Boolean).join(' · '))),
+        el('div', { class: 'viewer-title' }, el('h2', { class: 'viewer-name', dir: 'auto' }, title), el('p', { class: 'viewer-sub', dir: 'auto' }, [meta, nb.label, t('באדיבות {names}', { names: app.creditNames(item) })].filter(Boolean).join(' · '))),
         el(
           'div',
           { class: 'viewer-tools' },

@@ -45,7 +45,7 @@ test('ירושה: שפה חסרה בגיליון = שפת הסדרה, וכותר
 test('אינדקס רזה: אין כתובות בגיליון, יש סימון noUrl, והפרטים המלאים נשארים בשרד', () => {
   const idx = new CatalogIndex({ source: (id) => id });
   idx.setSeries([{ id: 's', title: 'סדרה', lang: 'he' }]);
-  idx.addIssues([{ id: 'i_aaaaaaaaaaaa', series: 's', title: 'סדרה', date: '2026-10-17', hy: 5787, parasha: ['noach'], assets: [{ src: 'ladaat', ext: '1', url: 'https://ladaat.co/gilyonot/uploads/x.pdf', page: 'https://ladaat.co/p', bytes: 3 * 1024 * 1024, pages: 8 }, { src: 'beinenu', ext: '2', page: 'https://beinenu.com/' }] }], '5787');
+  idx.addIssues([{ id: 'i_aaaaaaaaaaaa', series: 's', title: 'סדרה', date: '2026-10-17', hy: 5787, parasha: ['noach'], assets: [{ src: 'ladaat', ext: '1', url: 'https://ladaat.co/gilyonot/uploads/x.pdf', page: 'https://ladaat.co/p', bytes: 3 * 1024 * 1024, pages: 8 }, { src: 'linksrc', ext: '2', page: 'https://linksrc.example/' }] }], '5787');
   const item = idx.get('i_aaaaaaaaaaaa');
   assert.equal(item.assets[0].url, undefined);
   assert.equal(item.assets[0].page, undefined);

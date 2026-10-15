@@ -25,7 +25,7 @@
 
 ```
 catalog/            מחברים, נרמול, איחוד, כתיבת הקטלוג. Node 22, ESM, בלי תלויות זמן-ריצה
-  connectors/{ladaat,tashma,gilyoines,alonolam,beinenu}.mjs
+  connectors/{ladaat,tashma,gilyoines,alonolam}.mjs
   lib/              http (rate limit, robots, retry), normalize, parasha, merge, shards
   data/aliases.json אישורי איחוד ידניים (נשמר ב-git)
   test/             unit + fixtures (תשובות אמיתיות מוקטנות)
@@ -66,7 +66,6 @@ addedAt, url?, page, thumb?, bytes?, pages?, downloads? }`. הנרמול (פרש
 | `tashma` | Laravel: `/gilyonot/list` (סדרות→שנים→קבצים), `/gilyonot/new`, `/gilyonot/file/{id}`, `/gilyonot/thumb/{id}.png`; מעל 89 אלף קבצים | `catalog` |
 | `gilyoines` | `GET /api/home` (JSON) עם שבוע, שפה, סוג, עמודים וכריכה | `catalog` |
 | `alonolam` | WordPress: `GET /wp-json/gallery/v1/list` (רשימה שטוחה, שם קובץ בלבד) | `catalog`, מטא-דאטה דלה |
-| `beinenu` | Cloudflare מחזיר 403 לבקשה אוטומטית | `link` |
 
 ## 4. התוסף: שכבות
 
@@ -174,4 +173,4 @@ addedAt, url?, page, thumb?, bytes?, pages?, downloads? }`. הנרמול (פרש
 חיפוש בתוכן העלונים (תא שמע כבר מאנדקס מעל 89 אלף גיליונות; דורש אישור מפעיל וערך
 allowlist, ולכן לא נכלל עד שיוסכם); זיהוי כפילויות לפי תוכן (גיבוב/טקסט); כריכות לסדרות
 ללא תמונה; התראות על גיליון חדש בסדרה שעוקבים אחריה (מנוע רקע עצל); חיבור קבצים
-ל"אוסף שבת להדפסה" (`ui.exportPdf`/איחוד); מחבר ל-`beinenu` אם המפעיל יאשר גישה.
+ל"אוסף שבת להדפסה" (`ui.exportPdf`/איחוד).

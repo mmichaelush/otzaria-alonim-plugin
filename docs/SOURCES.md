@@ -20,7 +20,6 @@
 | `tashma` | `https://tashma.co.il/gilyonot/file/<id>` | `https://tashma.co.il/gilyonot/thumb/<id>.png` | `https://tashma.co.il/gilyonot/<id>` |
 | `gilyoines` | `https://gilyoines.com/storage/<שם>.pdf` | `https://gilyoines.com/storage/<שם>.jpg` או `<שם>.pdf.jpg` (גיליונות קבועים ישנים) | `https://gilyoines.com/` (אין דף לכל גיליון) |
 | `alonolam` | `https://alonolam.com/wp-content/uploads/<YYYY>/<MM>/<שם>.pdf` | `https://alonolam.com/wp-content/uploads/<YYYY>/<MM>/pdf-thumb-<id>.jpg` | `https://alonolam.com/%d7%92%d7%9c%d7%a8%d7%99%d7%94/` (הגלריה) |
-| `beinenu` | אין (מצב קישור) | אין | `https://beinenu.com/alonim/` |
 
 תחיליות מינימליות לרשימה: `ladaat.co/gilyonot/uploads/`, `tashma.co.il/gilyonot/file/`,
 `tashma.co.il/gilyonot/thumb/`, `gilyoines.com/storage/`, `alonolam.com/wp-content/uploads/`. הדפים נפתחים בדפדפן
@@ -103,12 +102,9 @@
 - **מגבלות:** אין תאריך העלאה (`added` = מועד הריצה הראשונה שראתה את הקובץ), אין מספר עמודים. `robots.txt`: חסום רק `wp-admin` ותיקיות
   woocommerce.
 
-## `beinenu` — בינינו (`https://beinenu.com/alonim/`)
+## מקורות שהוסרו
 
-- **סטטוס:** `link` (**חסום**). Cloudflare מחזיר 403 לבקשה אוטומטית. המחבר שולח בקשה אחת מנומסת (ועוד `robots.txt`), ואם נחסם רושם
-  `status: "blocked"` והערה בעברית ("האתר מגביל גישה אוטומטית; הקישור פותח את האתר"), בלי רשומות. **אסור לעקוף**: לא User-Agent מזויף, לא
-  דפדפן headless, לא פתרון אתגר. נשאר ב-`sources[]` עם `mode: "link"` כדי שהתוסף יציג קישור. אם המפעיל יאשר גישה, ייבנה מחבר.
-- **נבדק 15.10.2026:** 403 (`Server: cloudflare`).
+- **בינינו (`beinenu.com`):** הוסר בהחלטת בעל הפרויקט (15.10.2026). האתר ממילא חסום לגישה אוטומטית (Cloudflare 403) ולא נעקף.
 
 ## איכות הזיהוי והאיחוד (בנייה מלאה, 15.10.2026)
 
