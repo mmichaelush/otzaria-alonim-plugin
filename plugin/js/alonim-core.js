@@ -35,12 +35,12 @@
     'https://ladaat.co/gilyonot/uploads',
     'https://tashma.co.il/gilyonot/file',
     'https://tashma.co.il/gilyonot/thumb',
-    'https://gilyoines.com',
+    'https://gilyoines.com/storage',
     'https://alonolam.com/wp-content/uploads',
   ]);
 
   /** דומיינים שמותר לפתוח באתר (`app.openUrl`), בנוסף לאלה שבמניפסט הקטלוג. */
-  const SITE_HOSTS = Object.freeze(['ladaat.co', 'tashma.co.il', 'gilyoines.com', 'alonolam.com']);
+  const SITE_HOSTS = Object.freeze(['ladaat.co', 'tashma.co.il', 'gilyoines.com', 'alonolam.com', 'beinenu.com']);
 
   // ---------------------------------------------------------------- שפות
 
@@ -144,6 +144,9 @@
     'shabbat-chazon': N('שבת חזון'),
     'shabbat-nachamu': N('שבת נחמו'),
     'tisha-bav': N('תשעה באב'),
+    'tu-bishvat': N('ט"ו בשבט'),
+    'shabbat-shirah': N('שבת שירה'),
+    'lag-baomer': N('ל"ג בעומר'),
   });
 
   /** שם הפרשה בעברית; סלאג לא מוכר חוזר כמות שהוא, בלי מקפים. */
@@ -332,30 +335,48 @@
 
   // ------------------------------------------- כתובות הנכסים מהקטלוג
 
-  /** מקודד רק תווים שאינם ASCII (עברית בנתיב); מה שכבר מקודד נשאר. */
-  const encodeNonAscii = (text) => text.replace(/[^\u0000-\u007F]+/g, (chunk) => encodeURIComponent(chunk));
+  /** מקודד רק תווים שאינם ASCII, תו אחר תו, ב-hex גדול (כמו `catalog/lib/urls.mjs`). */
+  function encodeNonAscii(text) {
+    let out = '';
+    for (const ch of String(text)) out += ch.codePointAt(0) < 128 ? ch : encodeURIComponent(ch);
+    return out;
+  }
+
+  /** מפענח רצפי בייטים מקודדים של תווים שאינם ASCII; קידוד ASCII (%20) נשאר. */
+  function decodeNonAscii(text) {
+    return String(text).replace(/(?:%[89A-Fa-f][0-9A-Fa-f])+/g, (run) => {
+      try {
+        return decodeURIComponent(run);
+      } catch (error) {
+        return run;
+      }
+    });
+  }
 
   const URL_FIELDS = ['url', 'page', 'thumb'];
 
   /**
-   * המקום היחיד שבו כתובות הנכסים נבנות מהקטלוג (חוזה הדחיסה: `sources[]
-   * .urlTemplates` עם `{ext}` ו-`sources[].urlBase`). שדה מוחלט (`https://…`)
-   * נשאר; שדה חסר נבנה מתבנית המקור; שדה יחסי מתחבר ל-`urlBase`. תווים שאינם
-   * ASCII מקודדים כאן ורק כאן. מחזיר `{ url?, page?, thumb? }`.
+   * המקום היחיד שבו כתובות הנכסים נבנות מהקטלוג (חוזה הדחיסה ב-
+   * docs/CATALOG_FORMAT.md; וקטורי הבדיקה משותפים עם הקטלוג):
+   * שדה חסר + תבנית ב-`sources[].urlTemplates` = התבנית עם `{ext}` מוחלף; ערך
+   * שמתחיל ב-`https://` מוחלט, אחרת `urlBase + ערך` (תבנית ריקה = `urlBase`);
+   * תווים שאינם ASCII נשמרים מפוענחים בקטלוג ומקודדים כאן ורק כאן. שדה בלי ערך
+   * ובלי תבנית נשאר חסר. מחזיר `{ url?, page?, thumb? }`.
    */
   function resolveAssetUrls(asset, source) {
     const a = asset || {};
     const templates = (source && source.urlTemplates) || {};
+    const base = source && typeof source.urlBase === 'string' ? source.urlBase : '';
     const out = {};
     for (const field of URL_FIELDS) {
       let value = a[field];
-      if ((value === undefined || value === null || value === '') && typeof templates[field] === 'string') {
-        value = templates[field].replace(/\{ext\}/g, a.ext === undefined || a.ext === null ? '' : String(a.ext));
-      } else if (typeof value === 'string' && value && !/^https?:\/\//i.test(value)) {
-        const base = source && (typeof source.urlBase === 'string' ? source.urlBase : source.urlBase && source.urlBase[field]);
-        if (base) value = String(base) + value;
+      if (value === undefined || value === null) {
+        const template = templates[field];
+        if (typeof template !== 'string') continue;
+        value = template.split('{ext}').join(a.ext === undefined || a.ext === null ? '' : String(a.ext));
       }
-      if (typeof value === 'string' && value) out[field] = encodeNonAscii(value);
+      value = String(value);
+      out[field] = encodeNonAscii(value.startsWith('https://') ? value : base + value);
     }
     return out;
   }
@@ -448,6 +469,7 @@
     isSiteUrl,
     resolveAssetUrls,
     encodeNonAscii,
+    decodeNonAscii,
     sanitizeFileName,
     idFragment,
     downloadPath,

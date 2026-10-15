@@ -70,7 +70,7 @@
   function makeTerm(part) {
     const body = String(part.body || '').trim();
     if (!body) return null;
-    const term = { field: part.field, neg: part.neg, norm: skey(body), phrase: part.phrase, from: 0, to: 0 };
+    const term = { field: part.field, neg: part.neg, norm: skey(body), needle: '', phrase: part.phrase, from: 0, to: 0 };
     if (part.field === 'year') {
       const range = /^(\d{3,4})\s*(?:-|\.\.|–)\s*(\d{3,4})$/.exec(body);
       const a = range ? Core.parseYear(range[1]) : Core.parseYear(body);
@@ -81,6 +81,8 @@
       }
     }
     if (!term.norm && !term.from) return null;
+    // מחרוזת החיפוש (רווח + מילה) נבנית פעם אחת, לא לכל גיליון.
+    term.needle = ' ' + term.norm;
     return term;
   }
 
@@ -158,6 +160,8 @@
       this.shardIds = new Dict();
       this.sourceBits = new Map();
       this.sourceNames = [];
+      /** תבניות כתובת לפי מקור (דחיסת URL): נכס בלי `url` עם תבנית עדיין ניתן להורדה. */
+      this.sourceTemplate = new Map();
       // סדרות: כולל "מקום שמור" לסדרה שעוד לא נטענה
       this.seriesArr = [];
       this.seriesIdx = new Map();
@@ -186,11 +190,16 @@
 
     // --------------------------------------------------------- סדרות
 
+    /** שפת הגיליון: שלו אם נכתבה, אחרת של הסדרה, אחרת עברית. */
+    _lang(i) {
+      return this.langc[i] || this.seriesArr[this.sidx[i]]._lang || this.langs.id('he');
+    }
+
     _seriesSlot(id) {
       let k = this.seriesIdx.get(id);
       if (k === undefined) {
         k = this.seriesArr.length;
-        this.seriesArr.push({ id, title: '', _norm: '', _ntitle: '', _skey: '', _nc: '', circle: '', lang: '', placeholder: true });
+        this.seriesArr.push({ id, title: '', _norm: '', _ntitle: '', _skey: '', _nc: '', circle: '', lang: '', _lang: 0, placeholder: true });
         this.seriesIdx.set(id, k);
       }
       return k;
@@ -209,6 +218,7 @@
         slot._skey = skey(s.title);
         slot._norm = skey([s.title].concat(s.aliases || []).join(' '));
         slot._nc = norm(s.circle || '');
+        slot._lang = this.langs.id(s.lang || 'he');
         this.seriesById.set(s.id, slot);
         for (const old of s.previousIds || []) this.seriesAlias.set(old, s.id);
       }
@@ -232,6 +242,16 @@
     seriesTitleOf(id) {
       const s = this.seriesById.get(this.resolveSeriesId(id));
       return s ? s.title : '';
+    }
+
+    /** מקורות המניפסט: מי מהם בונה את כתובת הקובץ מתבנית, כדי ש-"בלי קישור ישיר" יהיה מדויק. */
+    setSources(list) {
+      this.sourceTemplate = new Map();
+      for (const x of Array.isArray(list) ? list : []) {
+        if (x && x.id) this.sourceTemplate.set(x.id, Boolean(x.urlTemplates && typeof x.urlTemplates.url === 'string'));
+      }
+      this._mat.clear();
+      this.version++;
     }
 
     _sourceBit(id) {
@@ -304,7 +324,7 @@
         (this.noc[i] ? this.noc[i] + ' ' : '') +
         this._parashaHay(this.p1[i], this.p2[i], this.evc[i]).slice(1) +
         this._yearHay(this.hyc[i]).slice(1) +
-        this._langHay(this.langc[i]).slice(1) +
+        this._langHay(this._lang(i)).slice(1) +
         this._srcHay(this.maskc[i]).slice(1);
     }
 
@@ -343,7 +363,8 @@
         this.p1[i] = this.parashot.id(parasha[0]);
         this.p2[i] = this.parashot.id(parasha[1]);
         this.evc[i] = this.events.id(raw.event);
-        this.langc[i] = this.langs.id(raw.lang || 'he');
+        // שפה חסרה בגיליון = שפת הסדרה (ירושה, docs/CATALOG_FORMAT.md).
+        this.langc[i] = this.langs.id(raw.lang);
         const sTitle = this.seriesArr[this.sidx[i]].title;
         const t = raw.title || '';
         this.titlec[i] = t && t !== sTitle ? this._titleId(t) : 0;
@@ -449,7 +470,7 @@
       const s = this.seriesArr[this.sidx[i]];
       v.id = this.ids[i];
       v.series = s.id;
-      v.lang = this.langs.get(this.langc[i]);
+      v.lang = this.langs.get(this._lang(i));
       v.title = this.titlec[i] ? this.titles[this.titlec[i]] : s.title;
       v.seriesTitle = s.title;
       v.srcs = this._srcsOfMask(this.maskc[i]);
@@ -594,17 +615,17 @@
           if (term.from) return this.hyc[i] >= term.from && this.hyc[i] <= term.to;
           return String(this.hyc[i] || '').startsWith(term.norm);
         case 'series':
-          return (' ' + this.seriesArr[this.sidx[i]]._skey + ' ').includes(' ' + term.norm);
+          return (' ' + this.seriesArr[this.sidx[i]]._skey + ' ').includes(term.needle);
         case 'parasha':
-          return this._parashaHay(this.p1[i], this.p2[i], this.evc[i]).includes(' ' + term.norm);
+          return this._parashaHay(this.p1[i], this.p2[i], this.evc[i]).includes(term.needle);
         case 'lang':
-          return this._langHay(this.langc[i]).includes(' ' + term.norm);
+          return this._langHay(this._lang(i)).includes(term.needle);
         case 'source':
-          return this._srcHay(this.maskc[i]).includes(' ' + term.norm);
+          return this._srcHay(this.maskc[i]).includes(term.needle);
         case 'circle':
           return this.seriesArr[this.sidx[i]]._nc.includes(term.norm);
         default:
-          return this.hay[i].includes(' ' + term.norm);
+          return this.hay[i].includes(term.needle);
       }
     }
 
@@ -638,7 +659,7 @@
       for (let k = 0; k < order.length; k++) {
         const i = order[k];
         if (f.hy && this.hyc[i] !== f.hy) continue;
-        if (langId && this.langc[i] !== langId) continue;
+        if (langId && this._lang(i) !== langId) continue;
         if (bit && !(this.maskc[i] & bit)) continue;
         if (parId || evId) {
           if (!((parId && (this.p1[i] === parId || this.p2[i] === parId)) || (evId && this.evc[i] === evId))) continue;
@@ -653,7 +674,7 @@
             let hit = false;
             for (let ai = 0; ai < alts.length; ai++) {
               const term = alts[ai];
-              const matched = this._termHit(i, term);
+              const matched = term.field ? this._termHit(i, term) : this.hay[i].includes(term.needle);
               if (term.neg) {
                 if (!matched) hit = true;
               } else if (matched) {
@@ -700,7 +721,7 @@
       const s = this.seriesArr[this.sidx[i]];
       const assets = [];
       for (let k = this.astart[i]; k < this.astart[i] + this.acount[i]; k++) {
-        assets.push({ src: this.sourceNames[this.aSrc[k]], bytes: this.aKb[k] * 1024, pages: this.aPages[k] || undefined, downloads: this.aDl[k] || undefined, noUrl: this.aNoUrl[k] === 1 });
+        assets.push({ src: this.sourceNames[this.aSrc[k]], bytes: this.aKb[k] * 1024, pages: this.aPages[k] || undefined, downloads: this.aDl[k] || undefined, noUrl: this.aNoUrl[k] === 1 && !this.sourceTemplate.get(this.sourceNames[this.aSrc[k]]) });
       }
       const title = this.titlec[i] ? this.titles[this.titlec[i]] : s.title;
       const parasha = [this.p1[i], this.p2[i]].filter(Boolean).map((p) => this.parashot.get(p));
@@ -720,7 +741,7 @@
         hy: this.hyc[i] || null,
         parasha,
         event: this.events.get(this.evc[i]) || null,
-        lang: this.langs.get(this.langc[i]),
+        lang: this.langs.get(this._lang(i)),
         pages: assets.length && assets[0].pages ? assets[0].pages : null,
         added: this.addedc[i] ? new Date(this.addedc[i] * 1000).toISOString() : null,
         assets,
@@ -811,7 +832,7 @@
         if (this.hyc[i]) bump(years, this.hyc[i]);
         if (this.p1[i]) bump(parashot, this.parashot.get(this.p1[i]));
         if (this.p2[i]) bump(parashot, this.parashot.get(this.p2[i]));
-        bump(langs, this.langs.get(this.langc[i]));
+        bump(langs, this.langs.get(this._lang(i)));
         const mask = this.maskc[i];
         for (const [id, b] of this.sourceBits) if (mask & (1 << b)) bump(sources, id);
         const circle = this.seriesArr[this.sidx[i]].circle;

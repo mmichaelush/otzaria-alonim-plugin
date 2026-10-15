@@ -213,6 +213,8 @@
         this.state.migrateSeriesIds((id) => this.index.resolveSeriesId(id));
       } else if (event.kind === 'weeks') {
         this.index.setWeeks(event.data);
+      } else if (event.kind === 'sources') {
+        this.index.setSources(event.data);
       } else {
         // האינדקס זוכר מאיזה קובץ הגיליון הגיע, לקריאת הכתובות לפי דרישה.
         this.index.addIssues(event.data, event.id);

@@ -167,7 +167,10 @@
       }
       const manifestText = await this._read('manifest.json');
       const manifest = manifestText ? parseJson(manifestText) : null;
-      if (manifest && typeof manifest === 'object' && manifest.schema <= Core.SCHEMA) this.manifest = manifest;
+      if (manifest && typeof manifest === 'object' && manifest.schema <= Core.SCHEMA) {
+        this.manifest = manifest;
+        this._emitData({ kind: 'sources', data: this.sources, cached: true });
+      }
       this._setStatus({ lastOkAt: this.meta.lastOkAt || 0, lastCheckAt: this.meta.lastCheckAt || 0 });
       const results = await Promise.all(FILE_KEYS.map((key) => this._loadCached(key + '.json', key)));
       const hasAny = results.some(Boolean);
@@ -290,6 +293,7 @@
         this._setStatus({ pluginTooOld: true });
       }
       this.manifest = manifest;
+      this._emitData({ kind: 'sources', data: this.sources, cached: false });
       this.meta.lastCheckAt = this.now();
       this._setStatus({ lastCheckAt: this.meta.lastCheckAt, schemaTooNew: false, shardsTotal: this.warmShards().length });
 

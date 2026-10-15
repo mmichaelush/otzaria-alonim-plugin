@@ -3,7 +3,7 @@
   "id": "com.otzaria-alonim",
   "name": "עלוני שבת",
   "version": "0.1.0",
-  "description": "עלוני שבת מכמה אתרים במקום אחד: חיפוש מיידי, סדרות, עקיבה, קריאה בצפיין פנימי, הורדה והדפסה, גם בלי רשת.",
+  "description": "עלוני שבת מכמה אתרים במקום אחד: חיפוש מיידי, סדרות, מעקב, קריאה בצפיין פנימי, הורדה והדפסה, גם בלי רשת.",
   "author": "מיכאלוש",
   "homepage": "https://github.com/mmichaelush/otzaria-alonim-plugin",
   "stability": "beta",
@@ -26,7 +26,7 @@
       "https://ladaat.co/gilyonot/uploads",
       "https://tashma.co.il/gilyonot/file",
       "https://tashma.co.il/gilyonot/thumb",
-      "https://gilyoines.com",
+      "https://gilyoines.com/storage",
       "https://alonolam.com/wp-content/uploads"
     ]
   },

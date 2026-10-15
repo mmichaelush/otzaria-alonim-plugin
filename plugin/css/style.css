@@ -187,6 +187,10 @@ kbd {
   text-overflow: ellipsis;
 }
 
+.is-syncing .topbar-subtitle {
+  color: var(--color-primary);
+}
+
 .has-problem .topbar-subtitle {
   color: var(--color-error);
 }
@@ -2191,6 +2195,20 @@ kbd {
   flex-wrap: wrap;
   gap: var(--space-1);
   align-items: center;
+}
+
+.shabbat-header {
+  align-items: center;
+}
+
+.remove-button:hover {
+  color: var(--color-error);
+}
+
+.failure {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-1);
 }
 
 .shabbat-summary {

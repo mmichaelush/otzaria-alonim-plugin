@@ -41,7 +41,7 @@ test('זהות normalizeKey מול catalog/lib/normalize.mjs (כשהקובץ ק�
     return;
   }
   const { normalizeKey: catalogKey } = await import(require('node:url').pathToFileURL(file).href);
-  const samples = ['בְּרֵאשִׁית', 'רש"י', "ה'תשפ״ז", 'לך־לך', 'a/b\\c', 'The  WEEKLY', 'סוף מלך', 'ﬁne', '“שבת”', '—', 'אסיפת גליונות - נח'];
+  const samples = ['בְּרֵאשִׁית', 'רש"י', "ה'תשפ״ז", 'לך־לך', 'a/b\\c_d', 'The  WEEKLY', 'סוף מלך', 'ﬁne', '“שבת”', '—', 'אסיפת גליונות - נח', '[37] אסיפה', 'x\u200Fy', 'a.b,c;d(e)'];
   for (const s of samples) assert.equal(normalizeKey(s), catalogKey(s), JSON.stringify(s));
 });
 
@@ -67,7 +67,7 @@ test('כתובות: https בלבד, דומיין ונתיב ברשימה', () =>
   assert.equal(Core.isDownloadUrl('https://user:pw@ladaat.co/gilyonot/uploads/a.pdf'), false);
   assert.equal(Core.isDownloadUrl('https://127.0.0.1/gilyonot/uploads/a.pdf'), false);
   assert.equal(Core.isDownloadUrl('file:///c:/x.pdf'), false);
-  assert.equal(Core.isDownloadUrl('https://gilyoines.com/files/x.pdf'), true);
+  assert.equal(Core.isDownloadUrl('https://gilyoines.com/storage/x.pdf'), true);
   assert.equal(Core.isSiteUrl('https://ladaat.co/gilyonot/view/5'), true);
   assert.equal(Core.isSiteUrl('https://www.tashma.co.il/'), true);
   assert.equal(Core.isSiteUrl('https://evil.example/'), false);
@@ -98,4 +98,19 @@ test('upcomingShabbat', () => {
   assert.equal(Core.ymd(Core.upcomingShabbat(new Date(2026, 9, 15, 12))), '2026-10-17');
   assert.equal(Core.ymd(Core.upcomingShabbat(new Date(2026, 9, 17, 12))), '2026-10-17');
   assert.equal(Core.ymd(Core.upcomingShabbat(new Date(2026, 9, 18, 12))), '2026-10-24');
+});
+
+const readJson = (name) => JSON.parse(fs.readFileSync(path.join(__dirname, 'fixtures', name), 'utf8'));
+
+test('normalizeKey עובר את הווקטורים המשותפים עם הקטלוג (normalize-vectors.json)', () => {
+  for (const [input, expected] of readJson('normalize-vectors.json')) assert.equal(normalizeKey(input), expected, JSON.stringify(input));
+  assert.equal(normalizeKey(null), '');
+  assert.equal(normalizeKey('מטות־מסעי'), 'מטות מסעי');
+});
+
+test('כתובות: הווקטורים המשותפים עם הקטלוג (url-vectors.json)', () => {
+  const v = readJson('url-vectors.json');
+  for (const [input, expected] of v.encodeNonAscii) assert.equal(Core.encodeNonAscii(input), expected, input);
+  for (const [input, expected] of v.decodeNonAscii) assert.equal(Core.decodeNonAscii(input), expected, input);
+  for (const c of v.resolve) assert.deepEqual(Core.resolveAssetUrls(c.asset, c.source), c.expect, c.name);
 });

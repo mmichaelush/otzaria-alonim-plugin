@@ -33,7 +33,7 @@ function setup(scenario, extra) {
 test('ביקור ראשון: recent קודם, אחר כך כל השרדים; המטמון נכתב; סטטוס idle', async () => {
   const { catalog, events, sdk, manifest } = setup();
   await catalog.init();
-  const kinds = events.map((e) => e.kind);
+  const kinds = events.map((e) => e.kind).filter((k) => k !== 'sources');
   assert.equal(kinds[0], 'recent', 'הציור הראשון מ-recent');
   assert.ok(kinds.includes('series') && kinds.includes('weeks'));
   assert.equal(events.filter((e) => e.kind === 'shard').length, manifest.shards.length);
@@ -54,7 +54,7 @@ test('ביקור שני: ציור מהמטמון בלי רשת, ואין הור�
   const before = first.sdk.streams;
   const cached = await catalog.loadCache();
   assert.equal(cached, true);
-  assert.deepEqual(events.map((e) => e.kind).sort(), ['recent', 'series', 'weeks']);
+  assert.deepEqual(events.map((e) => e.kind).sort(), ['recent', 'series', 'sources', 'weeks']);
   assert.ok(events.every((e) => e.cached));
   assert.equal(first.sdk.streams, before, 'ציור מהמטמון אינו נוגע ברשת');
   await catalog.loadCachedShards();

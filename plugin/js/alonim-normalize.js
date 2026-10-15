@@ -1,45 +1,33 @@
-// `normalizeKey`: מחרוזת להשוואה בלבד, לעולם לא לתצוגה. החוזה
-// (docs/CATALOG_FORMAT.md) מחייב שהוא זהה לזה של הקטלוג
-// (`catalog/lib/normalize.mjs`); `test/normalize.test.js` בודק זהות כשהקובץ
-// קיים בריפו. כל שינוי כאן הוא שינוי בשני הצדדים.
+// `normalizeKey`: מפתח השוואה בלבד, לעולם לא לתצוגה. החוזה (docs/CATALOG_FORMAT.md)
+// מחייב שהוא זהה לזה של הקטלוג (`catalog/lib/normalize.mjs`): אותו מימוש, ושני
+// הצדדים עוברים את `normalize-vectors.json` (`test/normalize-core.test.js` בודק
+// גם זהות ישירה מול הקובץ של הקטלוג כשהוא קיים). כל שינוי כאן הוא שינוי בשני הצדדים.
 //
-// בנוסף: `searchKey` (נרמול לחיפוש, מוסיף הסרת פיסוק) ו-`highlightSpans`
-// (מיקומי ההתאמה בטקסט המקורי, להדגשה).
+// בנוסף: `highlightSpans` (מיקומי ההתאמה בטקסט המקורי, להדגשה).
 (function (root) {
   'use strict';
 
-  // מקף עברי (U+05BE), מקפי יוניקוד (U+2010-2015), מינוס (U+2212), "fraction
-  // slash" ולוכסנים: מפרידים בין מילים.
-  const SPACE_SET = '\\u05BE\\-\\u2010-\\u2015\\u2212\\u2044/\\\\';
-  // גרש (U+05F3), גרשיים (U+05F4) ומרכאות מכל סוג: נמחקים (רש"י = רשי,
-  // ה'תשפ"ז = התשפז).
-  const NOTHING_SET = '\\u05F3\\u05F4"\'`\\u00B4\\u2018-\\u201F\\u00AB\\u00BB\\u02BB\\u02BC\\u2032\\u2033';
-  // ניקוד וטעמים (U+05BE כבר הפך לרווח).
-  const MARKS_SET = '\\u0591-\\u05C7';
+  // נמחקים: סימני כיווניות ורוחב אפס, מרכאות מכל סוג וגרש/גרשיים (ר' = ר, תשפ"ז = תשפז).
+  const DELETE_RE = /[\u200B-\u200F\u202A-\u202E\u2060-\u2069\uFEFF'"`\u00B4\u2018\u2019\u201A\u201B\u201C\u201D\u201E\u201F\u05F3\u05F4\u02BC]/g;
+  // מקף עברי, מקפי יוניקוד, מינוס, לוכסן וקו תחתון: רווח (לך־לך = לך לך).
+  const SPACE_RE = /[\u05BE\u2010-\u2015\u2212\-/\_]/g;
+  // ניקוד וטעמים (המקף העברי נמצא בטווח הזה, ולכן הרווחים קודם).
+  const NIQQUD_RE = /[\u0591-\u05C7]/g;
+  const FINALS = { '\u05DA': '\u05DB', '\u05DD': '\u05DE', '\u05DF': '\u05E0', '\u05E3': '\u05E4', '\u05E5': '\u05E6' };
 
-  const TO_SPACE = new RegExp('[' + SPACE_SET + ']', 'g');
-  const TO_NOTHING = new RegExp('[' + NOTHING_SET + ']', 'g');
-  const MARKS = new RegExp('[' + MARKS_SET + ']', 'g');
-  const FINALS = { 'ך': 'כ', 'ם': 'מ', 'ן': 'נ', 'ף': 'פ', 'ץ': 'צ' };
-  const FINAL_LETTERS = /[ךםןףץ]/g;
-  const PUNCTUATION = /[^\p{L}\p{N}\s]/gu;
-
-  function normalizeKey(value) {
-    return String(value === null || value === undefined ? '' : value)
-      .normalize('NFKC')
-      .replace(TO_SPACE, ' ')
-      .replace(TO_NOTHING, '')
-      .replace(MARKS, '')
-      .replace(FINAL_LETTERS, (letter) => FINALS[letter])
-      .toLowerCase()
-      .replace(/\s+/g, ' ')
-      .trim();
+  function normalizeKey(s) {
+    if (s === null || s === undefined) return '';
+    let t = String(s).normalize('NFKC');
+    t = t.replace(SPACE_RE, ' ').replace(DELETE_RE, '').replace(NIQQUD_RE, '');
+    t = t.replace(/[\u05DA\u05DD\u05DF\u05E3\u05E5]/g, (c) => FINALS[c]);
+    t = t.toLowerCase();
+    // כל פיסוק או סמל שנשאר מפריד בין מילים.
+    t = t.replace(/[^\p{L}\p{N}\s]/gu, ' ');
+    return t.replace(/\s+/g, ' ').trim();
   }
 
-  /** כמו `normalizeKey`, ופיסוק נשאר רווח: "נח," ו-"נח" הם אותה מילה. */
-  function searchKey(value) {
-    return normalizeKey(value).replace(PUNCTUATION, ' ').replace(/\s+/g, ' ').trim();
-  }
+  /** שם נפרד לקריאות חיפוש: אותו דבר (הפיסוק כבר רווח). */
+  const searchKey = normalizeKey;
 
   /** פונקציה טהורה עם מטמון, לכותרות שחוזרות עשרות אלפי פעמים. */
   function memoized(fn, limit) {
@@ -57,16 +45,15 @@
   }
 
   // גרסאות בלי דגל `g` לבדיקת תו בודד: ל-`test` עם `g` יש מצב.
-  const IS_SPACE = new RegExp('[' + SPACE_SET + ']');
-  const IS_NOTHING = new RegExp('[' + NOTHING_SET + ']');
-  const IS_MARK = new RegExp('[' + MARKS_SET + ']');
-  const IS_PUNCTUATION = /[^\p{L}\p{N}\s]/u;
+  const IS_DELETE = new RegExp(DELETE_RE.source);
+  const IS_SPACE = new RegExp(SPACE_RE.source);
+  const IS_NIQQUD = new RegExp(NIQQUD_RE.source);
+  const IS_OTHER = /[^\p{L}\p{N}\s]/u;
 
   /**
-   * מיקומי ההתאמה של [tokens] (כבר מנורמלים ב-`searchKey`) בתוך [text] המקורי,
-   * כזוגות `[start, end)`, ממוזגים וממוינים. התאמה בתחילת מילה בלבד, כמו
-   * החיפוש. כשהנרמול משנה אורך (ליגטורות) מחזיר ריק: עדיף בלי הדגשה מהדגשה
-   * במקום הלא נכון.
+   * מיקומי ההתאמה של [tokens] (כבר מנורמלים) בתוך [text] המקורי, כזוגות
+   * `[start, end)`, ממוזגים וממוינים. התאמה בתחילת מילה בלבד, כמו החיפוש.
+   * כשהנרמול משנה אורך (ליגטורות) מחזיר ריק: עדיף בלי הדגשה מהדגשה במקום הלא נכון.
    */
   function highlightSpans(text, tokens) {
     const source = String(text || '');
@@ -78,8 +65,9 @@
     for (let i = 0; i < nfkc.length; i++) {
       const ch = nfkc[i];
       let out = ch;
-      if (IS_NOTHING.test(ch) || IS_MARK.test(ch)) continue;
-      if (IS_SPACE.test(ch) || IS_PUNCTUATION.test(ch)) out = ' ';
+      if (IS_SPACE.test(ch)) out = ' ';
+      else if (IS_DELETE.test(ch) || IS_NIQQUD.test(ch)) continue;
+      if (IS_OTHER.test(out)) out = ' ';
       out = (FINALS[out] || out).toLowerCase();
       norm += out;
       origin.push(i);

@@ -33,5 +33,6 @@ function build(name, fixtureFile) {
 }
 
 const real = args.includes('--catalog');
-console.log(build('preview.html', real ? 'fixture-real.js' : 'fixture-small.js'));
+if (real) console.log(build('preview-real.html', 'fixture-real.js'));
+else console.log(build('preview.html', 'fixture-small.js'));
 if (args.includes('--large')) console.log(build('preview-large.html', 'fixture-large.js'));

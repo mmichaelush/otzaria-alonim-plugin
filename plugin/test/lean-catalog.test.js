@@ -17,14 +17,29 @@ const { createRuntime } = A.Runtime;
 const quiet = { warn() {}, error() {}, debug() {}, info() {} };
 const noSleep = async () => {};
 
-test('resolveAssetUrls: מוחלט נשאר, תבנית עם {ext}, בסיס יחסי, קידוד רק של לא-ASCII', () => {
-  const src = { urlTemplates: { url: 'https://tashma.co.il/gilyonot/file/{ext}', page: 'https://tashma.co.il/gilyonot/{ext}', thumb: 'https://tashma.co.il/gilyonot/thumb/{ext}.png' } };
-  assert.deepEqual(Core.resolveAssetUrls({ ext: '77' }, src), { url: 'https://tashma.co.il/gilyonot/file/77', page: 'https://tashma.co.il/gilyonot/77', thumb: 'https://tashma.co.il/gilyonot/thumb/77.png' });
-  assert.equal(Core.resolveAssetUrls({ ext: '1', url: 'https://ladaat.co/gilyonot/uploads/2026-10-17/files/[37]-אסיפה.pdf' }, {}).url, 'https://ladaat.co/gilyonot/uploads/2026-10-17/files/[37]-%D7%90%D7%A1%D7%99%D7%A4%D7%94.pdf');
-  assert.equal(Core.resolveAssetUrls({ url: 'a%20b/ג.pdf' }, { urlBase: 'https://alonolam.com/wp-content/uploads/' }).url, 'https://alonolam.com/wp-content/uploads/a%20b/%D7%92.pdf');
-  assert.equal(Core.resolveAssetUrls({ url: 'x.pdf' }, { urlBase: { url: 'https://gilyoines.com/storage/' } }).url, 'https://gilyoines.com/storage/x.pdf');
-  assert.deepEqual(Core.resolveAssetUrls({ ext: '5' }, null), {}, 'בלי כתובת ובלי תבנית: ריק');
-  assert.equal(Core.resolveAssetUrls({ url: 'https://x.example/%D7%90' }, {}).url, 'https://x.example/%D7%90', 'מקודד כבר: לא מקודד פעמיים');
+test('ירושה: שפה חסרה בגיליון = שפת הסדרה, וכותרת חסרה = כותרת הסדרה (חוזה הדחיסה)', () => {
+  const idx = new CatalogIndex({ source: (id) => id });
+  idx.setSeries([{ id: 's_yi', title: 'הבינני', lang: 'yi' }, { id: 's_he', title: 'הבינני', lang: 'he' }]);
+  idx.addIssues([
+    { id: 'i_1', series: 's_yi', hy: 5787, parasha: ['noach'], assets: [{ src: 'a', ext: '1' }] },
+    { id: 'i_2', series: 's_he', hy: 5787, parasha: ['noach'], assets: [{ src: 'a', ext: '2' }] },
+    { id: 'i_3', series: 's_yi', title: 'כותרת אחרת', lang: 'he', hy: 5787, parasha: ['noach'], assets: [{ src: 'a', ext: '3' }] },
+  ]);
+  assert.equal(idx.get('i_1').lang, 'yi');
+  assert.equal(idx.get('i_1').title, 'הבינני');
+  assert.equal(idx.get('i_2').lang, 'he');
+  assert.equal(idx.get('i_3').lang, 'he', 'ערך מפורש גובר');
+  assert.equal(idx.get('i_3').title, 'כותרת אחרת');
+  assert.equal(idx.search('lang:yi', {}, {}, {}).total, 1);
+  assert.equal(idx.search('', { lang: 'yi' }, {}, {}).total, 1);
+  assert.equal(idx.search('', { lang: 'he' }, {}, {}).total, 2);
+  assert.equal(idx.facets().langs.get('yi'), 1);
+  // סדרה שהגיעה אחרי הגיליונות שלה (סדר טעינה): השפה והכותרת מתעדכנות.
+  const late = new CatalogIndex({ source: (id) => id });
+  late.addIssues([{ id: 'i_9', series: 's_yi', hy: 5787, parasha: ['noach'], assets: [{ src: 'a', ext: '9' }] }]);
+  late.setSeries([{ id: 's_yi', title: 'הבינני', lang: 'yi' }]);
+  assert.equal(late.get('i_9').lang, 'yi');
+  assert.equal(late.search('הבינני', {}, {}, {}).total, 1);
 });
 
 test('אינדקס רזה: אין כתובות בגיליון, יש סימון noUrl, והפרטים המלאים נשארים בשרד', () => {
