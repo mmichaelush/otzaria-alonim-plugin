@@ -683,5 +683,9 @@
     "עשרת ימי תשובה": "Ten Days of Repentance",
     "שבת מברכים": "Shabbat Mevarchim",
     "חגים ומועדים": "Holidays and special days",
+    "טעינת שנים ישנות": "Load older years",
+    "לא הצלחנו לטעון את לוח השנים הישנות. אפשר לנסות שוב.": "Could not load the older years calendar. You can try again.",
+    "השנה עוד לא נטענה": "This year is not loaded yet",
+    "העלונים של השנה הזו נטענים; הספירות יתעדכנו.": "This year's bulletins are loading; the counts will update.",
   };
 })(typeof self !== 'undefined' ? self : globalThis);

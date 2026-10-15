@@ -103,6 +103,7 @@ async function weekFlows(browser, open, check) {
   const page = await open('page=week');
   const text = (selector) => page.eval(`(document.querySelector(${JSON.stringify(selector)}) || {}).textContent || ''`);
   const hero = async () => ({ title: await text('.hero-title'), sub: await text('.hero-sub'), chips: await text('.hero-chips') });
+  const click = (selector) => page.eval(`document.querySelector(${JSON.stringify(selector)}).click()`);
   const jump = async (date) => {
     await page.eval(`document.querySelector('.week-row[data-date="${date}"]').click()`);
     await page.sleep(250);
@@ -131,6 +132,19 @@ async function weekFlows(browser, open, check) {
   await page.eval("document.querySelector('[data-filter=holiday]').click()");
   await page.sleep(150);
   check('מעבר לשבוע: מסנן חגים מציג רק חגים באמצע השבוע', await page.eval("[...document.querySelectorAll('.week-row')].every((r) => r.classList.contains('is-holiday')) && document.querySelectorAll('.week-row').length >= 5"));
+  // שנים ישנות: לוח הארכיון נטען בלחיצה, ומופיעות שנים ישנות בבורר
+  const yearsBefore = await page.eval("document.querySelectorAll('.picker-year option').length");
+  check('שנים ישנות: כפתור טעינה מוצג', await page.eval("Boolean(document.querySelector('[data-key=archive]')) && !document.querySelector('[data-key=archive]').hidden"));
+  await click('[data-key=archive]');
+  await page.sleep(1500);
+  const yearsAfter = await page.eval("document.querySelectorAll('.picker-year option').length");
+  check('שנים ישנות: אחרי הטעינה יש יותר שנים והכפתור נעלם', yearsAfter > yearsBefore + 10 && (await page.eval("document.querySelector('[data-key=archive]').hidden")), `${yearsBefore} -> ${yearsAfter}`);
+  await click('[data-filter=all]');
+  await page.eval("(() => { const s = document.querySelector('.picker-year'); s.value = '5760'; s.dispatchEvent(new Event('change', { bubbles: true })); })()");
+  await page.sleep(300);
+  check('שנה ישנה נבחרת ומציגה שבועות', (await page.eval("document.querySelectorAll('.week-row').length")) > 20);
+  await page.eval("(() => { const s = document.querySelector('.picker-year'); s.value = '5787'; s.dispatchEvent(new Event('change', { bubbles: true })); })()");
+  await page.sleep(300);
   await jump('2027-03-23');
   h = await hero();
   check('בחירת חג (פורים): כותרת ותאריך עם יום בשבוע', h.title === 'פורים' && h.sub === 'יום שלישי, י״ד באדר ב׳ תשפ״ז · 23 במרץ 2027' && h.chips.includes('חג באמצע השבוע'), JSON.stringify(h));

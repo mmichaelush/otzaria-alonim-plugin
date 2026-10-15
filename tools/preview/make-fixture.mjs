@@ -125,7 +125,8 @@ function smallCatalog() {
       n++;
     }
   });
-  const { files } = buildFiles({ series, issues, weeks, sources: DEFAULT_SOURCES, recentCount: 40 });
+  const weeksArchive = JSON.parse(readFileSync(join(here, '..', '..', 'plugin', 'test', 'fixtures', 'weeks-archive-real.json'), 'utf8'));
+  const { files } = buildFiles({ series, issues, weeks, weeksArchive, sources: DEFAULT_SOURCES, recentCount: 40 });
   return files;
 }
 

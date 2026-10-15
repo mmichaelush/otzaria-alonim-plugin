@@ -8,7 +8,7 @@ const crypto = require('node:crypto');
 const sha = (text) => crypto.createHash('sha256').update(Buffer.from(text, 'utf8')).digest('hex');
 
 /** `{ path: text }` שמוגש תחת בסיס הקטלוג. */
-function buildFiles({ series, issues, weeks, sources, catalogVersion, recentCount }) {
+function buildFiles({ series, issues, weeks, weeksArchive, sources, catalogVersion, recentCount }) {
   const files = {};
   const put = (path, value) => {
     const text = JSON.stringify(value);
@@ -27,6 +27,7 @@ function buildFiles({ series, issues, weeks, sources, catalogVersion, recentCoun
     weeks: put('weeks.json', weeks || []),
     recent: put('recent.json', sorted.slice(0, recentCount || 60)),
   };
+  if (weeksArchive) manifestFiles.weeksArchive = put('weeks-archive.json', weeksArchive);
   const shards = [];
   for (const [id, list] of byYear) {
     const entry = put('issues/' + id + '.json', list);

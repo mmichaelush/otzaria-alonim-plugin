@@ -169,6 +169,8 @@
       this.seriesById = new Map();
       this.seriesAlias = new Map();
       this.weeks = [];
+      /** לוח הארכיון (שנים ישנות), נטען לפי בקשה. */
+      this.weeksOld = [];
       this.pending = [];
       this.bySeries = new Map();
       this.byDay = new Map();
@@ -235,7 +237,26 @@
     setWeeks(list) {
       this.weeks = (Array.isArray(list) ? list : []).filter((w) => w && w.date).sort((a, b) => (a.date < b.date ? -1 : 1));
       this._derived = null;
+      this._calendar = null;
       this.version++;
+    }
+
+    /** שורות לוח של שנים ישנות (`weeks-archive.json`); מצטרפות ללוח הרגיל. */
+    setWeeksArchive(list) {
+      this.weeksOld = (Array.isArray(list) ? list : []).filter((w) => w && w.date).sort((a, b) => (a.date < b.date ? -1 : 1));
+      this._derived = null;
+      this._calendar = null;
+      this.version++;
+    }
+
+    /** הלוח המלא: הארכיון (אם נטען) ואחריו הלוח הרגיל, ממוינים. */
+    calendar() {
+      if (!this.weeksOld.length) return this.weeks;
+      if (!this._calendar || this._calendarVersion !== this.version) {
+        this._calendar = this.weeksOld.concat(this.weeks).sort((a, b) => (a.date < b.date ? -1 : 1));
+        this._calendarVersion = this.version;
+      }
+      return this._calendar;
     }
 
     resolveSeriesId(id) {
@@ -743,8 +764,9 @@
      */
     derivedWeeks() {
       if (this._derived && this._derivedVersion === this.version) return this._derived;
-      const first = this.weeks.length ? dayOf(this.weeks[0].date) : Infinity;
-      const last = this.weeks.length ? dayOf(this.weeks[this.weeks.length - 1].date) : -Infinity;
+      const calendar = this.calendar();
+      const first = calendar.length ? dayOf(calendar[0].date) : Infinity;
+      const last = calendar.length ? dayOf(calendar[calendar.length - 1].date) : -Infinity;
       const rows = [];
       for (const [day, list] of this.byDay) {
         if (day >= first && day <= last) continue;
@@ -763,7 +785,8 @@
     /** לוח + שורות נגזרות, ממוינים לפי תאריך. */
     allWeeks() {
       const derived = this.derivedWeeks();
-      return derived.length ? this.weeks.concat(derived).sort((a, b) => (a.date < b.date ? -1 : 1)) : this.weeks;
+      const calendar = this.calendar();
+      return derived.length ? calendar.concat(derived).sort((a, b) => (a.date < b.date ? -1 : 1)) : calendar;
     }
 
     weekFor(dateText) {

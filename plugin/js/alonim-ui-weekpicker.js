@@ -1,5 +1,7 @@
 // "מעבר לשבוע…": חלון בחירה של שבוע לפי שנה עברית (פרשות, שבתות מיוחדות וחגים,
 // כולל חגים באמצע השבוע), לפי תאריך לועזי, או לפי תאריך עברי (יום, חודש, שנה).
+// שנים ישנות: לוח הארכיון (`weeks-archive.json`) נטען בלחיצה, ושרדי השנה — כשבוחרים בה;
+// עד שהם מגיעים הספירה מוצגת כנקודה ולא כאפס.
 (function (root) {
   'use strict';
 
@@ -22,28 +24,26 @@
   const yearLabel = (hy) => A.UiDates.yearLabel(hy);
 
   /**
-   * [options]: `views` (מ-`Weeks.build`), `currentIndex`, `selectedIndex`,
-   * `onPick(index)`, `onCurrent()`.
+   * [options]: `getViews()` (תצוגות `Weeks.build`, מתעדכן כשהארכיון נטען),
+   * `currentDate` ו-`selectedDate` (`YYYY-MM-DD`), `onPick(date)`, `onCurrent()`.
    */
   function open(app, options) {
-    const { views, currentIndex, selectedIndex, onPick, onCurrent } = options;
-    const years = Weeks.years(views);
-    const selected = views[selectedIndex] || views[currentIndex] || views[0];
+    const { getViews, currentDate, selectedDate, onPick, onCurrent } = options;
+    let views = getViews();
+    let years = Weeks.years(views);
+    const selected = views.find((v) => v.date === selectedDate) || views.find((v) => v.date === currentDate) || views[0];
     const state = { hy: selected ? selected.hy : (years[0] || {}).hy || 0, filter: 'all' };
     const index = app.index;
+    const catalog = app.catalog;
 
     const list = el('div', { class: 'week-list', role: 'list', 'aria-label': t('שבועות בשנה') });
     const note = el('p', { class: 'picker-note', role: 'status' });
-    const yearSelect = Ui.selectField(
-      t('שנה עברית'),
-      years.map((y) => ({ value: y.hy, label: yearLabel(y.hy) })),
-      state.hy,
-      (value) => setYear(Number(value)),
-      'picker-year',
-    );
+    const yearSelect = el('select', { class: 'select picker-year', 'aria-label': t('שנה עברית') });
+    yearSelect.addEventListener('change', () => setYear(Number(yearSelect.value)));
     const rtl = document.documentElement.dir !== 'ltr';
     const prevYear = Ui.iconButton(rtl ? 'chevron_right_24_regular' : 'chevron_left_24_regular', t('השנה הקודמת'), () => stepYear(-1), { className: 'picker-step', key: 'prev-year' });
     const nextYear = Ui.iconButton(rtl ? 'chevron_left_24_regular' : 'chevron_right_24_regular', t('השנה הבאה'), () => stepYear(1), { className: 'picker-step', key: 'next-year' });
+    const archiveButton = Ui.button('text', t('טעינת שנים ישנות'), () => loadArchive(), { icon: 'history_24_regular', className: 'button-small', key: 'archive' });
     const filterBar = el(
       'div',
       { class: 'segmented is-text', role: 'group', 'aria-label': t('סוג שבוע') },
@@ -66,6 +66,16 @@
       ),
     );
 
+    // ------------------------------------------------------ שנים וטעינה
+
+    /** שרדי השנה בזיכרון? (שנה בלי שרדים בכלל — כן: אין מה לטעון). */
+    const yearLoaded = (hy) => catalog.shardsOfYear(hy).every((s) => catalog.emitted.has('issues/' + s.id + '.json'));
+
+    function drawYears() {
+      Ui.fill(yearSelect, years.map((y) => el('option', { value: y.hy, selected: y.hy === state.hy }, yearLabel(y.hy))));
+      archiveButton.hidden = !(catalog.hasWeeksArchive() && !catalog.weeksArchiveLoaded());
+    }
+
     function stepYear(delta) {
       const at = years.findIndex((y) => y.hy === state.hy);
       // `years` מהחדשה לישנה: "השנה הבאה" היא האינדקס הקודם.
@@ -76,19 +86,44 @@
     function setYear(hy) {
       state.hy = hy;
       yearSelect.value = String(hy);
+      if (!yearLoaded(hy)) catalog.ensureYear(hy);
       drawList();
     }
 
-    function pick(i) {
+    async function loadArchive() {
+      archiveButton.disabled = true;
+      const ok = await app.loadWeeksArchive();
+      archiveButton.disabled = false;
+      if (!ok) say(t('לא הצלחנו לטעון את לוח השנים הישנות. אפשר לנסות שוב.'));
+    }
+
+    /** נתונים חדשים (ארכיון, שרד): מחשבים מחדש את השנים והרשימה. */
+    function onData() {
+      views = getViews();
+      years = Weeks.years(views);
+      if (!years.some((y) => y.hy === state.hy) && years.length) state.hy = years[0].hy;
+      drawYears();
+      drawList();
+    }
+    let timer = null;
+    const offData = app.on('data', () => {
+      clearTimeout(timer);
+      timer = setTimeout(onData, 150);
+    });
+
+    // ------------------------------------------------------------ רשימה
+
+    function pick(date) {
       dlg.close('pick');
-      onPick(i);
+      onPick(date);
     }
 
     function row(v) {
-      const count = index.forWeek(v.row).length;
+      const loaded = yearLoaded(v.hy);
+      const count = loaded ? index.forWeek(v.row).length : 0;
       const day = Weeks.displayDay(v);
-      const isCurrent = v.i === currentIndex;
-      const isSelected = v.i === selectedIndex;
+      const isCurrent = v.date === currentDate;
+      const isSelected = v.date === selectedDate;
       return el(
         'button',
         {
@@ -97,17 +132,18 @@
           role: 'listitem',
           'aria-current': isSelected ? 'true' : null,
           dataset: { date: v.date },
-          onclick: () => pick(v.i),
+          onclick: () => pick(v.date),
         },
         el(
           'span',
           { class: 'week-row-main' },
           el('span', { class: 'week-row-title', dir: 'auto' }, v.title),
           v.kind === 'special' && v.parashaLabel && v.eventLabel ? el('span', { class: 'week-row-event', dir: 'auto' }, v.eventLabel) : null,
+          v.secondary.length ? el('span', { class: 'week-row-event', dir: 'auto' }, v.secondary.map(Core.eventName).join(' · ')) : null,
           el('span', { class: 'week-row-date', dir: 'auto' }, day ? Core.dateLine(day, { short: true, weekday: v.kind === 'holiday', hebrewText: v.hebrew }) : v.date),
         ),
         isCurrent ? Ui.chip(t('השבוע'), { kind: 'now' }) : null,
-        el('span', { class: 'week-row-count' + (count ? '' : ' is-zero'), title: t('{n} גיליונות', { n: count }) }, Core.formatCount(count)),
+        el('span', { class: 'week-row-count' + (loaded && !count ? ' is-zero' : ''), title: loaded ? t('{n} גיליונות', { n: count }) : t('השנה עוד לא נטענה') }, loaded ? Core.formatCount(count) : '·'),
       );
     }
 
@@ -121,6 +157,7 @@
       const derived = inYear.length && inYear.every((v) => v.derived);
       let text = '';
       if (derived) text = t('השנה הזו אינה בלוח הקטלוג. הרשימה נבנתה מהעלונים שנטענו.');
+      else if (!yearLoaded(state.hy)) text = t('העלונים של השנה הזו נטענים; הספירות יתעדכנו.');
       note.textContent = text;
       note.hidden = !text;
       const selectedRow = list.querySelector('.is-selected');
@@ -130,23 +167,22 @@
     // ---------------------------------------------------- מעבר לתאריך
 
     const message = el('p', { class: 'picker-message', role: 'status', hidden: true });
-    const say = (text) => {
+    function say(text) {
       message.textContent = text;
       message.hidden = !text;
-    };
-    const first = views[0];
-    const last = views[views.length - 1];
+    }
 
     /** עובר לשבוע של תאריך; אם הוא מחוץ ללוח, אומר זאת ועובר לקרוב ביותר. */
     function goToDate(date) {
       if (!date) return say(t('הזינו תאריך תקין.'));
+      views = getViews();
       const ymd = Core.ymd(date);
       const i = Weeks.indexForDate(views, ymd);
       if (i < 0) return say(t('אין נתוני לוח.'));
-      if (ymd < first.date || ymd > last.date) {
+      if (ymd < views[0].date || ymd > views[views.length - 1].date) {
         say(t('התאריך מחוץ ללוח השבועות. הפרשה אינה ידועה לו; נבחר השבוע הקרוב ביותר.'));
       }
-      pick(i);
+      pick(views[i].date);
     }
 
     const dateInput = el('input', { type: 'date', class: 'input picker-date', 'aria-label': t('תאריך לועזי') });
@@ -159,19 +195,14 @@
       el('div', { class: 'picker-inline' }, dateInput, Ui.button('tonal', t('מעבר'), () => goToDate(Core.parseYmd(dateInput.value)), { className: 'button-small', key: 'go-gregorian' })),
     );
 
-    const minYear = Math.min(5770, years.length ? years[years.length - 1].hy : 5770);
-    const maxYear = Math.max(5800, years.length ? years[0].hy + 2 : 5800);
-    const hebrewDate = A.UiDates.hebrewSelects(base, null, { years: { from: minYear, to: maxYear } });
+    const oldest = years.length ? years[years.length - 1].hy : 5770;
+    const newest = years.length ? years[0].hy : 5800;
+    const hebrewDate = A.UiDates.hebrewSelects(base, null, { years: { from: Math.min(5750, oldest), to: Math.max(5800, newest + 2) } });
     const hebrew = el(
       'div',
       { class: 'picker-field' },
       el('span', { class: 'picker-label' }, t('תאריך עברי')),
-      el(
-        'div',
-        { class: 'picker-inline' },
-        hebrewDate.el,
-        Ui.button('tonal', t('מעבר'), () => goToDate(hebrewDate.date()), { className: 'button-small', key: 'go-hebrew' }),
-      ),
+      el('div', { class: 'picker-inline' }, hebrewDate.el, Ui.button('tonal', t('מעבר'), () => goToDate(hebrewDate.date()), { className: 'button-small', key: 'go-hebrew' })),
     );
 
     const body = el(
@@ -184,7 +215,7 @@
           dlg.close('current');
           onCurrent();
         }, { icon: 'calendar_star_24_regular', className: 'button-small', key: 'now' }),
-        el('div', { class: 'picker-years' }, prevYear, yearSelect, nextYear),
+        el('div', { class: 'picker-years' }, prevYear, yearSelect, nextYear, archiveButton),
       ),
       filterBar,
       note,
@@ -196,8 +227,14 @@
       body,
       actions: [Ui.button('text', t('סגירה'), () => dlg.close('close'))],
       focus: '[data-key="now"]',
+      onClose: () => {
+        offData();
+        clearTimeout(timer);
+      },
     });
+    drawYears();
     drawList();
+    if (!yearLoaded(state.hy)) catalog.ensureYear(state.hy);
     return dlg;
   }
 

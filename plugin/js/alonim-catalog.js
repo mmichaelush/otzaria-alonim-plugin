@@ -173,6 +173,8 @@
       }
       this._setStatus({ lastOkAt: this.meta.lastOkAt || 0, lastCheckAt: this.meta.lastCheckAt || 0 });
       const results = await Promise.all(FILE_KEYS.map((key) => this._loadCached(key + '.json', key)));
+      // לוח הארכיון (שנים ישנות): נטען מהמטמון רק אם המשתמש כבר ביקש אותו פעם.
+      await this._loadCached('weeks-archive.json', 'weeksArchive');
       const hasAny = results.some(Boolean);
       if (hasAny) this._setStatus({ fromCache: true });
       this._setStatus({ shardsTotal: this.warmShards().length });
@@ -302,6 +304,9 @@
       for (const key of FILE_KEYS) {
         if (files[key] && files[key].path) plan.push({ kind: key, path: files[key].path, entry: files[key], cachePath: key + '.json' });
       }
+      // הארכיון מתעדכן רק אם כבר נטען (לפי בקשה).
+      const archive = this.weeksArchiveEntry();
+      if (archive && this.emitted.has('weeks-archive.json')) plan.push({ kind: 'weeksArchive', path: archive.path, entry: archive, cachePath: 'weeks-archive.json' });
       for (const shard of this.warmShards()) {
         plan.push({ kind: 'shard', id: shard.id, path: shard.path, entry: shard, cachePath: 'issues/' + shard.id + '.json' });
       }
@@ -434,6 +439,39 @@
     }
 
     // -------------------------------------------------- שרדים לפי דרישה
+
+    // ------------------------------------------------ לוח שנים ישנות
+
+    /** רשומת `files.weeksArchive` במניפסט, או `null` (אין ארכיון בקטלוג). */
+    weeksArchiveEntry() {
+      const entry = this.manifest && this.manifest.files && this.manifest.files.weeksArchive;
+      return entry && entry.path ? entry : null;
+    }
+
+    hasWeeksArchive() {
+      return Boolean(this.weeksArchiveEntry());
+    }
+
+    weeksArchiveLoaded() {
+      return this.emitted.has('weeks-archive.json');
+    }
+
+    /** טוען את לוח הארכיון (מהמטמון או מהרשת). `true` כשהוא בזיכרון. */
+    async ensureWeeksArchive() {
+      if (this.weeksArchiveLoaded()) return true;
+      const entry = this.weeksArchiveEntry();
+      if (!entry) return false;
+      const job = { kind: 'weeksArchive', path: entry.path, entry, cachePath: 'weeks-archive.json' };
+      try {
+        if (this.online() === false) return await this._loadCached(job.cachePath, 'weeksArchive');
+        await this._loadJob(job);
+        await this._saveMeta();
+        return true;
+      } catch (error) {
+        this.log.warn('weeks archive failed', error);
+        return this._loadCached(job.cachePath, 'weeksArchive');
+      }
+    }
 
     /** שנה עברית → השרדים שלה (`5787`, `5787-2`). */
     shardsOfYear(hy) {

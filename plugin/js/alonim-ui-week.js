@@ -75,8 +75,11 @@
 
     goto(index) {
       const views = this.app.weekViews();
-      if (!views[index]) return;
-      this.app.view.weekDate = views[index].date;
+      if (views[index]) this.gotoDate(views[index].date);
+    }
+
+    gotoDate(date) {
+      this.app.view.weekDate = date;
       this.app.view.weekMore = STEP;
       this.render();
     }
@@ -104,10 +107,10 @@
 
     openPicker(sel) {
       A.WeekPicker.open(this.app, {
-        views: sel.views,
-        currentIndex: sel.cur.index,
-        selectedIndex: sel.i,
-        onPick: (index) => this.goto(index),
+        getViews: () => this.app.weekViews(),
+        currentDate: (sel.views[sel.cur.index] || {}).date || '',
+        selectedDate: sel.view.date,
+        onPick: (date) => this.gotoDate(date),
         onCurrent: () => this.goCurrent(),
       });
     }

@@ -230,6 +230,8 @@
         this.state.migrateSeriesIds((id) => this.index.resolveSeriesId(id));
       } else if (event.kind === 'weeks') {
         this.index.setWeeks(event.data);
+      } else if (event.kind === 'weeksArchive') {
+        this.index.setWeeksArchive(event.data);
       } else if (event.kind === 'sources') {
         this.index.setSources(event.data);
       } else {
@@ -315,6 +317,11 @@
         this._weekViews = { key, views: A.Weeks.build(this.index.allWeeks(), { diaspora }) };
       }
       return this._weekViews.views;
+    }
+
+    /** טוען את לוח השנים הישנות (לפי בקשה בבורר השבועות). `true` בהצלחה. */
+    async loadWeeksArchive() {
+      return this.catalog.ensureWeeksArchive();
     }
 
     /** תצוגת "השבוע" הנוכחי (לפי היום), או `null` כשאין לוח. */
