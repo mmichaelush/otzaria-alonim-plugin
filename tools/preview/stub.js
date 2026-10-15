@@ -70,6 +70,13 @@
     const read = {};
     recent.slice(8, 12).forEach((it) => (read[it.id] = Date.now() - 86400000));
     storage.set('state_read', { v: 1, items: read });
+    storage.set('state_lists', {
+      v: 1,
+      items: [
+        { id: 'l1', name: 'לקרוא אחר כך', kind: 'list', created: Date.now(), entries: [snap(recent[10]), snap(recent[11])] },
+        { id: 'l2', name: 'אוסף שבת', kind: 'shabbat', created: Date.now(), entries: [snap(recent[0]), snap(recent[1]), snap(recent[20])] },
+      ],
+    });
     storage.set('state_opened', { v: 1, items: recent.slice(6, 8).map((it) => ({ ...snap(it), t: Date.now() - 3600000 })) });
     const prefs = { v: 1, scale: Number(params.get('scale') || 1), lang: params.get('lang') || 'auto', view: params.get('view') === 'list' ? 'list' : 'cards', sort: 'relevance', thumbs: false, diaspora: false, autoDownload: false, autoDownloadCap: 5, autoDay: '', autoCount: 0, welcomeSeen: true, folder: params.get('nofolder') ? null : { token: 'folder-1', name: 'עלונים', path: sdk.folderRoot } };
     storage.set('prefs', prefs);
@@ -121,6 +128,7 @@
     const wait = (ms) => new Promise((r) => setTimeout(r, ms));
     await wait(Number(params.get('settle') || 700));
     if (!app) return;
+    if (params.get('minetab')) app.view.mine.tab = params.get('minetab');
     if (params.get('page')) app.go(params.get('page'), { section: params.get('section') || '' });
     if (params.get('query')) {
       app.go('all', { query: params.get('query') });

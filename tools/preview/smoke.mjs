@@ -181,7 +181,9 @@ async function flows(browser) {
 
   // גלילה וירטואלית: 30,000+ גיליונות, לעולם לא יותר מ-60 כרטיסים ב-DOM
   page = await open('page=all', large);
-  const info = await page.eval("({ n: Number(document.querySelector('.results-count').textContent.replace(/\\D/g, '')), dom: document.querySelectorAll('[data-item]').length })");
+  await page.waitFor("window.__alonimApp.catalog.status.shardsLoaded >= window.__alonimApp.catalog.status.shardsTotal && window.__alonimApp.catalog.status.phase === 'idle'", 60000);
+  await page.sleep(600);
+  const info =await page.eval("({ n: Number(document.querySelector('.results-count').textContent.replace(/\\D/g, '')), dom: document.querySelectorAll('[data-item]').length })");
   check('30K+ תוצאות, DOM מוגבל', info.n >= 30000 && info.dom > 0 && info.dom <= 60, JSON.stringify(info));
   let maxDom = info.dom;
   for (const top of [5000, 120000, 700000, 2500000, 0]) {

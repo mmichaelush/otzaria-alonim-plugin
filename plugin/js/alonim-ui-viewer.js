@@ -257,7 +257,7 @@
         'div',
         { class: 'print-guide' },
         el('h3', { class: 'details-section' }, t('או להדפיס מהצפיין')),
-        el('ol', { class: 'state-steps' }, el('li', {}, t('לחצו על המסמך כדי שיקבל מיקוד.')), el('li', {}, t('בסרגל הכלים של הצפיין לחצו על סמל המדפסת, או הקישו Ctrl+P.'))),
+        el('ol', { class: 'state-steps' }, el('li', {}, t('לחצו על המסמך כדי שיקבל מיקוד.')), el('li', {}, t('בסרגל הכלים של הצפיין לחצו על סמל המדפסת, או הקישו'), ' ', el('kbd', {}, 'Ctrl+P'))),
       );
       const dlg = Ui.dialog({
         title: t('הדפסה'),

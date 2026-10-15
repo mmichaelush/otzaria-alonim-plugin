@@ -73,6 +73,7 @@
                 total: count,
                 ctx: { count, at: (k) => this.items[k], index: i },
                 onRemove: this.onRemove,
+                removeLabel: this.removeLabel,
               }),
             );
           }
@@ -317,8 +318,9 @@
         this.body.replaceChildren(header, Ui.stateCard({ icon: 'arrow_download_24_regular', title: t('עוד לא הורדתם גיליונות'), text: t('כפתור ההורדה בכרטיס שומר את הגיליון בתיקייה, לקריאה גם בלי רשת.'), actions: [Ui.button('tonal', t('לכל העלונים'), () => app.go('all'))], compact: true }));
         return;
       }
-      this.list(items, t('הקבצים שהורדו'), (item) => this.confirmDelete(item), header).onRemove = (item) => this.confirmDelete(item);
-      this.itemList.layout();
+      const list = this.list(items, t('הקבצים שהורדו'), (item) => this.confirmDelete(item), header);
+      list.removeLabel = t('מחיקת קובץ');
+      list.layout();
     }
 
     confirmDelete(item) {

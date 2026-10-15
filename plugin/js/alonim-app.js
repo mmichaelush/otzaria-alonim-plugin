@@ -150,6 +150,11 @@
       if (typeof root.addEventListener === 'function') {
         root.addEventListener('online', () => this.setOnline(true));
         root.addEventListener('offline', () => this.setOnline(false));
+        // שמירה מאוחדת (debounce) אינה אמורה לאבד שינוי שהמשתמש עשה לפני שהלשונית נסגרה.
+        root.addEventListener('pagehide', () => this.state.flush());
+        this.doc.addEventListener('visibilitychange', () => {
+          if (this.doc.visibilityState === 'hidden') this.state.flush();
+        });
       }
     }
 

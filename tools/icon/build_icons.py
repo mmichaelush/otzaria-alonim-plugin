@@ -8,6 +8,11 @@
 
 דורש את חבילת Flutter `fluentui_system_icons` ב-pub cache (PUB_CACHE, ברירת
 מחדל C:\\pubcache) ואת fontTools. הרישיון של האייקונים: MIT.
+
+כלל ההכרעה של אוצריא (ICONS.md): שם שקיים גם בספריית `otzaria_icons` נפתר לגרסה
+שלה. לכן, כשהמאגר המקומי של otzaria_icons זמין (OTZARIA_ICONS, ברירת מחדל
+`../otzaria_icons`), האייקון נלקח משם (GPL-3.0, כמו מאגר התוסף), והדף נראה כמו
+האפליקציה שבה הוא מוצג. אחרת — פלואנט.
 """
 import os
 import re
@@ -82,6 +87,7 @@ ICONS = [
 ]
 
 ROOT = Path(__file__).resolve().parents[2]
+OTZARIA_SVG = Path(os.environ.get('OTZARIA_ICONS', ROOT.parents[3] / 'otzaria_icons')) / 'assets_src' / 'svg'
 OUTPUT = ROOT / 'plugin' / 'js' / 'alonim-icons.js'
 FONTS = {'regular': 'FluentSystemIcons-Regular.ttf', 'filled': 'FluentSystemIcons-Filled.ttf'}
 
@@ -116,6 +122,13 @@ def main():
         _, glyphs, cmap, scale = fonts[style]
         pen = SVGPathPen(glyphs, ntos=lambda value: ('%.2f' % value).rstrip('0').rstrip('.'))
         glyphs[cmap[codes[name]]].draw(pen)
+        own = OTZARIA_SVG / (name + '.svg')
+        if own.exists():
+            # האייקון של אוצריא עצמה: path בודד במערכת 24x24, בלי היפוך.
+            d = re.search(r'<path[^>]*\sd="([^"]+)"', own.read_text(encoding='utf-8')).group(1)
+            d = ' '.join(d.split())
+            entries.append("    %s: { path: '%s', transform: '' }," % (name, d))
+            continue
         entries.append(
             "    %s: { path: '%s', transform: 'translate(0 24) scale(%s -%s)' },"
             % (name, pen.getCommands(), round(scale, 6), round(scale, 6))
@@ -149,7 +162,7 @@ __SHAPES__
     svg.setAttribute('class', 'icon' + (className ? ' ' + className : ''));
     const path = document.createElementNS(SVG, 'path');
     path.setAttribute('d', shape.path);
-    path.setAttribute('transform', shape.transform);
+    if (shape.transform) path.setAttribute('transform', shape.transform);
     svg.appendChild(path);
     return svg;
   }

@@ -69,6 +69,7 @@
         value: v.query,
         placeholder: t('חיפוש עלונים: שם סדרה, פרשה, שנה…'),
         'aria-label': t('חיפוש עלונים'),
+        title: t('חיפוש (Ctrl+K)'),
         autocomplete: 'off',
         spellcheck: 'false',
         enterkeyhint: 'search',
