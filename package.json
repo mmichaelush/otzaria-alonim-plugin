@@ -3,7 +3,7 @@
   "version": "0.2.0",
   "private": true,
   "description": "Dev tooling only (tests, format, lint, type check). The plugin itself (plugin/) has no build and no dependencies.",
-  "license": "MIT",
+  "license": "GPL-3.0-only",
   "engines": {
     "node": ">=22"
   },
