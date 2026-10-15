@@ -1149,6 +1149,30 @@ async function flows(browser) {
   );
   await browser.closePage(page);
 
+  // אין ספרייה טעונה באוצריא: הרענון והחיפוש נתקעים. חיווי התקדמות, הודעה ברורה אחרי פסק הזמן, וביטול.
+  page = await open('open=0&print=1&xorigin=1&host=legacy&scenario=reader-nolibrary');
+  await page.sleep(2200);
+  await page.eval('window.__alonimApp.files.readerTimeouts = { refreshMs: 300, callMs: 300 }');
+  await page.click('.print-dialog [data-key=reader]');
+  await page.sleep(500);
+  check(
+    'פתיחה בקורא: חלון התקדמות (שומר / מרענן / מחפש) עם כפתור ביטול',
+    await page.eval(
+      "/מרענן את הספרייה|שומר את הגיליון|מחפש את הגיליון/.test(document.querySelector('.dialog [role=status]').textContent) && Boolean(document.querySelector('.dialog [data-key=cancel]'))",
+    ),
+  );
+  await page.sleep(3500);
+  check(
+    'פתיחה בקורא: אחרי פסק הזמן — הודעה ברורה וניסיון חוזר',
+    await page.eval(
+      "/לא ענתה בזמן/.test(document.querySelector('.dialog [role=status]').textContent) && !document.querySelector('.dialog [data-key=retry]').hidden",
+    ),
+  );
+  await page.eval("document.querySelector('.dialog [data-key=cancel]').click()");
+  await page.sleep(400);
+  check('פתיחה בקורא: ביטול סוגר את החלון', await page.eval("!document.querySelector('.dialog')"));
+  await browser.closePage(page);
+
   await hostFlows(browser, open, check);
 
   // כללים: "הסתר סדרה" מכרטיס, ביטול (Undo)

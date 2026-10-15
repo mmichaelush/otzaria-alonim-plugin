@@ -8,7 +8,7 @@
 // reader-permission, folder-gone, legacy-host (אוצריא 0.9.98: בלי `network.fetchFile`
 // ו-`ui.printFile`), fetchfile-blocked, fetchfile-html, fetchfile-html-pdfmime, print-cancel, print-gesture (מארח שדורש מחווה לכל הדפסה אחרי
 // הראשונה), print-gesture-first (הבקשה הראשונה נדחית ב-forbidden, כמו הדפסה אוטומטית בלי לחיצה),
-// print-slow (מסך ההדפסה "פתוח" 300ms).
+// print-slow (מסך ההדפסה "פתוח" 300ms), reader-hang, reader-nolibrary.
 // `ui.printFile` מדמה את מסך ההדפסה של אוצריא: ההבטחה נפתרת כשהמשתמש סיים (printed: true/false).
 (function (root) {
   'use strict';
@@ -362,12 +362,16 @@
         isOnline: scenario !== 'offline',
       }),
 
+      // reader-hang: הרענון נתקע (כמו באוצריא בלי ספרייה טעונה: 45 שניות ויותר); reader-nolibrary: גם החיפוש.
       'library.refreshUserBooks': () =>
         scenario === 'reader-permission'
           ? err('permission_denied')
-          : { addedBooks: 1, updatedBooks: 0, errors: [] },
+          : scenario === 'reader-hang' || scenario === 'reader-nolibrary'
+            ? new Promise(() => {})
+            : { addedBooks: 1, updatedBooks: 0, errors: [] },
       'library.findBooks': (p) => {
         if (scenario === 'reader-permission') return err('permission_denied');
+        if (scenario === 'reader-nolibrary') return new Promise(() => {});
         const hits = [];
         for (const path of sdk.userFs.keys()) {
           const name = path

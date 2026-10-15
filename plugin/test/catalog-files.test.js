@@ -350,6 +350,49 @@ test('הדפסה: מסלול ה-iframe נחסם (cross-origin) ולא זורק; 
   assert.equal((await denied.openInReader(ISSUE)).reason, 'permission');
 });
 
+test('פתיחה בקורא: refreshUserBooks שנתקע אינו תוקע — פסק זמן, והחיפוש ממשיך', async () => {
+  const sdk = createFakeSdk({ scenario: 'reader-hang' });
+  const files = filesFor(sdk);
+  await files.pickFolder();
+  await files.enqueue(ISSUE, 'save').done;
+  const stages = [];
+  const started = Date.now();
+  const outcome = await files.openInReader(ISSUE, {
+    refreshMs: 30,
+    callMs: 30,
+    onStage: (s) => stages.push(s),
+  });
+  assert.deepEqual(
+    outcome,
+    { ok: true, reason: null },
+    'הקובץ כבר מאונדקס: נפתח למרות הרענון שנתקע',
+  );
+  assert.deepEqual(stages, ['refresh', 'find', 'open']);
+  assert.ok(Date.now() - started < 1000);
+});
+
+test('פתיחה בקורא: אין ספרייה (הכול נתקע) — reason timeout; ביטול — cancelled בלי קריאות נוספות', async () => {
+  const sdk = createFakeSdk({ scenario: 'reader-nolibrary' });
+  const files = filesFor(sdk);
+  await files.pickFolder();
+  await files.enqueue(ISSUE, 'save').done;
+  const timeout = await files.openInReader(ISSUE, { refreshMs: 20, callMs: 20 });
+  assert.deepEqual(timeout, { ok: false, reason: 'timeout' });
+
+  const cancel = A.Files.cancelToken();
+  const pending = files.openInReader(ISSUE, { refreshMs: 5000, callMs: 5000, cancel });
+  await new Promise((resolve) => setTimeout(resolve, 10));
+  const callsBefore = sdk.calls.length;
+  cancel.cancel();
+  assert.deepEqual(await pending, { ok: false, reason: 'cancelled' });
+  await new Promise((resolve) => setTimeout(resolve, 10));
+  assert.equal(sdk.calls.length, callsBefore, 'אחרי ביטול אין קריאות נוספות לאוצריא');
+  // אסימון שכבר בוטל: אין קריאות בכלל
+  const used = sdk.calls.length;
+  assert.deepEqual(await files.openInReader(ISSUE, { cancel }), { ok: false, reason: 'cancelled' });
+  assert.equal(sdk.calls.length, used);
+});
+
 test('פתיחה באתר: רק כתובת https מדומיין ברשימה', async () => {
   const sdk = createFakeSdk();
   const files = filesFor(sdk);

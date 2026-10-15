@@ -27,6 +27,7 @@
   const I18n = A.I18n;
   const { el } = Ui;
   const t = (text, vars) => I18n.t(text, vars);
+  const N = (text) => text;
 
   /** סדר המסלולים; מסלול שנכשל מוביל לבא אחריו. להחלפה בלי לגעת ב-UI. */
   const PRINT_ROUTES = ['printFile', 'frame', 'dialog'];
@@ -376,7 +377,7 @@
               ? t('אפשר להוריד את הגיליון לתיקייה ולפתוח אותו בקורא של אוצריא.')
               : t('הקובץ הורד לתיקייה. אפשר לפתוח אותו בקורא של אוצריא.'),
           actions: [
-            Ui.button('filled', t('פתח בקורא של אוצריא'), () => this.openInReader(), {
+            Ui.button('filled', t('פתח בקורא של אוצריא'), () => this.openInReaderDialog(), {
               icon: 'book_open_24_regular',
             }),
             Ui.button('text', t('פתח באתר המקור'), () => app.openSiteFor(item), {
@@ -520,7 +521,6 @@
 
     printDialog() {
       const s = this.state;
-      const result = el('p', { class: 'dialog-text print-result', role: 'status', hidden: true });
       const guide = el(
         'div',
         { class: 'print-guide' },
@@ -560,18 +560,12 @@
           Ui.button(
             'filled',
             t('פתח בקורא של אוצריא'),
-            async () => {
-              result.hidden = true;
-              const outcome = await this.openInReader();
-              if (outcome.ok) dlg.close();
-              else {
-                result.hidden = false;
-                result.textContent = this.readerProblem(outcome.reason);
-              }
+            () => {
+              dlg.close();
+              this.openInReaderDialog();
             },
             { icon: 'book_open_24_regular', key: 'reader' },
           ),
-          result,
           guide,
         ),
         actions: [
@@ -604,23 +598,100 @@
           );
         case 'not_saved':
           return t('כדי לפתוח בקורא של אוצריא יש לשמור את הגיליון קודם (כפתור ההורדה).');
+        case 'no_folder':
+          return A.Errors.text('no_folder');
+        case 'timeout':
+          return A.Errors.text('reader_timeout');
         default:
-          return t('הפתיחה בקורא של אוצריא נכשלה.');
+          return A.Errors.text('reader_failed');
       }
     }
 
-    /** שומר קבוע (אם צריך) ופותח בקורא של אוצריא. */
-    async openInReader() {
+    /**
+     * שומר קבוע (אם צריך) ופותח בקורא של אוצריא. [options]: `cancel` (`Files.cancelToken`), `onStage`
+     * (`save | refresh | find | open`). מחזיר `{ ok, reason }`; לעולם לא זורק.
+     */
+    async openInReader(options) {
       const { app } = this;
+      const o = options || {};
       const item = this.state.item;
       if (!app.files.isDownloaded(item)) {
+        if (!app.files.hasFolder) return { ok: false, reason: 'no_folder' };
+        if (o.onStage) o.onStage('save');
         const job = await app.queueSave(item);
-        const done = job && (await job.done);
+        if (!job) return { ok: false, reason: 'not_saved' };
+        if (o.cancel) o.cancel.whenCancelled.then(() => app.files.cancel(job.id));
+        const done = await job.done;
+        if (o.cancel && o.cancel.cancelled) return { ok: false, reason: 'cancelled' };
         if (!done || done.status !== 'done') return { ok: false, reason: 'not_saved' };
       }
-      const outcome = await app.files.openInReader(item);
-      if (outcome.ok) app.toast(t('נפתח בקורא של אוצריא'));
-      return outcome;
+      return app.files.openInReader(item, o);
+    }
+
+    /**
+     * "פתח בקורא של אוצריא" עם חיווי: חלון עם התקדמות ("מרענן את הספרייה…"), ביטול, ובכשל הודעה
+     * ברורה עם "ניסיון חוזר". בלי זה, כשאין ספרייה טעונה, הפעולה נתקעה 45 שניות בלי אף סימן.
+     */
+    openInReaderDialog() {
+      const { app } = this;
+      const STAGES = {
+        save: N('שומר את הגיליון בתיקייה…'),
+        refresh: N('מרענן את הספרייה של אוצריא…'),
+        find: N('מחפש את הגיליון בספרייה…'),
+        open: N('פותח בקורא…'),
+      };
+      const status = el('span', { role: 'status', 'aria-live': 'polite' });
+      const spinner = el('span', { class: 'spinner', 'aria-hidden': 'true' });
+      const hint = el(
+        'p',
+        { class: 'setting-help' },
+        t('אם הספרייה של אוצריא עוד לא נטענה, ההמתנה עשויה להימשך כמה שניות לפני שנודיע.'),
+      );
+      let cancel = null;
+      let dlg = null;
+      const run = async () => {
+        cancel = A.Files.cancelToken();
+        const mine = cancel;
+        spinner.hidden = false;
+        hint.hidden = false;
+        status.textContent = t(STAGES.refresh);
+        retry.hidden = true;
+        const outcome = await this.openInReader({
+          cancel: mine,
+          onStage: (name) => {
+            if (!mine.cancelled) status.textContent = t(STAGES[name]);
+          },
+        });
+        if (mine.cancelled || dlg.closed) return;
+        if (outcome.ok) {
+          dlg.close();
+          app.toast(t('נפתח בקורא של אוצריא'));
+          return;
+        }
+        app.log.warn('open in reader failed: ' + outcome.reason);
+        spinner.hidden = true;
+        hint.hidden = true;
+        status.textContent = this.readerProblem(outcome.reason);
+        retry.hidden = ['permission', 'no_folder'].includes(outcome.reason);
+      };
+      const retry = Ui.button('tonal', t('ניסיון חוזר'), () => run(), {
+        icon: 'arrow_clockwise_24_regular',
+        key: 'retry',
+      });
+      retry.hidden = true;
+      dlg = Ui.dialog({
+        title: t('פתיחה בקורא של אוצריא'),
+        size: 'small',
+        body: el('div', {}, el('p', { class: 'dialog-text' }, spinner, ' ', status), hint),
+        actions: [
+          Ui.button('text', t('ביטול'), () => dlg.close('cancel'), { key: 'cancel' }),
+          retry,
+        ],
+        focus: '[data-key="cancel"]',
+        onClose: () => cancel && cancel.cancel(),
+      });
+      run();
+      return dlg;
     }
   }
 

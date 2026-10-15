@@ -26,11 +26,31 @@
   /** קובץ מרוחק שהוענק: כמה זמן משתמשים בו בלי לבקש שוב, וכמה מחזיקים. */
   const REMOTE_TTL_MS = 10 * 60 * 1000;
   const REMOTE_KEEP = 6;
+  /** פתיחה בקורא של אוצריא: כמה ממתינים לכל קריאה (הרענון איטי יותר), לפני שמוותרים. */
+  const READER_REFRESH_MS = 12000;
+  const READER_CALL_MS = 10000;
   /** כמה עבודות שהסתיימו נשארות בתור (הורדה אוטומטית יכולה להצטבר). */
   const KEEP_FINISHED = 200;
 
   const sleepDefault = (ms) => new Promise((resolve) => setTimeout(resolve, ms));
   const trimSlash = (p) => String(p || '').replace(/[\\/]+$/, '');
+
+  /** אסימון ביטול לפעולה ארוכה: `cancel()`, `cancelled`, ו-`whenCancelled` (הבטחה שמתממשת בביטול). */
+  function cancelToken() {
+    /** @type {(value?: any) => void} */
+    let fire = () => {};
+    const whenCancelled = new Promise((resolve) => {
+      fire = resolve;
+    });
+    return {
+      cancelled: false,
+      whenCancelled,
+      cancel() {
+        this.cancelled = true;
+        fire();
+      },
+    };
+  }
 
   /** כשל עם קוד יציב: ההחלטות בקוד נשענות עליו, והטקסט הוא של ה-UI. */
   class FileError extends Error {
@@ -77,6 +97,8 @@
       /** `Capabilities`: יכולות חדשות של המארח (fetchFile, printFile). בלי זה — מסלול ישן בלבד. */
       this.caps = o.caps || null;
       /** מזהה גיליון ← קובץ מרוחק שהמארח הוריד לתיקיית מטמון פרטית: `{ token, url, name, size, at }`. */
+      /** פסקי זמן לקריאות לקורא של אוצריא (ms); ניתנים להחלפה בבדיקות. */
+      this.readerTimeouts = { refreshMs: READER_REFRESH_MS, callMs: READER_CALL_MS };
       this.remote = new Map();
       /** מזהה גיליון ← `openRemote` בריצה (חולקים הורדה). */
       this.remotePending = new Map();
@@ -901,26 +923,49 @@
     }
 
     /**
-     * מסלול ב: פתיחה בקורא של אוצריא, שבו יש הדפסה. דורש שהתיקייה מוגדרת
-     * באוצריא כתיקייה אישית. `{ ok, reason }`: `permission` (חסרה הרשאה),
-     * `not_indexed` (אוצריא לא רואה את הקובץ — בדרך כלל התיקייה אינה תיקייה
-     * אישית), `error`.
+     * מסלול ב: פתיחה בקורא של אוצריא, שבו יש הדפסה. דורש שהתיקייה מוגדרת באוצריא כתיקייה אישית.
+     * `{ ok, reason }`: `not_saved`, `permission` (חסרה הרשאה), `not_indexed` (אוצריא לא רואה את
+     * הקובץ — בדרך כלל התיקייה אינה תיקייה אישית), `timeout` (אוצריא לא ענתה בזמן: בדרך כלל אין
+     * ספרייה טעונה; `library.refreshUserBooks` נתקע שם מעל 45 שניות), `cancelled`, `error`.
+     *
+     * כל קריאה לאוצריא כאן מוגבלת בזמן ואפשר לבטל ([options].cancel מ-`cancelToken()`); קריאה שנתקעה
+     * ממשיכה ברקע ותשובתה מתעלמת. [options].onStage: `refresh | find | open` (להצגת התקדמות).
      */
-    async openInReader(item) {
+    async openInReader(item, options) {
+      const o = options || {};
+      const cancel = o.cancel || cancelToken();
+      const stage = (name) => o.onStage && o.onStage(name);
+      const refreshMs = o.refreshMs || this.readerTimeouts.refreshMs;
+      const callMs = o.callMs || this.readerTimeouts.callMs;
       const fragment = this.fragmentOf(item);
       const entry = this.disk.get(fragment);
       if (!entry) return { ok: false, reason: 'not_saved' };
-      // סריקה מחדש של התיקיות האישיות, כדי שהקובץ שזה עתה ירד ייכנס לספרייה.
-      // כשל בה אינו עוצר: ייתכן שהקובץ כבר מאונדקס.
-      await this.runtime.callSoft('library.refreshUserBooks', {});
-      const baseName = entry.name.replace(/\.pdf$/i, '');
+      // סריקה מחדש של התיקיות האישיות, כדי שהקובץ שזה עתה ירד ייכנס לספרייה. כשל או פסק זמן אינם
+      // עוצרים: ייתכן שהקובץ כבר מאונדקס, ואז החיפוש הבא מוצא אותו.
+      stage('refresh');
+      const refresh = await this._hostCall('library.refreshUserBooks', {}, refreshMs, cancel);
+      if (refresh.cancelled) return { ok: false, reason: 'cancelled' };
+      if (refresh.timedOut)
+        this.log.warn(
+          'reader_timeout: library.refreshUserBooks gave no answer in ' + refreshMs + 'ms',
+        );
+      stage('find');
+      const baseName = entry.name.replace(/.pdf$/i, '');
       let books = null;
       for (const query of [baseName, '[' + fragment + ']', fragment]) {
-        try {
-          books = await this.runtime.call('library.findBooks', { query, limit: 10 });
-        } catch (error) {
-          return { ok: false, reason: error.isUnsupported ? 'permission' : 'error' };
+        const found = await this._hostCall(
+          'library.findBooks',
+          { query, limit: 10 },
+          callMs,
+          cancel,
+        );
+        if (found.cancelled) return { ok: false, reason: 'cancelled' };
+        if (found.timedOut) return { ok: false, reason: 'timeout' };
+        if (found.error) {
+          this.log.warn('library.findBooks failed', found.error);
+          return { ok: false, reason: found.error.isUnsupported ? 'permission' : 'error' };
         }
+        books = found.value;
         if (
           Array.isArray(books) &&
           books.some((b) => String(b.title || b.bookId || '').includes(fragment))
@@ -928,17 +973,44 @@
           break;
       }
       const book = (books || []).find((b) => String(b.title || b.bookId || '').includes(fragment));
-      if (!book) return { ok: false, reason: 'not_indexed' };
+      if (!book) return { ok: false, reason: refresh.timedOut ? 'timeout' : 'not_indexed' };
+      stage('open');
+      const opened = await this._hostCall(
+        'reader.openBook',
+        book.bookUid
+          ? { bookUid: book.bookUid }
+          : { id: book.id, bookId: book.bookId, type: book.type || 'pdf' },
+        callMs,
+        cancel,
+      );
+      if (opened.cancelled) return { ok: false, reason: 'cancelled' };
+      if (opened.timedOut) return { ok: false, reason: 'timeout' };
+      if (opened.error) {
+        this.log.warn('reader.openBook failed', opened.error);
+        return { ok: false, reason: opened.error.isUnsupported ? 'permission' : 'error' };
+      }
+      return { ok: opened.value !== false, reason: opened.value === false ? 'not_indexed' : null };
+    }
+
+    /**
+     * קריאה לאוצריא שמוגבלת בזמן וניתנת לביטול. מחזיר אחד מ-`{ value }`, `{ error }`,
+     * `{ timedOut: true }`, `{ cancelled: true }`; לעולם לא זורק.
+     */
+    async _hostCall(method, payload, ms, cancel) {
+      if (cancel.cancelled) return { cancelled: true };
+      let timer = null;
+      const call = this.runtime.call(method, payload).then(
+        (value) => ({ value }),
+        (error) => ({ error }),
+      );
+      const timeout = new Promise((resolve) => {
+        timer = setTimeout(() => resolve({ timedOut: true }), ms);
+      });
+      const cancelled = cancel.whenCancelled.then(() => ({ cancelled: true }));
       try {
-        const opened = await this.runtime.call(
-          'reader.openBook',
-          book.bookUid
-            ? { bookUid: book.bookUid }
-            : { id: book.id, bookId: book.bookId, type: book.type || 'pdf' },
-        );
-        return { ok: opened !== false, reason: opened === false ? 'not_indexed' : null };
-      } catch (error) {
-        return { ok: false, reason: error.isUnsupported ? 'permission' : 'error' };
+        return await Promise.race([call, timeout, cancelled]);
+      } finally {
+        clearTimeout(timer);
       }
     }
 
@@ -962,6 +1034,7 @@
   const api = {
     Files,
     isGestureError,
+    cancelToken,
     FileError,
     pickAsset,
     READ_DIR,

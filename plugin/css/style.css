@@ -2729,10 +2729,6 @@ kbd {
   margin-block-start: var(--space-2);
 }
 
-.print-result {
-  color: var(--color-error);
-}
-
 /* ---------- צפיין ---------- */
 
 .viewer {

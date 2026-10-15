@@ -83,6 +83,14 @@
     // ---- ממשק
     screen_failed: { area: 'ui', retry: true, text: N('משהו השתבש בהצגת המסך הזה.') },
     dialog_failed: { area: 'ui', retry: true, text: N('משהו השתבש בפתיחת החלון.') },
+    reader_timeout: {
+      area: 'ui',
+      retry: true,
+      text: N(
+        'אוצריא לא ענתה בזמן. ייתכן שהספרייה שלה עוד לא נטענה: פתחו את הספרייה באוצריא, ונסו שוב.',
+      ),
+    },
+    reader_failed: { area: 'ui', retry: true, text: N('הפתיחה בקורא של אוצריא נכשלה.') },
     print_failed: {
       area: 'ui',
       retry: true,
