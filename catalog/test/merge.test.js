@@ -206,3 +206,18 @@ test('events: a festival title with a year gets the festival date of that Hebrew
   assert.equal(yk.hy, 5787);
   assert.deepEqual(yk.slugs, []);
 });
+
+test('weekly series: relaxed reading applies only where most titles name a parasha', async () => {
+  const { weeklySeriesOf, weeklyKey } = await import('../lib/enrich.mjs');
+  const mkRaw = (title, series, i) => raw({ src: 'tashma', ext: `${series}${i}`, rawTitle: title, seriesHint: { title: series }, contextTitles: ['תשפ"ו'], addedAt: null });
+  const weekly = ['נח', 'לך לך', 'וירא', 'חיי שרה', 'תולדות'].map((t, i) => mkRaw(`פרשת ${t}`, 'שבועי', i));
+  const other = ['א', 'ב', 'ג', 'ד', 'ה'].map((t, i) => mkRaw(`עלון ${t}`, 'אחר', i));
+  const set = weeklySeriesOf([...weekly, ...other]);
+  assert.ok(set.has(weeklyKey(weekly[0])));
+  assert.ok(!set.has(weeklyKey(other[0])));
+  const a = enrich(mkRaw('דברים טובים שלח', 'שבועי', 9), { now: NOW, aliasIndex: noAliases, weeklySeries: set });
+  assert.deepEqual(a.slugs, ['shlach']);
+  assert.equal(a.date, '2026-06-13');
+  const b2 = enrich(mkRaw('דברים טובים שלח', 'אחר', 9), { now: NOW, aliasIndex: noAliases, weeklySeries: set });
+  assert.deepEqual(b2.slugs, []);
+});

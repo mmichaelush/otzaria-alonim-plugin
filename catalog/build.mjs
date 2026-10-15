@@ -11,7 +11,7 @@ import { fileURLToPath } from 'node:url';
 import { parseArgs } from 'node:util';
 import { connectors as allConnectors } from './connectors/index.mjs';
 import { createHttp, HostBlockedError } from './lib/http.mjs';
-import { enrich, buildAliasIndex } from './lib/enrich.mjs';
+import { enrich, buildAliasIndex, weeklySeriesOf } from './lib/enrich.mjs';
 import { mergeAll } from './lib/merge.mjs';
 import { loadPrev, itemsFromPrev } from './lib/prev.mjs';
 import { writeCatalog, stableStringify, sha256, prune } from './lib/shards.mjs';
@@ -89,13 +89,14 @@ export async function runBuild(o) {
   const stats = {};
   const fresh = [];
   const seen = new Set();
+  const weeklySeries = weeklySeriesOf(results.flatMap((r) => r.raw));
   for (const r of results) {
     const st = (stats[r.id] = { raw: r.raw.length, parasha: 0, year: 0, date: 0, how: {}, titleParashaDiffers: 0 });
     for (const raw of r.raw) {
       const k = `${raw.src}:${raw.ext}`;
       if (seen.has(k)) continue;
       seen.add(k);
-      const it = enrich(raw, { now, aliasIndex });
+      const it = enrich(raw, { now, aliasIndex, weeklySeries });
       // A copy seen before stays in the issue it was in (see lib/merge.mjs).
       it.cid = cidByKey.get(k);
       it.archive = archiveByKey.get(k) === true;
@@ -105,6 +106,7 @@ export async function runBuild(o) {
       if (it.flags.date) st.date++;
       st.how[it.how] = (st.how[it.how] || 0) + 1;
       if (it.notes.includes('title-parasha-differs')) st.titleParashaDiffers++;
+      if (it.notes.includes('parasha-relaxed')) st.relaxed = (st.relaxed || 0) + 1;
     }
   }
   // New data wins over reconstructed data for the same copy.

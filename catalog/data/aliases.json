@@ -1,6 +1,18 @@
 {
   "schema": 1,
-  "comment": "merge: titles of the same series under different names (canonical + aliases). noMerge: titles that must never be merged with a similarly named series.",
-  "merge": [],
+  "comment": "merge: one publication listed under different names (the first title is the canonical one; the old ids go to previousIds so favourites move). noMerge: titles that must never be merged with a similarly named series. Candidates come from: node catalog/tools/suggest-aliases.mjs --catalog <dir>. Every entry below appears in the same weeks in different sources.",
+  "merge": [
+    { "canonical": "דברי תורה - אמשינאוו", "aliases": ["אמשינאוו - דברי תורה"] },
+    { "canonical": "שם משמעון", "aliases": ["שם משמעון - הרב הירשלער"] },
+    { "canonical": "המאור שבתורה", "aliases": ["המאור שבתורה - שבת אורה"] },
+    { "canonical": "מבחני חפץ חיים ואהבת חסד", "aliases": ["מבחנים חפץ חיים ואהבת חסד"] },
+    { "canonical": "עיני הכהן - מאת הרב קוק שליט\"א", "aliases": ["עיני הכהן מאת הגר\"ד קוק שליט\"א"] },
+    { "canonical": "פנים מאירות", "aliases": ["שיעורי פנים מאירות"] },
+    { "canonical": "טועמיה חיים זכו - ברסלב", "aliases": ["טועמיה - ברסלב"] },
+    { "canonical": "נראה אור", "aliases": ["נראה אור - קוידינוב"] },
+    { "canonical": "להבות אש", "aliases": ["להבות אש - קרעטשניף"] },
+    { "canonical": "מילי דמלכא", "aliases": ["מילי דמלכא - קאסוב"] },
+    { "canonical": "שיח לבי", "aliases": ["שיח לבי - בישטינא"] }
+  ],
   "noMerge": []
 }

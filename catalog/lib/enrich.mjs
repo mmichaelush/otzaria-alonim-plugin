@@ -58,6 +58,26 @@ export function seriesIdentity(rawTitle, lang, src, aliasIndex) {
  * @param raw RawIssue from a connector
  * @param ctx { now:ISO, aliasIndex }
  */
+/** Key under which a source's series is judged weekly or not. */
+export const weeklyKey = (raw) => `${raw.src}|${raw.seriesHint?.title ?? ''}`;
+
+/**
+ * Series (per source) in which at least WEEKLY_MIN_SHARE of at least WEEKLY_MIN_ITEMS titles name a
+ * parasha without help: those titles are weekly, so a bare ambiguous name is believed there.
+ */
+export const WEEKLY_MIN_ITEMS = 5;
+export const WEEKLY_MIN_SHARE = 0.3;
+export function weeklySeriesOf(raws) {
+  const count = new Map();
+  for (const r of raws) {
+    const k = weeklyKey(r);
+    const c = count.get(k) ?? count.set(k, { n: 0, par: 0 }).get(k);
+    c.n++;
+    if (analyzeTitle(r.rawTitle).slugs.length) c.par++;
+  }
+  return new Set([...count].filter(([, c]) => c.n >= WEEKLY_MIN_ITEMS && c.par / c.n >= WEEKLY_MIN_SHARE).map(([k]) => k));
+}
+
 export function enrich(raw, ctx) {
   const now = ctx.now;
   const notes = [];
@@ -70,6 +90,12 @@ export function enrich(raw, ctx) {
   const sane = (x) => (x.hy && x.hy > maxHy ? { ...x, hy: null } : x);
   let a = sane(analyzeTitle(raw.rawTitle, { expect }));
   let fromFolder = false;
+  // A series known to be weekly (most of its titles name a parasha) may use the relaxed reading
+  // of ambiguous names, e.g. a title that ends in "שלח" (lib/parasha.mjs, relaxed).
+  if (!a.slugs.length && ctx.weeklySeries?.has(weeklyKey(raw))) {
+    const r = sane(analyzeTitle(raw.rawTitle, { expect, relaxed: true }));
+    if (r.slugs.length) { a = r; notes.push('parasha-relaxed'); }
+  }
   if (raw.contextTitles?.length) {
     for (const ctxTitle of raw.contextTitles) {
       const f = sane(analyzeTitle(ctxTitle, { expect }));

@@ -171,3 +171,24 @@ test('false friends: tractates Shevuot and Rosh Hashana, and תשעה as the num
   assert.equal(analyzeTitle('דיני תשעה באב תשפו').hy, 5786);
   assert.equal(analyzeTitle('שנת תשע"ה תשעה באב').hy, 5775);
 });
+
+test('short years and spellings: a quoted short year licenses an ambiguous name, קורח, ויקה"פ', () => {
+  assert.deepEqual(slugs("טועמיה חיים זכו צו פ''ד"), ['tzav']);
+  assert.equal(analyzeTitle("טועמיה חיים זכו צו פ''ד").hy, 5784);
+  assert.deepEqual(slugs('קובץ באר התורה קעו פרשת קורח'), ['korach']);
+  assert.deepEqual(slugs('באר הפרשה - ויקה"פ תשפ"ו'), ['vayakhel', 'pekudei']);
+  // still silent without any help
+  assert.deepEqual(slugs('דברים טובים שלח'), []);
+});
+
+test('relaxed mode (weekly series): ends the title, number, short year or file noise; never after "ספר"', () => {
+  const r = (t) => analyzeTitle(t, { relaxed: true }).slugs;
+  assert.deepEqual(r('דברים טובים שלח'), ['shlach']);
+  assert.deepEqual(r('בא מחובר'), ['bo']);
+  assert.deepEqual(r('נשא חוברת'), ['nasso']);
+  assert.deepEqual(r('משנת תרומה פה'), ['terumah']);
+  assert.equal(analyzeTitle('משנת תרומה פה', { relaxed: true }).hy, 5785);
+  assert.deepEqual(r('שיעור בספר שמות'), []);
+  assert.deepEqual(r('בא לפרעה ואמר'), [], 'a name in the middle of a sentence');
+  assert.deepEqual(r('בא ועקב'), [], 'two relaxed candidates: no guess');
+});
