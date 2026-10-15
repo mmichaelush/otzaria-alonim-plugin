@@ -25,6 +25,7 @@ const PURE = [
   'js/alonim-filters.js',
   'js/alonim-index.js',
   'js/alonim-index-search.js',
+  'js/alonim-state-schema.js',
   'js/alonim-state.js',
   'js/alonim-catalog.js',
   'js/alonim-files.js',
