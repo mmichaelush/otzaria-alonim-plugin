@@ -237,12 +237,20 @@
 
     // ----------------------------------------------------------- סנכרון
 
-    /** שלוש הקריאות מהאפליקציה: `init` אחרי האתחול, `sync` ידני, `resume`. */
-    async init() {
+    /**
+     * הפעלה: המטמון נטען וצויר מיד, והסנכרון רץ ברקע, בלי לחסום את `plugin.boot`
+     * ואת הציור. מחזיר הבטחה לסיום הסנכרון (הקורא רשאי להתעלם ממנה).
+     */
+    async start() {
       await this.loadCache();
-      const first = this.sync();
+      const syncing = this.sync();
       this.loadCachedShards();
-      return first;
+      return syncing;
+    }
+
+    /** כמו `start`, ומחכה לסיום הסנכרון (בדיקות). */
+    async init() {
+      return this.start();
     }
 
     /** מסנכרן בבת אחת, ובלי כפילות: קריאה בזמן סנכרון מחזירה את הרץ. */

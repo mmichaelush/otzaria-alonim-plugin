@@ -238,7 +238,7 @@
       const holder = el('div', { class: 'disk-usage' });
       app.catalog.usage().then((u) => {
         const p = u.quota ? Math.min(100, Math.round((u.used / u.quota) * 100)) : 0;
-        holder.replaceChildren(
+        Ui.fill(holder, 
           el('p', { class: 'setting-text' }, t('מטמון הקטלוג: {used} מתוך {quota}', { used: Core.formatBytes(u.used) || '0', quota: Core.formatBytes(u.quota) || '—' })),
           Ui.progress(p, t('מטמון הקטלוג')),
         );
@@ -273,7 +273,7 @@
                 el('span', { class: 'rule-text', dir: 'auto' }, Rules.describe(rule, names)),
                 Ui.iconButton('delete_24_regular', t('מחיקת הכלל'), () => {
                   const removed = st.removeRule(rule.id);
-                  app.toast(t('הכלל נמחק'), { action: { label: t('ביטול'), run: () => st.addRule(removed) } });
+                  app.toast(t('הכלל נמחק'), { action: { label: t('ביטול הפעולה'), run: () => st.addRule(removed) } });
                 }),
               ),
             ),
@@ -330,7 +330,7 @@
       const { app } = this;
       const d = this.draft;
       if (!d.value) {
-        box.replaceChildren(el('p', { class: 'setting-help' }, t('בחרו ערך כדי לראות כמה גיליונות הכלל ישנה.')));
+        Ui.fill(box, el('p', { class: 'setting-help' }, t('בחרו ערך כדי לראות כמה גיליונות הכלל ישנה.')));
         return;
       }
       const sim = app.index.simulate({ action: d.action, field: d.field, value: d.value }, 4);
@@ -339,7 +339,7 @@
         text = d.action === 'hide' ? t('כלל זה יסתיר {n} גיליונות', { n: Core.formatCount(sim.hides) }) : t('כלל זה יציג {n} גיליונות שמוסתרים עכשיו', { n: Core.formatCount(sim.shows) });
         if (sim.total === 0) text = t('הכלל לא ישנה דבר בגיליונות שנטענו');
       } else text = t('כלל זה יחול על {n} גיליונות', { n: Core.formatCount(sim.total) });
-      box.replaceChildren(
+      Ui.fill(box, 
         el('p', { class: 'setting-text' }, icon('info_24_regular'), text),
         sim.examples.length ? el('ul', { class: 'example-list' }, sim.examples.map((it) => el('li', { dir: 'auto' }, (it.seriesTitle || it.title) + ' · ' + (Core.weekLabel(it) || it.date || '')))) : null,
         !app.catalog.syncing && app.catalog.shards.length > app.catalog.status.shardsLoaded ? el('p', { class: 'setting-help' }, t('חלק מהנתונים עוד נטענים, והמספר עשוי לגדול.')) : null,
@@ -391,14 +391,14 @@
       const status = el('div', { class: 'import-status', role: 'status', 'aria-live': 'polite' });
       const drawPreview = () => {
         const p = this.importPreview;
-        if (!p) return status.replaceChildren();
+        if (!p) return Ui.fill(status, );
         if (!p.ok) {
           const reason = { empty: t('לא הודבק דבר.'), too_big: t('הקובץ גדול מדי.'), json: t('הטקסט אינו JSON תקין.'), format: t('זה אינו קובץ הגדרות של "עלוני שבת".'), too_new: t('הקובץ נוצר בגרסה חדשה יותר של התוסף. עדכנו את התוסף.') }[p.error];
-          status.replaceChildren(el('p', { class: 'setting-warn' }, icon('warning_24_regular'), reason));
+          Ui.fill(status, el('p', { class: 'setting-warn' }, icon('warning_24_regular'), reason));
           return;
         }
         const s = p.summary;
-        status.replaceChildren(
+        Ui.fill(status, 
           el('p', { class: 'setting-text' }, t('נמצאו: {rules} כללים, {series} סדרות מסומנות, {favorites} מועדפים, {lists} רשימות.', s)),
           el('div', { class: 'setting-actions' }, Ui.button('filled', t('מיזוג עם הקיים'), () => { app.state.applyImport(p, 'merge'); this.importPreview = null; this.importText = ''; app.toast(t('ההגדרות יובאו')); this.render(); }, { className: 'button-small' }), Ui.button('outlined', t('החלפת הקיים'), () => Ui.confirmDialog({ title: t('החלפת ההגדרות'), text: t('המועדפים, הכללים והרשימות הקיימים יוחלפו בייבוא.'), confirmLabel: t('החלפה'), danger: true, onConfirm: () => { app.state.applyImport(p, 'replace'); this.importPreview = null; this.importText = ''; app.toast(t('ההגדרות הוחלפו')); this.render(); } }), { className: 'button-small' })),
         );

@@ -32,6 +32,20 @@
     return node;
   }
 
+  /**
+   * `replaceChildren` שמדלג על null/false (ה-DOM היה כותב "null" כטקסט) ופורס
+   * רשימות מקוננות.
+   */
+  function fill(node, ...children) {
+    const nodes = [];
+    for (const child of children.flat(Infinity)) {
+      if (child === null || child === undefined || child === false) continue;
+      nodes.push(typeof child === 'string' || typeof child === 'number' ? document.createTextNode(String(child)) : child);
+    }
+    node.replaceChildren(...nodes);
+    return node;
+  }
+
   function button(kind, label, onClick, options) {
     const o = options || {};
     return el(
@@ -577,6 +591,7 @@
   const api = {
     el,
     append,
+    fill,
     button,
     iconButton,
     chip,

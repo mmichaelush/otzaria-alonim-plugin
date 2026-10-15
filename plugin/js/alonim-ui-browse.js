@@ -369,7 +369,7 @@
         Ui.iconButton('grid_24_regular', t('תצוגת כרטיסים'), () => app.state.setPref('view', 'cards'), { pressed: app.state.prefs.view !== 'list', className: 'segment' }),
         Ui.iconButton('text_bullet_list_24_regular', t('תצוגת רשימה צפופה'), () => app.state.setPref('view', 'list'), { pressed: app.state.prefs.view === 'list', className: 'segment' }),
       );
-      this.filterRow.replaceChildren(
+      Ui.fill(this.filterRow, 
         selectField(t('פרשה'), [all(t('כל הפרשות')), ...parashot], v.filters.parasha || '', (x) => setFilter('parasha', x)),
         selectField(t('שנה'), [all(t('כל השנים')), ...years], v.filters.hy || '', (x) => setFilter('hy', x ? Number(x) : '')),
         selectField(t('שפה'), [all(t('כל השפות')), ...langs], v.filters.lang || '', (x) => setFilter('lang', x)),
@@ -618,7 +618,7 @@
       const srcOptions = [{ value: '', label: t('אוטומטי') }, ...[...sources.keys()].map((s) => ({ value: s, label: app.sourceInfo(s).name }))];
       const meta = [series && series.lang ? Core.langName(series.lang) : '', series && series.circle, series && series.kind === 'timeless' ? t('חומר ללא שנה') : ''].filter(Boolean).join(' · ');
       const hidden = app.state.rules.rules.find((r) => r.field === 'series' && r.action === 'hide' && r.value === id);
-      this.head.replaceChildren(
+      Ui.fill(this.head, 
         el(
           'div',
           { class: 'series-title-row' },
@@ -636,7 +636,7 @@
             : null,
           hidden
             ? Ui.button('tonal', t('בטל הסתרה'), () => app.state.removeRule(hidden.id), { icon: 'eye_24_regular', className: 'button-small' })
-            : Ui.button('text', t('הסתר סדרה'), () => { app.state.addRule({ action: 'hide', field: 'series', value: id, label: title }); app.toast(t('הסדרה "{name}" הוסתרה', { name: title }), { action: { label: t('ביטול'), run: () => { const r = app.state.rules.rules.find((x) => x.field === 'series' && x.value === id); if (r) app.state.removeRule(r.id); } } }); }, { icon: 'eye_off_24_regular', className: 'button-small' }),
+            : Ui.button('text', t('הסתר סדרה'), () => { app.state.addRule({ action: 'hide', field: 'series', value: id, label: title }); app.toast(t('הסדרה "{name}" הוסתרה', { name: title }), { action: { label: t('ביטול הפעולה'), run: () => { const r = app.state.rules.rules.find((x) => x.field === 'series' && x.value === id); if (r) app.state.removeRule(r.id); } } }); }, { icon: 'eye_off_24_regular', className: 'button-small' }),
         ),
       );
     }

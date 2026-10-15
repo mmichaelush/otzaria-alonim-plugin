@@ -1299,8 +1299,8 @@ kbd {
 }
 
 .week-hero .chip {
-  color: var(--color-on-secondary-container);
-  background: var(--color-secondary-container);
+  color: var(--color-on-primary-container);
+  background: color-mix(in srgb, var(--color-on-primary-container) 12%, transparent);
 }
 
 .week-section {

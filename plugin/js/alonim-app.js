@@ -145,7 +145,7 @@
         this.online = c && typeof c.isOnline === 'boolean' ? c.isOnline : true;
       }
       // הציור הראשון לא מחכה לרשת: המטמון קודם, והסנכרון ברקע.
-      await this.catalog.init();
+      this.catalog.start().catch((error) => this.log.warn('catalog start failed', error));
       setTimeout(() => this.files.hasFolder && this.files.scan(), 400);
       if (typeof root.addEventListener === 'function') {
         root.addEventListener('online', () => this.setOnline(true));
@@ -370,7 +370,7 @@
       if (!rule) return;
       this.toast(t('הסדרה "{name}" הוסתרה', { name }), {
         action: {
-          label: t('ביטול'),
+          label: t('ביטול הפעולה'),
           run: () => this.state.removeRule(rule.id),
         },
       });

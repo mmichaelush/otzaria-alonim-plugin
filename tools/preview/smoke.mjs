@@ -79,6 +79,9 @@ async function runScenario(browser, [name, query, check], suffix, base, width) {
     for (const cls of await page.eval("[...new Set([...document.querySelectorAll('[class]')].flatMap((n) => (typeof n.className === 'string' ? n.className.split(/\\s+/) : (n.className.baseVal || '').split(/\\s+/))))]")) {
       if (cls) seenClasses.set(cls, name);
     }
+    // "null"/"undefined" שדלפו כטקסט לממשק (למשל replaceChildren(null)).
+    const leaked = await page.eval("(document.body.innerText.match(/\\b(null|undefined|NaN)\\b|\\[object/g) || []).join(',')");
+    if (leaked) fail(name + suffix, 'טקסט דלף לממשק: ' + leaked);
     if (page.errors.length) fail(name + suffix, page.errors.join('\n  '));
     else if (reached) console.log('✔ ' + name + suffix + (width ? ' @' + width : ''));
     return page;

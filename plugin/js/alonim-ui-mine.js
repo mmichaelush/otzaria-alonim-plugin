@@ -216,7 +216,7 @@
         Ui.button('text', t('שינוי שם'), () => this.nameDialog(t('שינוי שם הרשימה'), current.name, (name) => app.state.renameList(current.id, name)), { icon: 'tag_24_regular', className: 'button-small' }),
         Ui.button('text', t('מחיקת הרשימה'), () => {
           const removed = app.state.deleteList(current.id);
-          app.toast(t('הרשימה "{name}" נמחקה', { name: current.name }), { action: { label: t('ביטול'), run: () => app.state.restoreList(removed) } });
+          app.toast(t('הרשימה "{name}" נמחקה', { name: current.name }), { action: { label: t('ביטול הפעולה'), run: () => app.state.restoreList(removed) } });
         }, { icon: 'delete_24_regular', className: 'button-small' }),
       );
       const header = el('div', { class: 'list-header' }, picker, tools);
@@ -263,7 +263,7 @@
           Ui.button('text', t('ניקוי'), () => {
             const old = list.entries.slice();
             app.state.setListEntries(list.id, []);
-            app.toast(t('האוסף נוקה'), { action: { label: t('ביטול'), run: () => app.state.setListEntries(list.id, old) } });
+            app.toast(t('האוסף נוקה'), { action: { label: t('ביטול הפעולה'), run: () => app.state.setListEntries(list.id, old) } });
           }, { icon: 'delete_24_regular', className: 'button-small', disabled: !items.length }),
         ),
       );
