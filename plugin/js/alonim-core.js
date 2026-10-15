@@ -336,8 +336,8 @@
   function sanitizeFileName(name, max) {
     let s = String(name === null || name === undefined ? '' : name)
       .normalize('NFC')
+      .replace(/\.{2,}/g, '')
       .replace(BAD_FILE_CHARS, ' ')
-      .replace(/\.{2,}/g, '.')
       .replace(/\s+/g, ' ')
       .trim()
       .replace(/^\.+/, '')
