@@ -18,6 +18,8 @@
   const MIN_PDF_BYTES = 1024;
   /** מעל זה לא טוענים לזיכרון של הצפיין (Blob): ממליצים על הקורא של אוצריא. */
   const MAX_INLINE_BYTES = 150 * 1024 * 1024;
+  /** תקרת `network.fetchFile` של המארח: ערך גדול ממנה נדחה ב-`error.invalid_params` (נמדד חי באוצריא 0.9.99). */
+  const HOST_FETCH_MAX_BYTES = 100 * 1024 * 1024;
   const CONCURRENCY = 2;
   const START_GAP_MS = 400;
   const SCAN_PARALLEL = 3;
@@ -646,7 +648,7 @@
         data = await this.caps.call('fetchFile', this.runtime, {
           url,
           timeoutMs: 90000,
-          maxBytes: MAX_INLINE_BYTES,
+          maxBytes: HOST_FETCH_MAX_BYTES,
         });
       } catch (error) {
         if (error && error.isUnsupported && error.name === 'UnsupportedError') throw error;
@@ -864,7 +866,15 @@
     }
   }
 
-  const api = { Files, FileError, pickAsset, READ_DIR, MIN_PDF_BYTES, MAX_INLINE_BYTES };
+  const api = {
+    Files,
+    FileError,
+    pickAsset,
+    READ_DIR,
+    MIN_PDF_BYTES,
+    MAX_INLINE_BYTES,
+    HOST_FETCH_MAX_BYTES,
+  };
   A.Files = api;
   if (typeof module === 'object' && module.exports) module.exports = api;
 })(typeof self !== 'undefined' ? self : globalThis);

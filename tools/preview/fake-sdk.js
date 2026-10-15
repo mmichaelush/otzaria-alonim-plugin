@@ -270,6 +270,23 @@
         ? undefined
         : async (p) => {
             sdk.fetchedFiles.push(p);
+            // כמו המארח האמיתי (PluginRemoteFileCache): תקרות הפרמטרים נדחות, לא נחתכות.
+            if (
+              p.maxBytes !== undefined &&
+              (!Number.isInteger(p.maxBytes) || p.maxBytes <= 0 || p.maxBytes > 104857600)
+            )
+              return err(
+                'error.invalid_params',
+                'maxBytes must be a positive integer up to 104857600',
+              );
+            if (
+              p.timeoutMs !== undefined &&
+              (!Number.isInteger(p.timeoutMs) || p.timeoutMs <= 0 || p.timeoutMs > 600000)
+            )
+              return err(
+                'error.invalid_params',
+                'timeoutMs must be a positive integer up to 600000',
+              );
             if (o.downloadDelay) await sleep(o.downloadDelay);
             if (
               scenario === 'fetchfile-blocked' ||

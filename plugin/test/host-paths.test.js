@@ -60,6 +60,8 @@ test('מארח חדש: קריאה בלי הורדה — fetchFile, בלי כתי
   assert.equal(file.saved, false);
   assert.ok(file.token && file.url);
   assert.equal(sdk.fetchedFiles.length, 1);
+  // התקרה של המארח האמיתי (100MB) נדחית ולא נחתכת: ערך גדול ממנה שבר קריאה חיה באוצריא 0.9.99.
+  assert.ok(sdk.fetchedFiles[0].maxBytes <= 100 * 1024 * 1024, 'maxBytes בתוך תקרת המארח');
   assert.equal(sdk.downloads.length, 0, 'לא הורד לתיקייה');
   assert.equal(sdk.userFs.size, 0, 'לא נכתב דבר בתיקיית המשתמש');
   // אותה קריאה שוב: ממטמון ההענקה, בלי בקשה נוספת
