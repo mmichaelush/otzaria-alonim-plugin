@@ -12,10 +12,8 @@
   const { el, icon } = Ui;
   const t = (text, vars) => I18n.t(text, vars);
 
-  const STATUS_LABELS = { ok: 'תקין', degraded: 'חלקי', blocked: 'חסום', down: 'לא זמין', disabled: 'כבוי' };
   const N = (s) => s;
   const STATUS_TEXT = Object.freeze({ ok: N('תקין'), degraded: N('חלקי'), blocked: N('חסום'), down: N('לא זמין'), disabled: N('כבוי') });
-  void STATUS_LABELS;
 
   const statusText = (status) => (STATUS_TEXT[status] ? t(STATUS_TEXT[status]) : status);
 

@@ -3,12 +3,12 @@
 // מורידים לתיקייה זמנית (`_קריאה`) ואז מציגים, עם חיווי. מהצפיין אפשר להדפיס,
 // לשמור, לעבור לקודם/הבא ולפתוח באתר המקור.
 //
-// הדפסה — שלושה מסלולים, מהחלפה קלה (`PRINT_ROUTES`):
+// הדפסה — מסלולים בסדר קבוע, שאפשר להחליף (`PRINT_ROUTES`):
 //   1. frame: `iframe.contentWindow.print()`. ב-WebView האמיתי ה-iframe ממקור אחר,
 //      ולכן ייחסם; ננסה ונתעלם.
-//   2. reader: "פתח בקורא של אוצריא" (`library.refreshUserBooks` ←
-//      `library.findBooks` ← `reader.openBook`); בקורא יש הדפסה.
-//   3. guide: הנחיה להדפיס מסרגל הצפיין (סמל המדפסת, או Ctrl+P אחרי לחיצה על המסמך).
+//   2. dialog: מציע "פתח בקורא של אוצריא" (`library.refreshUserBooks` ←
+//      `library.findBooks` ← `reader.openBook`, ושם יש הדפסה), ומנחה להדפיס מסרגל
+//      הצפיין (סמל המדפסת, או Ctrl+P אחרי לחיצה על המסמך).
 (function (root) {
   'use strict';
 
@@ -21,7 +21,7 @@
   const t = (text, vars) => I18n.t(text, vars);
 
   /** סדר המסלולים; מסלול שנכשל מוביל לבא אחריו. להחלפה בלי לגעת ב-UI. */
-  const PRINT_ROUTES = ['frame', 'reader', 'guide'];
+  const PRINT_ROUTES = ['frame', 'dialog'];
 
   /** הצפיין המובנה של הדפדפן עובד ב-Windows וב-macOS בלבד (API_REFERENCE). */
   const IFRAME_PDF_PLATFORMS = ['windows', 'macos'];
@@ -236,21 +236,22 @@
       const { app } = this;
       const s = this.state;
       if (!s) return;
-      for (const route of PRINT_ROUTES) {
-        if (route === 'frame') {
-          if (s.phase === 'ready' && this.frame && app.files.printViaFrame(this.frame)) {
-            app.toast(t('נפתח חלון ההדפסה'));
-            return;
-          }
-        } else {
+      // כל מסלול מחזיר true כשסיים את העבודה (המסלולים מוחלפים ב-PRINT_ROUTES).
+      const routes = {
+        frame: () => {
+          if (s.phase !== 'ready' || !this.frame || !app.files.printViaFrame(this.frame)) return false;
+          app.toast(t('נפתח חלון ההדפסה'));
+          return true;
+        },
+        dialog: () => {
           this.printDialog();
-          return;
-        }
-      }
+          return true;
+        },
+      };
+      for (const route of PRINT_ROUTES) if (routes[route]()) return;
     }
 
     printDialog() {
-      const { app } = this;
       const s = this.state;
       const result = el('p', { class: 'dialog-text print-result', role: 'status', hidden: true });
       const guide = el(
@@ -283,7 +284,6 @@
         actions: [Ui.button('text', t('סגירה'), () => dlg.close()), Ui.button('tonal', t('ממקד את המסמך'), () => { dlg.close(); if (this.frame) this.frame.focus(); }, { disabled: !(s && s.phase === 'ready') })],
         focus: '[data-key="reader"]',
       });
-      void app;
     }
 
     readerProblem(reason) {
