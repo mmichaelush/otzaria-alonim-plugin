@@ -114,6 +114,10 @@ test('fetchFile: כשלים ממופים לקודי FileError (חסום, HTML ב
   const html = await setup({ sdk: { scenario: 'fetchfile-html' } });
   await assert.rejects(html.files.openForReading(item(7)), (e) => e.code === 'not_pdf');
   assert.equal(html.sdk.revoked.length, 1, 'ההענקה של קובץ ה-HTML בוטלה');
+  // המארח האמיתי מסמן mime לפי הסיומת: HTML גדול תחת כתובת .pdf נתפס רק בבדיקת הכותרת (נמצא חי).
+  const disguised = await setup({ sdk: { scenario: 'fetchfile-html-pdfmime' } });
+  await assert.rejects(disguised.files.openForReading(item(7)), (e) => e.code === 'not_pdf');
+  assert.equal(disguised.sdk.revoked.length, 1, 'ההענקה של ה-HTML המחופש בוטלה');
   const noLink = await setup();
   const it = item(8);
   delete it.assets[0].url;
@@ -189,4 +193,29 @@ test('Bulk.printSequence: מדפיס ברצף, עוצר בביטול, וממשי
   assert.deepEqual(single, { done: 1, stoppedAt: -1, reason: '' });
   assert.equal(A.Bulk.canPrint(app), true);
   assert.equal(A.Bulk.canPrint({ caps: new Capabilities({ log: quiet }) }), false);
+});
+
+test('Bulk.printSequence: מחווה שפגה (error.forbidden) עוצרת בנימוס, והגיליון נשאר ממתין', async () => {
+  const gesture = await setup({ folder: false, sdk: { scenario: 'print-gesture' } });
+  const app = {
+    files: gesture.files,
+    caps: gesture.caps,
+    state: { logEvent: () => {} },
+    full: async (it) => it,
+  };
+  const log = [];
+  const result = await A.Bulk.printSequence(app, [item(1), item(2), item(3)], (k, s) =>
+    log.push(k + ':' + s),
+  );
+  assert.deepEqual(result, { done: 1, stoppedAt: 1, reason: 'gesture' });
+  assert.deepEqual(log.slice(-2), ['1:printing', '1:pending'], 'לא "failed"');
+});
+
+test('Bulk.prefetch: מכין את הקובץ המרוחק מראש, כדי שההדפסה תצא מיד בלחיצה', async () => {
+  const { sdk, files } = await setup({ folder: false });
+  const app = { files, full: async (it) => it };
+  await A.Bulk.prefetch(app, item(1));
+  assert.equal(sdk.fetchedFiles.length, 1);
+  await files.openForReading(item(1));
+  assert.equal(sdk.fetchedFiles.length, 1, 'ההדפסה משתמשת בהענקה שכבר יש');
 });

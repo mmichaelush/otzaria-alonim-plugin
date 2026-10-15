@@ -758,6 +758,7 @@
     "מדפיס…": "Printing…",
     "הגיליונות להדפסה": "Bulletins to print",
     "ההדפסה בוטלה. אפשר להמשיך בלחיצה על \"הדפס הבא\".": "Printing was cancelled. You can continue with \"Print next\".",
+    "המערכת דורשת לחיצה נפרדת לכל דיאלוג הדפסה. לחצו על \"הדפס הבא\" להמשך.": "The system requires a separate click for each print dialog. Click \"Print next\" to continue.",
     "ההדפסה נעצרה (קוד: {code}). אפשר לנסות שוב, או להדפיס מהצפיין.": "Printing stopped (code: {code}). You can try again, or print from the viewer.",
     "כל הגיליונות נשלחו להדפסה.": "All the bulletins were sent to print.",
     "הדפסת הגיליונות שנבחרו": "Print the selected bulletins",

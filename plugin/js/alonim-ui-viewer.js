@@ -448,7 +448,8 @@
       const { app } = this;
       const s = this.state;
       if (!s) return;
-      app.state.logEvent('printed', s.item);
+      // "הודפס" נרשם בהיסטוריה רק כשהמארח אישר הדפסה (printFile) או כשהמסלול אינו יודע אם בוצעה.
+      // ביטול בדיאלוג המערכת אינו הדפסה (נמצא בבדיקה חיה באוצריא 0.9.99).
       // כל מסלול מחזיר true כשסיים את העבודה (המסלולים מוחלפים ב-PRINT_ROUTES).
       const routes = {
         // המסלול הראשון קורא ל-SDK מיד, בתוך לחיצת המשתמש (בלי await לפניו).
@@ -457,9 +458,11 @@
           if (s.phase !== 'ready' || !this.frame || !app.files.printViaFrame(this.frame))
             return false;
           app.toast(t('נפתח חלון ההדפסה'));
+          app.state.logEvent('printed', s.item);
           return true;
         },
         dialog: () => {
+          app.state.logEvent('printed', s.item);
           this.printDialog();
           return true;
         },
@@ -477,6 +480,7 @@
       if (!app.caps.has('printFile') || !s.file || !s.file.token) return false;
       try {
         const result = await app.files.printToken(s.file.token, Cards.titleOf(s.item));
+        if (result.printed) app.state.logEvent('printed', s.item);
         app.toast(result.printed ? t('נשלח להדפסה') : t('ההדפסה בוטלה'));
         return true;
       } catch (error) {

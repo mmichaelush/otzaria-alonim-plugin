@@ -82,8 +82,11 @@
         ),
       );
     };
-    const nextIndex = () =>
-      status.findIndex((s) => s === 'pending' || s === 'cancelled' || s === 'failed');
+    // גיליון שבוטל בדיאלוג אינו חוסם את הבא אחריו: קודם הממתינים והכושלים, ובסוף המבוטלים.
+    const nextIndex = () => {
+      const open = status.findIndex((s) => s === 'pending' || s === 'failed');
+      return open >= 0 ? open : status.findIndex((s) => s === 'cancelled');
+    };
     async function run(single) {
       if (running) return;
       const from = nextIndex();
@@ -102,6 +105,10 @@
       running = false;
       if (result.reason === 'cancelled')
         note.textContent = t('ההדפסה בוטלה. אפשר להמשיך בלחיצה על "הדפס הבא".');
+      else if (result.reason === 'gesture')
+        note.textContent = t(
+          'המערכת דורשת לחיצה נפרדת לכל דיאלוג הדפסה. לחצו על "הדפס הבא" להמשך.',
+        );
       else if (result.reason)
         note.textContent = t('ההדפסה נעצרה (קוד: {code}). אפשר לנסות שוב, או להדפיס מהצפיין.', {
           code: result.reason,
@@ -109,6 +116,7 @@
       else if (nextIndex() < 0) note.textContent = t('כל הגיליונות נשלחו להדפסה.');
     }
     draw();
+    if (items.length) A.Bulk.prefetch(app, items[0]);
     const dlg = Ui.dialog({
       title: t('הדפסת הגיליונות שנבחרו'),
       size: 'small',

@@ -568,7 +568,7 @@
     }
 
     print(item, ctx) {
-      this.state.logEvent('printed', item);
+      // ההיסטוריה נרשמת בצפיין, אחרי שהמארח אישר הדפסה.
       this.openIssue(item, ctx, { print: true });
     }
 

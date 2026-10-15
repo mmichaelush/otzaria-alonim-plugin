@@ -145,19 +145,45 @@
   }
 
   /**
+   * מכין מראש את הקובץ של [item] להדפסה (קובץ מרוחק, במארח חדש), כדי שהבקשה ל-`ui.printFile` תצא
+   * מיד בלחיצה: המארח דורש מחוות משתמש טרייה (כ-5 שניות), ואי אפשר להמתין להורדה לפניה.
+   * נכשל בשקט; ההדפסה עצמה תנסה שוב ותדווח.
+   */
+  async function prefetch(app, item) {
+    try {
+      if (!app.files || !app.files.canReadRemote) return;
+      if (app.files.hasFolder && app.files.isDownloaded(item)) return;
+      const full = await app.full(item);
+      if (full) await app.files.openForReading(full);
+    } catch (error) {
+      // ההדפסה תדווח.
+    }
+  }
+
+  /** המארח דחה את ההדפסה כי אין מחוות משתמש טרייה (`error.forbidden`). */
+  const isGestureError = (error) => Boolean(error && error.code === 'error.forbidden');
+
+  /**
    * מדפיס ברצף את [items]. [onStatus](index, status) עם `printing | printed |
-   * cancelled | failed`. עוצר בביטול או בכשל ומחזיר `{ done, stoppedAt, reason }`.
+   * cancelled | failed | pending`. עוצר בביטול או בכשל ומחזיר `{ done, stoppedAt, reason }`.
+   * `reason: 'gesture'`: המארח דורש לחיצה נפרדת לכל דיאלוג הדפסה (דיאלוג שנפתח לפני יותר מכמה
+   * שניות מבטל את המחווה), והגיליון נשאר ממתין להדפסה בלחיצה הבאה.
    */
   async function printSequence(app, items, onStatus, options) {
     const from = (options && options.from) || 0;
     const limit = options && options.single ? from + 1 : items.length;
     for (let k = from; k < limit; k++) {
       onStatus(k, 'printing');
+      if (k + 1 < items.length) prefetch(app, items[k + 1]);
       try {
         const result = await printOne(app, items[k]);
         onStatus(k, result.printed ? 'printed' : 'cancelled');
         if (!result.printed) return { done: k - from, stoppedAt: k, reason: 'cancelled' };
       } catch (error) {
+        if (isGestureError(error)) {
+          onStatus(k, 'pending');
+          return { done: k - from, stoppedAt: k, reason: 'gesture' };
+        }
         onStatus(k, 'failed');
         return { done: k - from, stoppedAt: k, reason: error.code || 'failed' };
       }
@@ -169,6 +195,7 @@
     exportLine,
     canPrint,
     printOne,
+    prefetch,
     printSequence,
     exportText,
     download,

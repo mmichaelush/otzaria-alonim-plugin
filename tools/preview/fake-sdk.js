@@ -6,7 +6,7 @@
 // PDF מינימלי תקין. תרחישים (`scenario`): offline, blocked, slow, bad-schema,
 // rate-limit, download-blocked, download-html, no-folder-permission,
 // reader-permission, folder-gone, legacy-host (אוצריא 0.9.98: בלי `network.fetchFile`
-// ו-`ui.printFile`), fetchfile-blocked, fetchfile-html, print-cancel.
+// ו-`ui.printFile`), fetchfile-blocked, fetchfile-html, fetchfile-html-pdfmime, print-cancel, print-gesture.
 (function (root) {
   'use strict';
 
@@ -300,7 +300,8 @@
               )
             )
               return err('error.forbidden', 'URL not in allowlist');
-            const html = scenario === 'fetchfile-html';
+            const htmlPdfMime = scenario === 'fetchfile-html-pdfmime';
+            const html = scenario === 'fetchfile-html' || htmlPdfMime;
             let content = html
               ? '<html>' + 'x'.repeat(2000) + '</html>'
               : minimalPdf(String(p.url).split('/').pop());
@@ -314,7 +315,8 @@
               url: dataUrl(content),
               name: String(p.url).split('/').pop() || 'file.pdf',
               size: content.length,
-              mime: html ? 'text/html' : 'application/pdf',
+              // המארח האמיתי קובע mime לפי הסיומת (`.pdf`), לא לפי התוכן.
+              mime: html && !htmlPdfMime ? 'text/html' : 'application/pdf',
             };
           },
       'ui.printFile': legacyHost
@@ -323,6 +325,12 @@
             sdk.printed.push(p);
             if (!sdk.fileTokens.has(p.token)) return err('error.not_found', 'unknown file token');
             if (scenario === 'print-cancel') return { printed: false };
+            // המארח האמיתי: מחוות המשתמש (כ-5 שניות) נגמרת בזמן שהדיאלוג הקודם פתוח.
+            if (scenario === 'print-gesture' && sdk.printed.length > 1)
+              return err(
+                'error.forbidden',
+                'Requires a user gesture — call it directly from a click handler',
+              );
             return { printed: true };
           },
       'fs.revokeFile': (p) => {

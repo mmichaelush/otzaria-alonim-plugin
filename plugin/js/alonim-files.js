@@ -675,9 +675,41 @@
         size: data.size || 0,
         at: this.now(),
       };
+      // המארח קובע mime לפי סיומת הכתובת ולא לפי התוכן: דף HTML בתשובה 200 תחת כתובת `.pdf`
+      // (חומת התחברות, הגבלת קצב) עובר את הבדיקה למעלה ומציג צפיין שבור. בודקים את הכותרת בעצמנו.
+      if (!(await this._looksLikePdf(data.url))) {
+        this.releaseToken(data.token);
+        throw new FileError('not_pdf');
+      }
       this.remote.set(item.id, entry);
       this._pruneRemote();
       return { ...entry, remote: true, saved: false };
+    }
+
+    /**
+     * האם הקובץ המוענק מתחיל ב-`%PDF-` (בתוך 1KB הראשונים, כמו הצפיינים). קריאה חלקית בלבד,
+     * גם כששרת הקבצים מתעלם מ-Range. אם אי אפשר לבדוק — לא חוסמים.
+     */
+    async _looksLikePdf(url) {
+      if (!this.fetchImpl) return true;
+      try {
+        const res = await this.fetchImpl(url, { headers: { Range: 'bytes=0-1023' } });
+        if (!res || !res.ok) return true;
+        let head;
+        const reader =
+          res.body && typeof res.body.getReader === 'function' ? res.body.getReader() : null;
+        if (reader) {
+          const first = await reader.read();
+          reader.cancel().catch(() => {});
+          head = first && first.value ? first.value.subarray(0, 1024) : new Uint8Array(0);
+        } else {
+          head = new Uint8Array(await (await res.blob()).slice(0, 1024).arrayBuffer());
+        }
+        return String.fromCharCode(...head).includes('%PDF-');
+      } catch (error) {
+        this.log.debug('pdf header check skipped', error);
+        return true;
+      }
     }
 
     /** משאיר רק את הקבצים המרוחקים האחרונים (ההענקה האחרת מבוטלת). */

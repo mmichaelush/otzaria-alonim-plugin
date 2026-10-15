@@ -810,6 +810,10 @@ async function hostFlows(browser, open, check) {
     ),
   );
   check(
+    'מארח חדש: הדפסה שאושרה נרשמת בהיסטוריה',
+    await page.eval("window.__alonimApp.state.historyEvents('printed').length === 1"),
+  );
+  check(
     'מארח חדש: לא נפתח דיאלוג הדרכה',
     await page.eval("!document.querySelector('.print-dialog')"),
   );
@@ -824,6 +828,10 @@ async function hostFlows(browser, open, check) {
     await page.eval(
       "/ההדפסה בוטלה/.test(document.body.innerText) && !document.querySelector('.print-dialog')",
     ),
+  );
+  check(
+    'הדפסה שבוטלה אינה נרשמת בהיסטוריה כהודפסה',
+    await page.eval("window.__alonimApp.state.historyEvents('printed').length === 0"),
   );
   await browser.closePage(page);
 
@@ -880,6 +888,42 @@ async function hostFlows(browser, open, check) {
     await page.eval("document.querySelectorAll('.dialog .queue-row.is-done').length === 2"),
   );
   await browser.closePage(page);
+
+  // ביטול בדיאלוג המערכת אינו חוסם את הגיליון הבא; מחווה שפגה נעצרת בנימוס
+  for (const scenario of ['print-cancel', 'print-gesture']) {
+    page = await open('page=all&scenario=' + scenario);
+    await page.eval("document.querySelector('[data-key=select-mode]').click()");
+    await page.sleep(250);
+    await page.eval(
+      "[...document.querySelectorAll('.select-check')].slice(0, 2).forEach((b) => b.click())",
+    );
+    await page.sleep(250);
+    await page.eval(
+      "[...document.querySelectorAll('.selection-bar button')].find((b) => b.textContent.trim() === 'הדפסה').click()",
+    );
+    await page.sleep(300);
+    await page.eval("document.querySelector('.dialog [data-key=all]').click()");
+    await page.sleep(1500);
+    if (scenario === 'print-cancel') {
+      await page.eval("document.querySelector('.dialog [data-key=next]').click()");
+      await page.sleep(900);
+      check(
+        'הדפסה מרובה: אחרי ביטול, "הדפס הבא" עובר לגיליון הבא (לא חוזר על המבוטל)',
+        await page.eval(
+          'window.__sdk.printed.length === 2 && window.__sdk.printed[0].token !== window.__sdk.printed[1].token',
+        ),
+        String(await page.eval('window.__sdk.printed.length')),
+      );
+    } else {
+      check(
+        'הדפסה ברצף: מחווה שפגה — ההודעה מסבירה, והגיליון נשאר ממתין (לא "נכשל")',
+        await page.eval(
+          "/לחיצה נפרדת/.test(document.querySelector('.dialog [role=status]').textContent) && document.querySelectorAll('.dialog .queue-row.is-done').length === 1 && document.querySelectorAll('.dialog .queue-row.is-failed').length === 0",
+        ),
+      );
+    }
+    await browser.closePage(page);
+  }
   page = await open('page=all&host=legacy');
   await page.eval("document.querySelector('[data-key=select-mode]').click()");
   await page.sleep(250);
