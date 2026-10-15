@@ -77,6 +77,9 @@
         shardsLoaded: 0,
         shardsTotal: 0,
         failed: 0,
+        /** משך טעינת המטמון והסנכרון האחרון (ms), לאבחון. */
+        cacheMs: 0,
+        lastSyncMs: 0,
       };
       this.suspended = false;
       this.retryTimer = null;
@@ -167,6 +170,7 @@
      * ברקע. מחזיר הבטחה שמסתיימת אחרי ה-recent, כשאפשר כבר לצייר.
      */
     async loadCache() {
+      const startedAt = this.now();
       const metaText = await this._read('meta.json');
       const meta = metaText ? parseJson(metaText) : null;
       if (meta && typeof meta === 'object') {
@@ -189,7 +193,7 @@
       await this._loadCached('weeks-archive.json', 'weeksArchive');
       const hasAny = results.some(Boolean);
       if (hasAny) this._setStatus({ fromCache: true });
-      this._setStatus({ shardsTotal: this.warmShards().length });
+      this._setStatus({ shardsTotal: this.warmShards().length, cacheMs: this.now() - startedAt });
       return hasAny;
     }
 
@@ -276,10 +280,12 @@
     sync(options) {
       if (this.syncing) return this.syncing;
       // לעולם לא נדחה: קריאה בלי await (טיימר ניסיון חוזר, חזרה לרשת) לא תיצור דחייה שאיש אינו תופס.
+      const startedAt = this.now();
       this.syncing = this._sync(options || {})
         .catch((error) => this._fail(error))
         .finally(() => {
           this.syncing = null;
+          this.status.lastSyncMs = this.now() - startedAt;
         });
       return this.syncing;
     }

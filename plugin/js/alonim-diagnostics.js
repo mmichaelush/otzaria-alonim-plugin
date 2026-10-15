@@ -23,8 +23,40 @@
       : null;
   }
 
-  /** תמונת מצב מובנית. */
-  function snapshot(app) {
+  /** גיל בדקות של חותמת זמן (ms), או `null` כשאין. */
+  const ageMinutes = (ms, now) => (ms ? Math.max(0, Math.round((now - ms) / 60000)) : null);
+
+  /** גודל JSON של כל תחום מצב משתמש (תווים), לזיהוי תחום שמתנפח. */
+  function stateSizes(state) {
+    const out = {};
+    let total = 0;
+    for (const name of Object.keys(state.data || {})) {
+      let size = 0;
+      try {
+        size = JSON.stringify(state.data[name]).length;
+      } catch (error) {
+        size = -1;
+      }
+      out[name] = size;
+      total += Math.max(0, size);
+    }
+    return { domains: out, total };
+  }
+
+  /** האזהרות והשגיאות ביומן: ספירה לפי קוד, והאחרונות. */
+  function errorSummary(log, last) {
+    const codes = {};
+    const entries = log.filter({ level: 'warn' });
+    for (const e of entries) {
+      const key = e.code || '(no code)';
+      codes[key] = (codes[key] || 0) + 1;
+    }
+    return { codes, last: entries.slice(-(last || 10)).map(A.Log.Log.format) };
+  }
+
+  /** תמונת מצב מובנית. [options].now: זמן נוכחי (ms), לבדיקות. */
+  function snapshot(app, options) {
+    const now = (options && options.now) || Date.now();
     const s = app.catalog.status;
     const manifest = app.catalog.manifest || {};
     const disk = app.files.diskState || {};
@@ -44,6 +76,9 @@
         error: s.error || '',
         catalogVersion: app.catalog.meta.catalogVersion || 0,
         generatedAt: manifest.generatedAt || '',
+        /** גיל הקטלוג שהתקבל (לפי `generatedAt`) והסנכרון האחרון התקין, בדקות. */
+        ageMin: ageMinutes(Date.parse(manifest.generatedAt || ''), now),
+        lastOkAgeMin: ageMinutes(s.lastOkAt, now),
         lastOkAt: s.lastOkAt || 0,
         issues: app.index.size,
         shardsLoaded: s.shardsLoaded,
@@ -68,19 +103,39 @@
         failedDomains: [...app.state.failed],
         history: app.state.historyOn,
       },
+      storage: {
+        state: stateSizes(app.state),
+        catalogUsedBytes: app.catalog.usedBytes || 0,
+        catalogQuotaBytes: app.catalog.quotaBytes || 0,
+      },
       perf: {
         lastQueryMs: Math.round(app.lastQueryMs * 10) / 10,
         indexBuildMs: Math.round(app.index.lastBuildMs),
+        cacheMs: s.cacheMs || 0,
+        lastSyncMs: s.lastSyncMs || 0,
+        /** אבני דרך בהפעלה, ms מיצירת ה-App: state, shell, firstData, firstSync. */
+        startup: { ...(app.timings || {}) },
         memory: memory(),
       },
       log: app.log.counts(),
+      errors: errorSummary(app.log),
     };
   }
 
   /** טקסט לדיווח (ללא נתיבים), עם זנב היומן. */
   function report(app, options) {
     const o = options || {};
-    const d = snapshot(app);
+    const d = snapshot(app, o);
+    const startup = Object.entries(d.perf.startup)
+      .map(([k, v]) => k + ' ' + v + 'ms')
+      .join(', ');
+    const sizes = Object.entries(d.storage.state.domains)
+      .map(([k, v]) => k + ' ' + v)
+      .join(', ');
+    const codes = Object.entries(d.errors.codes)
+      .sort((a, b) => b[1] - a[1])
+      .map(([k, v]) => k + ' x' + v)
+      .join(', ');
     const lines = [
       'Alonim plugin ' + d.plugin.version + ' (' + d.plugin.language + ')',
       'Otzaria ' +
@@ -113,6 +168,10 @@
         ', phase ' +
         d.catalog.phase +
         (d.catalog.error ? ' (' + d.catalog.error + ')' : ''),
+      'catalog age: ' +
+        (d.catalog.ageMin === null ? '?' : d.catalog.ageMin + ' min') +
+        ', last ok sync ' +
+        (d.catalog.lastOkAgeMin === null ? 'never' : d.catalog.lastOkAgeMin + ' min ago'),
       'shards ' +
         show(d.catalog.shardsLoaded) +
         '/' +
@@ -140,13 +199,32 @@
         d.perf.lastQueryMs +
         'ms, index build ' +
         d.perf.indexBuildMs +
+        'ms, cache read ' +
+        d.perf.cacheMs +
+        'ms, last sync ' +
+        d.perf.lastSyncMs +
         'ms' +
         (d.perf.memory ? ', heap ' + d.perf.memory.usedMb + 'MB' : ''),
+      'startup: ' + (startup || '?'),
+      'storage: state ' +
+        d.storage.state.total +
+        ' chars (' +
+        sizes +
+        '), catalog cache ' +
+        d.storage.catalogUsedBytes +
+        '/' +
+        d.storage.catalogQuotaBytes +
+        ' bytes',
+      'warnings and errors by code: ' + (codes || 'none'),
       'log: ' +
         Object.entries(d.log)
           .map(([k, v]) => k + ' ' + v)
           .join(', '),
       '',
+      'last warnings and errors:',
+      ...(d.errors.last.length ? d.errors.last : ['  (none)']),
+      '',
+      'log:',
       app.log.tail(o.tail || 60, o.filter),
     ];
     return lines.join('\n');

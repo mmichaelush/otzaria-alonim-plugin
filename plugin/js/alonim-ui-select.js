@@ -190,14 +190,13 @@
               run: async () => {
                 const { text, linked } = await A.Bulk.exportText(app, items());
                 const ok = await copyToClipboard(text);
-                app.toast(
-                  ok
-                    ? linked
+                if (!ok) app.reportFailure('copy_failed');
+                else
+                  app.toast(
+                    linked
                       ? t('הרשימה הועתקה')
-                      : t('הרשימה הועתקה, בלי כתובות (יותר מדי גיליונות)')
-                    : t('ההעתקה נכשלה'),
-                  { error: !ok },
-                );
+                      : t('הרשימה הועתקה, בלי כתובות (יותר מדי גיליונות)'),
+                  );
               },
             },
             {

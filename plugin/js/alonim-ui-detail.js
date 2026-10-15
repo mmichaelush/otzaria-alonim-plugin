@@ -90,7 +90,8 @@
   /** העתקת טקסט מתוך כפתור בפרטים, עם הודעה. */
   async function copyWithToast(app, text, okMessage) {
     const ok = await A.Selection.copyToClipboard(text);
-    app.toast(ok ? okMessage : t('ההעתקה נכשלה'), { error: !ok });
+    if (ok) app.toast(okMessage);
+    else app.reportFailure('copy_failed');
   }
 
   // ------------------------------------------------------------- פרטים

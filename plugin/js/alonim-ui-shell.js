@@ -103,12 +103,6 @@
       setTimeout(() => !this.state.prefs.welcomeSeen && A.HelpUi.firstRun(this), 700);
   };
 
-  /** כשל שאינו של מסך (חלון, פעולה): נרשם ביומן, והמשתמש רואה הודעה עם הקוד. */
-  App.prototype.reportFailure = function reportFailure(code, error) {
-    this.log.scoped('ui').error(code, error);
-    this.toast(A.Errors.text(code) + ' ' + t('קוד: {code}', { code }), { error: true });
-  };
-
   /**
    * מסך שנכשל בציור: מציגים במקומו כרטיס שגיאה (הודעה, ניסיון חוזר, העתקת פרטים),
    * במקום דף ריק. הלשוניות והפס העליון ממשיכים לעבוד.
@@ -150,9 +144,8 @@
                   const ok = await A.Selection.copyToClipboard(
                     A.Diagnostics.report(this, { filter: { level: 'warn' } }),
                   );
-                  this.toast(ok ? t('הדיווח הועתק (בלי נתיבים)') : t('ההעתקה נכשלה'), {
-                    error: !ok,
-                  });
+                  if (ok) this.toast(t('הדיווח הועתק (בלי נתיבים)'));
+                  else this.reportFailure('copy_failed');
                 },
                 { icon: 'copy_24_regular' },
               ),

@@ -129,12 +129,8 @@
                     null,
                     2,
                   );
-                app.toast(
-                  (await copyText(this.exportText, exportArea))
-                    ? t('הועתק ללוח')
-                    : t('ההעתקה נכשלה: סמנו את הטקסט והעתיקו ידנית'),
-                  { error: false },
-                );
+                if (await copyText(this.exportText, exportArea)) app.toast(t('הועתק ללוח'));
+                else app.reportFailure('copy_failed');
               },
               { icon: 'copy_24_regular', className: 'button-small' },
             ),

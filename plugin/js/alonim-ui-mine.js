@@ -202,14 +202,11 @@
         async () => {
           const { text, linked } = await A.Bulk.exportText(app, items);
           const ok = await A.Selection.copyToClipboard(text);
-          app.toast(
-            ok
-              ? linked
-                ? t('הרשימה הועתקה')
-                : t('הרשימה הועתקה, בלי כתובות (יותר מדי גיליונות)')
-              : t('ההעתקה נכשלה'),
-            { error: !ok },
-          );
+          if (!ok) app.reportFailure('copy_failed');
+          else
+            app.toast(
+              linked ? t('הרשימה הועתקה') : t('הרשימה הועתקה, בלי כתובות (יותר מדי גיליונות)'),
+            );
         },
         { icon: 'copy_24_regular', className: 'button-small', disabled: !items.length },
       );
@@ -810,7 +807,7 @@
             await app.files.deleteDownloaded(app.files.fragmentOf(item));
             app.toast(t('הקובץ נמחק'));
           } catch (error) {
-            app.toast(t('המחיקה נכשלה'), { error: true });
+            app.reportFailure('delete_failed', error);
           }
         },
       });

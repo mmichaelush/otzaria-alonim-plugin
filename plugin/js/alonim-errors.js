@@ -81,6 +81,36 @@
       text: N('קובץ קטלוג לא תואם לחתימה (מטמון ישן). ינסה שוב לבד.'),
     },
     // ---- ממשק
+    copy_failed: {
+      area: 'ui',
+      retry: true,
+      text: N('ההעתקה ללוח נכשלה. סמנו את הטקסט והעתיקו ידנית (Ctrl+C).'),
+    },
+    delete_failed: {
+      area: 'files',
+      retry: true,
+      text: N('מחיקת הקובץ נכשלה. ייתכן שהקובץ נעול או כבר נמחק: רעננו את הרשימה ונסו שוב.'),
+    },
+    cleanup_failed: {
+      area: 'catalog',
+      retry: true,
+      text: N('הניקוי נכשל. נסו שוב; אם זה חוזר, העתיקו את הדיווח מהגדרות ← אבחון.'),
+    },
+    open_url_failed: {
+      area: 'ui',
+      retry: true,
+      text: N('אי אפשר לפתוח את הכתובת בדפדפן. אפשר להעתיק אותה ולפתוח ידנית.'),
+    },
+    url_not_allowed: {
+      area: 'ui',
+      retry: false,
+      text: N('הכתובת אינה מאתר מקור מוכר, ולכן לא נפתחה.'),
+    },
+    cold_years_failed: {
+      area: 'catalog',
+      retry: true,
+      text: N('חלק מהשנים הישנות לא נטענו. בדקו את החיבור ונסו שוב.'),
+    },
     screen_failed: { area: 'ui', retry: true, text: N('משהו השתבש בהצגת המסך הזה.') },
     dialog_failed: { area: 'ui', retry: true, text: N('משהו השתבש בפתיחת החלון.') },
     reader_timeout: {

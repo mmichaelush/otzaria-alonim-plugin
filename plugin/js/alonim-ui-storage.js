@@ -85,7 +85,7 @@
                 app.toast(t('המטמון נוקה'));
                 app.catalog.sync();
               } catch (error) {
-                app.toast(t('הניקוי נכשל'), { error: true });
+                app.reportFailure('cleanup_failed', error);
               }
             },
           }),
@@ -238,7 +238,7 @@
                       await files.deleteDownloaded(row.fragment);
                       app.toast(t('הקובץ נמחק'));
                     } catch (error) {
-                      app.toast(t('המחיקה נכשלה'), { error: true });
+                      app.reportFailure('delete_failed', error);
                     }
                   },
                 }),

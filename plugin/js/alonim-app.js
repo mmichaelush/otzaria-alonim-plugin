@@ -40,8 +40,11 @@
     'focus-search',
     'escape',
   ]);
+  /** קודים שמעידים על תקלה בתוסף עצמו (ולא על מצב שאפשר לתקן): נרשמים כשגיאה ביומן. */
+  const BUG_CODES = Object.freeze(['screen_failed', 'dialog_failed']);
   const NEW_DAYS = 7;
   const DAY_MS = 86400000;
+  const clock = () => (root.performance ? root.performance.now() : Date.now());
 
   class App {
     constructor(bridge, doc) {
@@ -60,6 +63,9 @@
       this.dataVersion = 0;
       this.dataTimer = null;
       this.newCutoff = Date.now() - NEW_DAYS * DAY_MS;
+      /** אבני דרך של ההפעלה, במילישניות מיצירת ה-App (רק הפעם הראשונה): לאבחון ולמדידות. */
+      this.startedAt = clock();
+      this.timings = {};
 
       /** יכולות המארח (fetchFile, printFile): המקור היחיד לשאלה "האם יש". */
       this.caps = new A.Capabilities.Capabilities({ log: this.log.scoped('host') });
@@ -116,6 +122,12 @@
       throw new Error('alonim-ui-shell.js is not loaded');
     }
 
+    /** רושם אבן דרך (פעם אחת): `state`, `shell`, `firstData`, `firstSync`. */
+    stamp(name) {
+      if (this.timings[name] === undefined)
+        this.timings[name] = Math.round(clock() - this.startedAt);
+    }
+
     // ------------------------------------------------------ אירועים
 
     on(name, fn) {
@@ -155,6 +167,7 @@
       this.ready = true;
 
       await this.state.load();
+      this.stamp('state');
       this.applyPrefs();
       this.caps.setOverride(this.state.prefs.legacyHost);
       this.state.beginVisit();
@@ -163,10 +176,14 @@
       this.index.setRules(this.state.rules);
 
       this.catalog.onData((event) => this.onCatalogData(event));
-      this.catalog.onStatus(() => this.emit('sync'));
+      this.catalog.onStatus((status) => {
+        if (status.phase === 'idle' && status.lastOkAt) this.stamp('firstSync');
+        this.emit('sync');
+      });
       this.files.onChange(() => this.emit('files'));
       this.files.onDisk(() => this.emit('disk'));
       this.mountShell();
+      this.stamp('shell');
       this.emit('route');
 
       if (this.online === null) {
@@ -233,9 +250,8 @@
       });
       this.coldLoading = null;
       this.emit('sync');
-      this.toast(ok ? t('שנים ישנות נטענו') : t('חלק מהשנים הישנות לא נטענו. אפשר לנסות שוב.'), {
-        error: !ok,
-      });
+      if (ok) this.toast(t('שנים ישנות נטענו'));
+      else this.reportFailure('cold_years_failed');
     }
 
     suspend() {
@@ -272,6 +288,7 @@
     }
 
     onCatalogData(event) {
+      this.stamp('firstData');
       if (event.kind === 'series') {
         this.index.setSeries(event.data);
         this.state.migrateSeriesIds((id) => this.index.resolveSeriesId(id));
@@ -530,6 +547,19 @@
       if (this.toasts) this.toasts.show(message, options);
     }
 
+    /**
+     * כשל שאינו של מסך (חלון, פעולה, העתקה, מחיקה): הקוד היציב נכנס ליומן (בשדה `code`, ולכן גם
+     * לטבלת הקודים באבחון), והמשתמש רואה הודעה בעברית עם אותו קוד. [error]: החריגה המקורית, אם יש.
+     */
+    reportFailure(code, error) {
+      const failure = Object.assign(new Error((error && error.message) || code), { code });
+      // אזהרה לכשל שהמשתמש יכול לטפל בו (העתקה, מחיקה); שגיאה רק לתקלה בקוד (מסך או חלון שנכשלו).
+      const level = BUG_CODES.includes(code) ? 'error' : 'warn';
+      const ui = this.log.scoped('ui');
+      ui[level]('failed:', failure, error && error.code ? '(' + error.code + ')' : '');
+      this.toast(A.Errors.text(code) + ' ' + t('קוד: {code}', { code }), { error: true });
+    }
+
     announce(text) {
       if (this.announcer) this.announcer.announce(text);
     }
@@ -689,8 +719,7 @@
       if (!asset) return false;
       const url = asset.page || this.sourceInfo(asset.src).url || asset.url;
       const ok = await this.files.openOnSite(url, this.sourceHosts());
-      if (!ok)
-        this.toast(t('אי אפשר לפתוח את הכתובת הזו: היא אינה מאתר מקור מוכר.'), { error: true });
+      if (!ok) this.reportFailure('url_not_allowed');
       return ok;
     }
 

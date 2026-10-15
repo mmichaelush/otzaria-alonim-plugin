@@ -120,6 +120,12 @@
         ],
         [t('סנכרון אחרון תקין'), when(d.catalog.lastOkAt)],
         [
+          t('גיל הקטלוג'),
+          d.catalog.ageMin === null
+            ? '?'
+            : t('{n} דקות', { n: Core.formatCount(d.catalog.ageMin) }),
+        ],
+        [
           t('גיליונות בזיכרון'),
           Core.formatCount(d.catalog.issues) +
             ' · ' +
@@ -134,6 +140,34 @@
         [t('קבצים מרוחקים פתוחים'), d.files.remoteGrants],
         [t('החלפות מזהים'), d.catalog.aliases],
         [t('חיפוש אחרון'), d.perf.lastQueryMs + ' ms'],
+        [
+          t('זמנים'),
+          t('מטמון {a} ms · סנכרון אחרון {b} ms · בניית אינדקס {c} ms', {
+            a: d.perf.cacheMs,
+            b: d.perf.lastSyncMs,
+            c: d.perf.indexBuildMs,
+          }),
+        ],
+        [
+          t('הפעלה (מיצירת התוסף)'),
+          Object.entries(d.perf.startup)
+            .map(([k, v]) => k + ' ' + v + ' ms')
+            .join(' · ') || '?',
+        ],
+        [
+          t('אחסון'),
+          t('מצב משתמש {a} תווים · מטמון קטלוג {b}', {
+            a: Core.formatCount(d.storage.state.total),
+            b: Core.formatBytes(d.storage.catalogUsedBytes),
+          }),
+        ],
+        [
+          t('אזהרות ושגיאות לפי קוד'),
+          Object.entries(d.errors.codes)
+            .sort((a, b) => b[1] - a[1])
+            .map(([k, v]) => k + ' ×' + v)
+            .join(' · ') || t('אין'),
+        ],
         d.perf.memory ? [t('זיכרון'), d.perf.memory.usedMb + ' MB'] : null,
       ]),
     ];
@@ -203,7 +237,8 @@
               filter: { level: state.level, cat: state.cat },
             });
             const ok = await A.Selection.copyToClipboard(text);
-            app.toast(ok ? t('הדיווח הועתק (בלי נתיבים)') : t('ההעתקה נכשלה'), { error: !ok });
+            if (ok) app.toast(t('הדיווח הועתק (בלי נתיבים)'));
+            else app.reportFailure('copy_failed');
           },
           { icon: 'copy_24_regular', className: 'button-small' },
         ),

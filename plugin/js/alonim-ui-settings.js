@@ -735,7 +735,7 @@
             () =>
               app.files
                 .openOnSite(Core.REPO_URL + '/issues', ['github.com'])
-                .then((ok) => ok || app.toast(t('אי אפשר לפתוח את הכתובת'), { error: true })),
+                .then((ok) => ok || app.reportFailure('open_url_failed')),
             { icon: 'bug_24_regular', className: 'button-small' },
           ),
           Ui.button('text', t('קיצורי מקלדת'), () => app.emit('shortcuts'), {
@@ -750,11 +750,8 @@
           t('יצירה והעתקה'),
           async () => {
             area.value = this.reportText();
-            app.toast(
-              (await copyText(area.value, area))
-                ? t('הועתק ללוח')
-                : t('ההעתקה נכשלה: סמנו את הטקסט והעתיקו ידנית'),
-            );
+            if (await copyText(area.value, area)) app.toast(t('הועתק ללוח'));
+            else app.reportFailure('copy_failed');
           },
           { icon: 'copy_24_regular', className: 'button-small' },
         ),

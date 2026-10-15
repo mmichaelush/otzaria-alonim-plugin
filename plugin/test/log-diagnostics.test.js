@@ -144,3 +144,68 @@ test('אבחון על האפליקציה האמיתית הרצה מול SDK מד
   const app = fakeApp();
   assert.doesNotThrow(() => A.Diagnostics.report(app));
 });
+
+test('Diagnostics: גיל קטלוג, זמני הפעלה, גודל אחסון וסיכום קודי שגיאה — בתמונה ובדיווח', () => {
+  const app = fakeApp();
+  app.timings = { state: 40, shell: 120, firstData: 300 };
+  app.catalog.status.cacheMs = 55;
+  app.catalog.status.lastSyncMs = 900;
+  app.catalog.usedBytes = 3 * 1048576;
+  app.catalog.quotaBytes = 100 * 1048576;
+  app.state.data = { favorites: { items: { a: 1 } }, read: { items: {} } };
+  app.log.warn('a', Object.assign(new Error('x'), { code: 'network' }));
+  app.log.warn('b', Object.assign(new Error('y'), { code: 'network' }));
+  app.log.error('c', Object.assign(new Error('z'), { code: 'hash' }));
+  app.log.warn('no code');
+  const now = Date.parse('2026-10-15T09:40:00Z');
+  const snap = A.Diagnostics.snapshot(app, { now });
+  assert.equal(snap.catalog.ageMin, 120, 'generatedAt 07:40 ← עכשיו 09:40');
+  assert.equal(snap.perf.cacheMs, 55);
+  assert.deepEqual(snap.perf.startup, { state: 40, shell: 120, firstData: 300 });
+  assert.equal(snap.storage.state.domains.favorites, JSON.stringify({ items: { a: 1 } }).length);
+  assert.equal(snap.storage.catalogUsedBytes, 3 * 1048576);
+  assert.deepEqual(snap.errors.codes, { network: 2, hash: 1, '(no code)': 1 });
+  assert.equal(snap.errors.last.length, 4);
+  const text = A.Diagnostics.report(app, { now });
+  assert.match(text, /catalog age: 120 min, last ok sync/);
+  assert.match(text, /cache read 55ms, last sync 900ms/);
+  assert.match(text, /startup: state 40ms, shell 120ms, firstData 300ms/);
+  assert.match(
+    text,
+    /storage: state \d+ chars \(favorites \d+, read \d+\), catalog cache 3145728\/104857600 bytes/,
+  );
+  assert.match(text, /warnings and errors by code: network x2, hash x1, \(no code\) x1/);
+  assert.match(text, /last warnings and errors:\n.*warn app \[network\] a x/);
+});
+
+test('reportFailure: קוד יציב ביומן, הודעה בעברית עם הקוד, ותרגום לאנגלית', () => {
+  const toasts = [];
+  const log = new Log(null);
+  // alonim-app.js אינו ב-PURE (הוא מזכיר את שכבת ה-DOM), אך `reportFailure` אינו נוגע בה
+  require('../js/alonim-app.js');
+  const app = Object.create(A.AppModule.App.prototype);
+  app.log = log;
+  app.toast = (message, options) => toasts.push({ message, options });
+  app.reportFailure('delete_failed', Object.assign(new Error('EBUSY'), { code: 'error.busy' }));
+  assert.equal(toasts.length, 1);
+  assert.match(toasts[0].message, /מחיקת הקובץ נכשלה.*קוד: delete_failed/);
+  assert.equal(toasts[0].options.error, true);
+  const entry = log.filter({ level: 'warn' })[0];
+  assert.equal(entry.level, 'warn', 'כשל שאפשר לטפל בו: אזהרה');
+  assert.equal(entry.code, 'delete_failed');
+  app.reportFailure('dialog_failed', new Error('bug'));
+  assert.equal(log.filter({ level: 'error' })[0].code, 'dialog_failed', 'תקלה בקוד: שגיאה');
+  assert.match(entry.text, /EBUSY/);
+  assert.match(entry.text, /error\.busy/, 'הקוד הגולמי של המארח נשמר ליד הקוד היציב');
+  for (const code of [
+    'copy_failed',
+    'delete_failed',
+    'cleanup_failed',
+    'open_url_failed',
+    'url_not_allowed',
+    'cold_years_failed',
+  ]) {
+    assert.ok(A.Errors.known(code), code);
+    assert.ok(A.Errors.text(code).length > 10, code);
+  }
+});

@@ -687,7 +687,7 @@ async function selectionFlows(browser, open, check) {
   await page.sleep(700);
   check(
     'העתקה כטקסט מציגה הודעה',
-    await page.eval('/הרשימה הועתקה|ההעתקה נכשלה/.test(document.body.innerText)'),
+    await page.eval('/הרשימה הועתקה|ההעתקה ללוח נכשלה/.test(document.body.innerText)'),
   );
   await page.key('Escape');
   await page.sleep(300);
@@ -753,7 +753,7 @@ async function selectionFlows(browser, open, check) {
   await page.sleep(600);
   check(
     'פרטים: העתקת שם מציגה הודעה',
-    await page.eval('/השם הועתק|ההעתקה נכשלה/.test(document.body.innerText)'),
+    await page.eval('/השם הועתק|ההעתקה ללוח נכשלה/.test(document.body.innerText)'),
   );
   await page.key('Escape');
   await page.sleep(300);
