@@ -446,6 +446,9 @@
       return [
         el('p', { class: 'setting-text' }, t('עלוני שבת {v}: עלוני שבת מכמה אתרים, במקום אחד. התוסף אינו שולח היסטוריית קריאה, חיפושים או רשימות לשום מקום, ואין בו טלמטריה.', { v: Core.PLUGIN_VERSION })),
         el('p', { class: 'setting-help' }, t('הקבצים יורדים ישירות מאתרי המקורות. התוסף אינו מפיץ עותקים, והזכויות שייכות למחברים ולמפרסמים.')),
+        el('h3', { class: 'details-section' }, t('קרדיטים')),
+        el('p', { class: 'setting-text' }, t('העלונים מוצגים באדיבות האתרים שלהלן ושייכים למחבריהם ולמפרסמים. התוסף רק מקשר אליהם.')),
+        el('ul', { class: 'source-list' }, app.allSources().filter((s) => s.url).map((s) => el('li', { class: 'source-row' }, el('div', { class: 'source-main' }, el('strong', { dir: 'auto' }, s.name), Ui.button('text', t('לאתר המקור'), () => app.openSite({ src: s.id }), { icon: 'open_24_regular', className: 'button-small' }))))),
         el('div', { class: 'setting-actions' },
           Ui.button('tonal', t('דיווח על בעיה'), () => app.files.openOnSite(Core.REPO_URL + '/issues', ['github.com']).then((ok) => ok || app.toast(t('אי אפשר לפתוח את הכתובת'), { error: true })), { icon: 'bug_24_regular', className: 'button-small' }),
           Ui.button('text', t('קיצורי מקלדת'), () => app.emit('shortcuts'), { icon: 'keyboard_24_regular', className: 'button-small' })),

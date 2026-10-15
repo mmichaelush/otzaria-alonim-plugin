@@ -305,7 +305,7 @@
       for (const shard of this.warmShards()) {
         plan.push({ kind: 'shard', id: shard.id, path: shard.path, entry: shard, cachePath: 'issues/' + shard.id + '.json' });
       }
-      const needed = plan.filter((p) => options.force || this._stale(p));
+      const needed = plan.filter((p) => options.force || this._stale(p)).map((p) => ({ ...p, force: Boolean(options.force) }));
       this._setStatus({ phase: needed.length ? 'downloading' : 'idle', total: needed.length, done: 0 });
       let failed = 0;
       let firstError = null;
@@ -354,6 +354,8 @@
 
     async _loadJob(job) {
       const sha = job.entry.sha256 || '';
+      // התכנון נעשה לפני ש-loadCachedShards סיים: קובץ שנטען מהמטמון בינתיים אינו יורד שוב.
+      if (!job.force && !this._stale(job)) return;
       // המטמון עדכני, רק עוד לא נטען לזיכרון (ביקור שני: שרד שעוד לא עלה).
       if (sha && this.meta.sha[job.cachePath] === sha && !this.emitted.has(job.cachePath)) {
         if (await this._loadCached(job.cachePath, job.kind, job.id)) return;

@@ -15,7 +15,7 @@ await cp('plugin', out, { recursive: true, filter: (src) => !/[\\/]test([\\/]|$)
 const manifestPath = join(out, 'manifest.json');
 const manifest = JSON.parse(await readFile(manifestPath, 'utf8'));
 manifest.id = 'com.otzaria-alonim.qa';
-manifest.name = 'עלוני שבת QA';
+manifest.name = process.argv.includes('--name') ? process.argv[process.argv.indexOf('--name') + 1] : 'עלוני שבת QA';
 manifest.contributes.toolTab.title = manifest.name;
 manifest.permissions = manifest.permissions.map((p) => (p === 'network.access' ? 'network.localhost' : p));
 manifest.network = { enabled: true, allowlist: ['127.0.0.1'] };

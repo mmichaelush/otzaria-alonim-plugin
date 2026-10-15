@@ -17,7 +17,6 @@
     tashma: { name: N('תשמע'), mode: 'catalog', status: 'ok' },
     gilyoines: { name: N('גיליונס'), mode: 'catalog', status: 'ok' },
     alonolam: { name: N('עלון עולם'), mode: 'catalog', status: 'ok' },
-    beinenu: { name: N('בינינו'), mode: 'link', status: 'blocked' },
   });
 
   const TABS = Object.freeze([
@@ -250,6 +249,12 @@
       return list.map((id) => this.sourceInfo(id));
     }
 
+    /** שמות המקורות שממנו הגיליון, לקרדיט. */
+    creditNames(item) {
+      const ids = [...new Set((item.assets || []).map((a) => a.src))];
+      return ids.map((id) => this.sourceInfo(id).name).join(' · ');
+    }
+
     sourceHosts() {
       return this.catalog.sources.map((s) => (Core.parseUrl(s.url) || {}).hostname).filter(Boolean);
     }
@@ -337,7 +342,7 @@
       this.go('series', { series: this.index.resolveSeriesId(seriesId) });
     }
 
-    /** Ctrl+K: חיפוש. עובר ל"כל העלונים" וממקד את השדה. */
+    /** Ctrl+/ או /: חיפוש. עובר ל"כל העלונים" וממקד את השדה. */
     focusSearch() {
       if (this.view.route.tab !== 'all' || this.viewer) this.go('all');
       this.emit('focus-search');
@@ -524,7 +529,8 @@
       const key = event.key;
       const target = event.target;
       const typing = target && (target.tagName === 'INPUT' || target.tagName === 'TEXTAREA' || target.tagName === 'SELECT' || target.isContentEditable);
-      if ((event.ctrlKey || event.metaKey) && !event.altKey && (key === 'k' || key === 'K')) {
+      // לא Ctrl+K: באוצריא זה "החלף שולחן עבודה" (ברירת המחדל שלה), והחלון שלה גונב את המיקוד.
+      if ((event.ctrlKey || event.metaKey) && !event.altKey && (key === '/' || event.code === 'Slash')) {
         event.preventDefault();
         if (!Ui.topDialog()) this.focusSearch();
         return true;

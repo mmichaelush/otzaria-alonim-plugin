@@ -96,6 +96,7 @@
         { class: 'details' },
         cover ? el('img', { class: 'details-cover', src: cover, alt: '', referrerpolicy: 'no-referrer', loading: 'lazy' }) : null,
         el('p', { class: 'details-meta', dir: 'auto' }, meta),
+        el('p', { class: 'credit-line', dir: 'auto' }, t('העלון באדיבות {names}. הזכויות שמורות למחברים ולמפרסמים.', { names: app.creditNames(view) }), ' ', Ui.button('text', t('לאתר המקור'), () => app.openSiteFor(item), { icon: 'open_24_regular', className: 'button-small' })),
         el('div', { class: 'details-chips' }, [state.isNew ? Ui.chip(t('חדש'), { kind: 'new' }) : null, state.downloaded ? Ui.chip(t('הורד'), { kind: 'done', icon: 'checkmark_24_regular' }) : null, state.hidden ? Ui.chip(t('מוסתר'), { kind: 'hidden', icon: 'eye_off_24_regular' }) : null]),
         reasonLine,
         el('div', { class: 'details-primary' },
@@ -210,7 +211,7 @@
   // ------------------------------------------------------- קיצורי מקלדת
 
   const SHORTCUTS = [
-    ['Ctrl+K', N('חיפוש')],
+    ['Ctrl+/', N('חיפוש')],
     ['/', N('חיפוש (כשאין שדה פעיל)')],
     ['Esc', N('סגירה, חזרה, ניקוי חיפוש')],
     ['↑ ↓ ← →', N('מעבר בין כרטיסים ברשימה')],

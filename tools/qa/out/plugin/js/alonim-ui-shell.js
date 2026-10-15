@@ -94,7 +94,7 @@
 
   App.prototype.buildTopActions = function buildTopActions() {
     this.syncButton = Ui.iconButton('arrow_sync_24_regular', t('סנכרון'), () => this.catalog.sync(), { className: 'topbar-button' });
-    const search = Ui.iconButton('search_24_regular', t('חיפוש (Ctrl+K)'), () => this.focusSearch(), { className: 'topbar-button' });
+    const search = Ui.iconButton('search_24_regular', t('חיפוש (Ctrl+/)'), () => this.focusSearch(), { className: 'topbar-button' });
     this.actionsNode.replaceChildren(search, this.syncButton);
   };
 

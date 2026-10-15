@@ -1,7 +1,7 @@
 {
   "schemaVersion": 1,
   "id": "com.otzaria-alonim.qa",
-  "name": "עלוני שבת QA",
+  "name": "עלונים (בדיקה)",
   "version": "0.1.0",
   "description": "עלוני שבת מכמה אתרים במקום אחד: חיפוש מיידי, סדרות, מעקב, קריאה בצפיין פנימי, הורדה והדפסה, גם בלי רשת.",
   "author": "מיכאלוש",
@@ -27,7 +27,7 @@
   },
   "contributes": {
     "toolTab": {
-      "title": "עלוני שבת QA",
+      "title": "עלונים (בדיקה)",
       "order": 100,
       "allowOrderBeforeBuiltIns": false,
       "defaultPinned": true,
