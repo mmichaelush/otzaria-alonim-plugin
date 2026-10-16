@@ -396,12 +396,28 @@ test('פתיחה בקורא: אין ספרייה (הכול נתקע) — reason 
 test('פתיחה באתר: רק כתובת https מדומיין ברשימה', async () => {
   const sdk = createFakeSdk();
   const files = filesFor(sdk);
-  assert.equal(await files.openOnSite('https://ladaat.co/gilyonot/view/1'), true);
-  assert.equal(await files.openOnSite('http://ladaat.co/x'), false);
-  assert.equal(await files.openOnSite('https://evil.example/'), false);
-  assert.equal(await files.openOnSite('javascript:alert(1)'), false);
+  const R = A.Files.OPEN_RESULT;
+  assert.equal(await files.openOnSite('https://ladaat.co/gilyonot/view/1'), R.opened);
+  assert.equal(await files.openOnSite('http://ladaat.co/x'), R.rejected);
+  assert.equal(await files.openOnSite('https://evil.example/'), R.rejected);
+  assert.equal(await files.openOnSite('javascript:alert(1)'), R.rejected);
   assert.deepEqual(sdk.openedUrls, ['https://ladaat.co/gilyonot/view/1']);
   assert.ok(Core.isSiteUrl('https://ladaat.co/'));
+});
+
+test('פתיחה באתר: סירוב המשתמש באישור של אוצריא (false) אינו כשל ואינו "כתובת לא מוכרת"', async () => {
+  const R = A.Files.OPEN_RESULT;
+  const declined = createFakeSdk({ scenario: 'openurl-declined' });
+  assert.equal(
+    await filesFor(declined).openOnSite('https://ladaat.co/gilyonot/view/1'),
+    R.declined,
+  );
+  assert.deepEqual(declined.declinedUrls, ['https://ladaat.co/gilyonot/view/1']);
+  // כשל אמיתי של המארח (זריקה) נשאר כשל, ודחיית האימות שלנו לא מגיעה למארח בכלל
+  const broken = createFakeSdk({ scenario: 'openurl-error' });
+  assert.equal(await filesFor(broken).openOnSite('https://ladaat.co/gilyonot/view/1'), R.failed);
+  assert.equal(await filesFor(broken).openOnSite('https://evil.example/'), R.rejected);
+  assert.equal(broken.calls.filter((c) => c.method === 'app.openUrl').length, 1);
 });
 
 test('ביקור שני עם start(): טעינת שרדים מהמטמון בו-זמנית לסנכרון אינה מורידה אותם שוב', async () => {

@@ -60,6 +60,7 @@
       userFs: new Map(),
       folders: new Map(),
       openedUrls: [],
+      declinedUrls: [],
       downloads: [],
       handlers: {},
       rateLimited: 0,
@@ -352,7 +353,13 @@
         return true;
       },
 
+      // openurl-declined: המשתמש סירב באישור "פתיחת קישור חיצוני" של אוצריא (מחזיר false); openurl-error: המארח נכשל.
       'app.openUrl': (p) => {
+        if (scenario === 'openurl-error') return err('error.internal', 'failed to open URL');
+        if (scenario === 'openurl-declined') {
+          sdk.declinedUrls.push(p.url);
+          return false;
+        }
         sdk.openedUrls.push(p.url);
         return true;
       },

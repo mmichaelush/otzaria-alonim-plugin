@@ -1318,6 +1318,26 @@ async function flows(browser) {
 
   await hostFlows(browser, open, check);
 
+  // "פתח באתר המקור": סירוב באישור של אוצריא שקט; כשל של המארח הוא open_url_failed; האימות שלנו הוא url_not_allowed
+  for (const [scenario, expected, forbidden] of [
+    ['openurl-declined', null, /url_not_allowed|open_url_failed/],
+    ['openurl-error', /open_url_failed/, /url_not_allowed/],
+    ['ready', null, /url_not_allowed|open_url_failed/],
+  ]) {
+    page = await open('page=all&scenario=' + scenario);
+    await page.eval('window.__alonimApp.openSiteFor(window.__alonimApp.index.item(0))');
+    await page.sleep(500);
+    const text = await page.eval(
+      "document.querySelector('.toasts') ? document.querySelector('.toasts').innerText : ''",
+    );
+    check(
+      'פתח באתר המקור (' + scenario + '): ההודעה לפי התוצאה',
+      !forbidden.test(text) && (!expected || expected.test(text)),
+      text,
+    );
+    await browser.closePage(page);
+  }
+
   // כללים: "הסתר סדרה" מכרטיס, ביטול (Undo)
   page = await open('page=all');
   const total = await page.eval(

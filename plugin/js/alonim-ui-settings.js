@@ -732,10 +732,7 @@
           Ui.button(
             'tonal',
             t('דיווח על בעיה'),
-            () =>
-              app.files
-                .openOnSite(Core.REPO_URL + '/issues', ['github.com'])
-                .then((ok) => ok || app.reportFailure('open_url_failed')),
+            () => app.openExternal(Core.REPO_URL + '/issues', ['github.com']),
             { icon: 'bug_24_regular', className: 'button-small' },
           ),
           Ui.button('text', t('קיצורי מקלדת'), () => app.emit('shortcuts'), {

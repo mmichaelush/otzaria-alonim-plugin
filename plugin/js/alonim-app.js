@@ -752,9 +752,20 @@
     async openSite(asset) {
       if (!asset) return false;
       const url = asset.page || this.sourceInfo(asset.src).url || asset.url;
-      const ok = await this.files.openOnSite(url, this.sourceHosts());
-      if (!ok) this.reportFailure('url_not_allowed');
-      return ok;
+      return this.openExternal(url, this.sourceHosts());
+    }
+
+    /**
+     * פתיחת כתובת בדפדפן עם הדיווח הנכון לכל תוצאה: דחייה של האימות שלנו = `url_not_allowed`, כשל במארח =
+     * `open_url_failed`, וסירוב של המשתמש באישור של אוצריא = שקט (הוא ביקש לא לפתוח). `true` רק אם נפתחה.
+     */
+    async openExternal(url, extraHosts) {
+      const R = A.Files.OPEN_RESULT;
+      const result = await this.files.openOnSite(url, extraHosts);
+      if (result === R.rejected) this.reportFailure('url_not_allowed');
+      else if (result === R.failed) this.reportFailure('open_url_failed');
+      else if (result === R.declined) this.log.scoped('ui').info('open url declined by the user');
+      return result === R.opened;
     }
 
     // ------------------------------------------- הורדה אוטומטית

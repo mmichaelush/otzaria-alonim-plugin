@@ -1016,23 +1016,37 @@
 
     // ---------------------------------------------------- האתר המקורי
 
-    /** פותח את אתר המקור בדפדפן, אחרי אימות הכתובת. `false` אם אינה בטוחה. */
+    /**
+     * פותח את אתר המקור בדפדפן, אחרי אימות הכתובת. מחזיר אחת מ-`OPEN_RESULT`:
+     * `opened`; `declined` (המשתמש סירב באישור של אוצריא: `app.openUrl` מחזיר `false`, וזו אינה שגיאה);
+     * `rejected` (האימות הפנימי שלנו דחה את הכתובת, בלי לקרוא למארח); `failed` (המארח זרק).
+     */
     async openOnSite(url, extraHosts) {
-      if (!Core.isSiteUrl(url, extraHosts) && !Core.isDownloadUrl(url)) return false;
-      const ok = await this.runtime.callSoft(
-        'app.openUrl',
-        { url: Core.parseUrl(url).href },
-        false,
-      );
-      return ok !== false;
+      if (!Core.isSiteUrl(url, extraHosts) && !Core.isDownloadUrl(url)) return OPEN_RESULT.rejected;
+      try {
+        const ok = await this.runtime.call('app.openUrl', { url: Core.parseUrl(url).href });
+        return ok === false ? OPEN_RESULT.declined : OPEN_RESULT.opened;
+      } catch (error) {
+        this.log.warn('app.openUrl failed', error);
+        return OPEN_RESULT.failed;
+      }
     }
   }
+
+  /** תוצאות `Files.openOnSite`. */
+  const OPEN_RESULT = Object.freeze({
+    opened: 'opened',
+    declined: 'declined',
+    rejected: 'rejected',
+    failed: 'failed',
+  });
 
   /** המארח דחה את ההדפסה כי אין מחוות משתמש טרייה (`error.forbidden`). */
   const isGestureError = (error) => Boolean(error && error.code === A.Runtime.CODES.forbidden);
 
   const api = {
     Files,
+    OPEN_RESULT,
     isGestureError,
     cancelToken,
     FileError,
