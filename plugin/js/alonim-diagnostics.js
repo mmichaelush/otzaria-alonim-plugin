@@ -113,7 +113,7 @@
         indexBuildMs: Math.round(app.index.lastBuildMs),
         cacheMs: s.cacheMs || 0,
         lastSyncMs: s.lastSyncMs || 0,
-        /** אבני דרך בהפעלה, ms מיצירת ה-App: state, shell, firstData, firstSync. */
+        /** אבני דרך בהפעלה, ms מיצירת ה-App: state, shell, firstData, firstCard, firstSync. */
         startup: { ...(app.timings || {}) },
         memory: memory(),
       },

@@ -118,6 +118,7 @@
     catalog: fixture.files,
     sizeFor: (url) => sizes.get(url) || 0,
     netDelay: Number(params.get('netdelay') || 40),
+    callLatency: Number(params.get('latency') || 0),
     downloadDelay: Number(params.get('dldelay') || 350),
     slowMs: 2500,
     fileUrl: (abs, file) =>

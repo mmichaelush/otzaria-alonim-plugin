@@ -121,12 +121,127 @@
     return groups;
   };
 
+  /** מעל כמה גיליונות מחזיקים מסכות התאמה למילים (הקטלוג הקטן סורק גיליון גיליון, כמו קודם). */
+  const MASK_MIN = 4096;
+  /** כמה מסכות (מילה ← Uint8Array באורך n) נשמרות. */
+  const MASK_KEEP = 8;
+
+  /**
+   * מסכת ההתאמה של מילה רגילה (`hay[i].includes(needle)`) על כל הגיליונות. הקלדה מוסיפה אות אחרי אות, ו-
+   * מי שמכילה " נחמ" מכילה גם " נח": לכן המסכה של מילה שמרחיבה מילה שכבר נבדקה נבנית רק מהגיליונות
+   * שהקודמת סימנה (20 אלף מתוך 123 אלף ב"נ" ← "נח"), במקום סריקה מלאה בכל הקשה. המסכות נזרקות בכל שינוי נתונים.
+   * @this {any}
+   * @param {string} needle
+   * @returns {Uint8Array}
+   */
+  proto._termMask = function (needle) {
+    if (!this._masks || this._masksVersion !== this.version) {
+      this._masks = new Map();
+      this._masksVersion = this.version;
+    }
+    const cache = this._masks;
+    const hit = cache.get(needle);
+    if (hit) {
+      cache.delete(needle);
+      cache.set(needle, hit); // האחרון בשימוש נשאר
+      return hit;
+    }
+    let from = null;
+    let fromLength = 0;
+    for (const [key, mask] of cache) {
+      if (needle.length > key.length && needle.startsWith(key) && key.length > fromLength) {
+        from = mask;
+        fromLength = key.length;
+      }
+    }
+    const n = this.n;
+    const hay = this.hay;
+    const mask = new Uint8Array(n);
+    if (from) {
+      for (let i = 0; i < n; i++) if (from[i] === 1 && hay[i].includes(needle)) mask[i] = 1;
+    } else {
+      for (let i = 0; i < n; i++) if (hay[i].includes(needle)) mask[i] = 1;
+    }
+    cache.set(needle, mask);
+    if (cache.size > MASK_KEEP) cache.delete(cache.keys().next().value);
+    return mask;
+  };
+
+  /**
+   * מסכת התאמה של כמה מילים ב-AND (מילים רגילות בלבד): המילה הארוכה (הנדירה) נבנית כמסכה שלמה ונשמרת,
+   * ושאר המילים נבדקות רק על מה שנשאר מהן — מילה שכבר נשמרה נבדקת במסכה שלה. כך שאילתה בת שלוש מילים
+   * עולה סריקה אחת, ולא שלוש.
+   * @this {any}
+   * @param {string[]} needles
+   * @returns {Uint8Array}
+   */
+  proto._plainMask = function (needles) {
+    const sorted = [...needles].sort((a, b) => b.length - a.length);
+    const first = this._termMask(sorted[0]);
+    if (sorted.length === 1) return first;
+    const out = new Uint8Array(first);
+    const hay = this.hay;
+    for (let k = 1; k < sorted.length; k++) {
+      const known = this._masks.get(sorted[k]);
+      for (let i = 0; i < out.length; i++) {
+        if (out[i] !== 1) continue;
+        if (known ? known[i] !== 1 : !hay[i].includes(sorted[k])) out[i] = 0;
+      }
+    }
+    return out;
+  };
+
+  /** ניקוד הרלוונטיות של גיליון שעבר את הטקסט: שם הסדרה מתחיל / מילה שלמה / תחילת מילה / בכל מקום. */
+  proto._textScore = function (i, clauses) {
+    let score = 0;
+    const ns = this.seriesArr[this.sidx[i]]._ntitle;
+    for (const clause of clauses) {
+      for (const term of clause.alts) {
+        if (term.neg || term.field || !this._termHit(i, term)) continue;
+        score += ns.startsWith(term.norm)
+          ? 4
+          : (' ' + ns + ' ').includes(' ' + term.norm + ' ')
+            ? 3
+            : (' ' + ns).includes(' ' + term.norm)
+              ? 2
+              : 1;
+      }
+    }
+    return score;
+  };
+
+  /**
+   * סדר בדיקת הסעיפים (AND, ולכן הסדר אינו משנה את התוצאה): מילה חיובית בודדת קודם, הארוכה ראשונה (מילה ארוכה
+   * נדירה יותר, ולכן פוסלת את רוב הגיליונות אחרי בדיקה אחת); סעיפים עם `OR`, שלילה או שדה אחרונים.
+   * ב-123 אלף גיליונות זה חוסך שתי סריקות מתוך שלוש בשאילתה של שלוש מילים.
+   */
+  const clauseOrder = (clauses) =>
+    clauses
+      .map((clause, k) => {
+        const plain = clause.alts.length === 1 && !clause.alts[0].neg && !clause.alts[0].field;
+        return { k, rank: plain ? -clause.alts[0].needle.length : 1 };
+      })
+      .sort((a, b) => a.rank - b.rank || a.k - b.k)
+      .map((x) => x.k);
+
   /** בדיקת הטקסט: סעיפים ב-AND, חלופות (`OR`) בתוך סעיף, ניקוד לרלוונטיות. */
   proto._textTest = function (clauses, scores) {
+    // רק מילים רגילות (בלי OR, שלילה או שדה): בדיקה במסכה במקום חיפוש מחרוזת בכל גיליון.
+    const plain = clauses.every((c) => c.alts.length === 1 && !c.alts[0].neg && !c.alts[0].field);
+    if (plain && this.n >= MASK_MIN) {
+      let mask = null; // נבנית בבדיקה הראשונה: `_compile` נקרא גם בלי שיבדקו בו דבר
+      return (i) => {
+        if (!mask) mask = this._plainMask(clauses.map((c) => c.alts[0].needle));
+        if (mask[i] !== 1) return false;
+        if (scores) scores.set(i, this._textScore(i, clauses));
+        return true;
+      };
+    }
+    const order = clauseOrder(clauses);
     return (i) => {
       let score = 0;
-      for (let ci = 0; ci < clauses.length; ci++) {
-        const alts = clauses[ci].alts;
+      for (let oi = 0; oi < order.length; oi++) {
+        const alts = clauses[order[oi]].alts;
         let hit = false;
         for (let ai = 0; ai < alts.length; ai++) {
           const term = alts[ai];

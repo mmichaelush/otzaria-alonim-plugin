@@ -1,5 +1,6 @@
 // מודד את האינדקס על הקטלוג האמיתי (catalog/out) או על קטלוג סינתטי באותו גודל:
-// זמן בנייה, זיכרון, חיפוש.
+// זמן פענוח ובנייה (שרד אחד בכל פעם, כמו הסנכרון: אין שני שרדים מפוענחים בו-זמנית), שיא הזיכרון (נדגם אחרי
+// כל שרד, בלי איסוף זבל), הזיכרון המתמיד אחרי איסוף, וחיפוש.
 //   node --expose-gc tools/preview/measure-real.mjs <catalog-dir> | --synthetic [N]
 import { createRequire } from 'node:module';
 import { existsSync, readFileSync, readdirSync } from 'node:fs';
@@ -38,7 +39,10 @@ const synthetic = () => {
   const byYear = new Map();
   for (const it of c.issues) (byYear.get(it.hy) || byYear.set(it.hy, []).get(it.hy)).push(it);
   console.log('synthetic catalog', size);
-  return { series: c.series, shards: [...byYear].map(([id, list]) => ({ id: String(id), list })) };
+  return {
+    series: c.series,
+    shards: [...byYear].map(([id, list]) => ({ id: String(id), load: () => list })),
+  };
 };
 if (arg === '--synthetic' || !arg || !existsSync(join(arg, 'series.json'))) {
   ({ series, shards } = synthetic());
@@ -46,20 +50,28 @@ if (arg === '--synthetic' || !arg || !existsSync(join(arg, 'series.json'))) {
   series = JSON.parse(readFileSync(join(arg, 'series.json'), 'utf8'));
   shards = readdirSync(join(arg, 'issues')).map((f) => ({
     id: f.replace('.json', ''),
-    list: JSON.parse(readFileSync(join(arg, 'issues', f), 'utf8')),
+    load: () => JSON.parse(readFileSync(join(arg, 'issues', f), 'utf8')),
   }));
 }
 const idx = new CatalogIndex({ source: (id) => id });
 idx.setSeries(series);
-const t0 = performance.now();
-for (const s of shards) idx.addIssues(s.list, s.id);
-const build = performance.now() - t0;
-for (const s of shards) s.list = null;
+let parseMs = 0;
+let buildMs = 0;
+let peak = process.memoryUsage().heapUsed;
+for (const s of shards) {
+  const t0 = performance.now();
+  const list = s.load();
+  parseMs += performance.now() - t0;
+  const t1 = performance.now();
+  idx.addIssues(list, s.id);
+  buildMs += performance.now() - t1;
+  peak = Math.max(peak, process.memoryUsage().heapUsed);
+}
 shards.length = 0;
 series = null;
 const after = heap();
 console.log(
-  `issues ${idx.size}, build ${Math.round(build)}ms (incremental per-shard), heap +${mb(after - base)}`,
+  `issues ${idx.size}: parse ${Math.round(parseMs)}ms + build ${Math.round(buildMs)}ms (one shard at a time), heap peak +${mb(peak - base)} (sampled after each shard), kept +${mb(after - base)} after GC`,
 );
 const timings = {};
 for (const q of [

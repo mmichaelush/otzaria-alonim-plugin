@@ -393,6 +393,8 @@
 
     sdk.call = async function (method, payload) {
       sdk.calls.push({ method, payload });
+      // השהיית ערוץ ההודעות של ה-WebView (כמה ms לקריאה): מדידות הפעלה ריאליסטיות יותר.
+      if (o.callLatency) await sleep(o.callLatency);
       if (method === 'network.fetchStream') {
         // כמו אוצריא: ההגבלה על יצירת הזרם, והשגיאות מגיעות בתוך הזרם.
         if (!takeToken()) return err('error.rate_limited');

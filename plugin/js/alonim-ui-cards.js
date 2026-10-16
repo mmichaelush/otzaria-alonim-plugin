@@ -150,6 +150,7 @@
    */
   function render(app, item, o) {
     const opts = o || {};
+    if (app.stamp) app.stamp('firstCard'); // אבן דרך להפעלה (פעם אחת): ראו App.timings
     const state = app.cardState(item);
     const mode = opts.mode === 'row' ? 'row' : 'card';
     // בדף סדרה שם הסדרה חוזר בכל שורה: הכותרת היא השבוע, והמשנה — השנה והמספר.

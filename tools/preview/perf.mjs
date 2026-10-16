@@ -1,12 +1,16 @@
-// מדידות ביצועים בדפדפן אמיתי: ציור ראשון (ביקור ראשון וביקור שני מהמטמון), בניית
-// האינדקס, חיפוש בהקלדה, צמתי DOM בגלילה וזיכרון. על הקטלוג הסינתטי (30K+) או על
-// האמיתי (`--real`, אחרי build-preview.mjs --catalog <dir>).
-//   node tools/preview/perf.mjs [--real] [--catalog <dir>]
+// מדידות ביצועים בדפדפן אמיתי: הפעלה (ביקור ראשון מהרשת, וביקור שני מהמטמון), בניית האינדקס, חיפוש בהקלדה,
+// החלת מסנן, פתיחת חלונות, צמתי DOM וגמישות הגלילה (פריימים ארוכים), וזיכרון (לפני ואחרי איסוף זבל). על הקטלוג
+// הסינתטי (30K+) או על האמיתי (`--real`, 123 אלף גיליונות).
+//   node tools/preview/perf.mjs [--real] [--catalog <dir>] [--json file]
 // בונה את דף הבדיקה בעצמו (build-preview): `--real` על קטלוג אמיתי מ-`--catalog`, או `ALONIM_CATALOG`,
 // או `catalog/out`; בלי קטלוג כזה נכשל מיד עם הודעה ברורה (ולא בהמתנה לשדה חיפוש שאינו קיים).
 // מסיים בקוד 1 כשתקציב מופר (BUDGETS), כדי שנסיגה בביצועים תיכשל בבדיקה ולא תתגלה במשתמש.
+//
+// זמני ההפעלה נמדדים **מיצירת ה-App** (`app.timings`), ולא מטעינת הדף: טעינת הדף כוללת פענוח של קובץ הנתונים
+// של התצוגה המקדימה (עד 46MB לקטלוג האמיתי), שאינו חלק מהמוצר. הקריאות ל-SDK מושהות 2ms כל אחת (`latency=2`),
+// כמו ערוץ ההודעות של ה-WebView. הדף הכולל נרשם בנפרד (`pageFirstCardMs`).
 import { execFileSync } from 'node:child_process';
-import { existsSync } from 'node:fs';
+import { existsSync, writeFileSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
 import { Browser } from './cdp.mjs';
@@ -34,19 +38,45 @@ execFileSync(
 );
 const file = real ? 'preview-real.html' : 'preview-large.html';
 const base = pathToFileURL(join(here, 'out', file)).href;
-/** תקציבי ביצועים (ms אלא אם נאמר אחרת). מדידה על המחשב של המפתח; התקציב נדיב פי 2-3 מהמדידה. */
-const BUDGETS = {
-  firstCardFirstVisitMs: 1500,
-  firstCardSecondVisitMs: 2500,
-  typingEndToEndMs: 100,
-  searchMs: 40,
-  facetCountsMs: 100,
-  multiFilterSearchMs: 40,
-  filterPanelOpenMs: 200,
-  weekPickerOpenMs: 100,
-  maxCardsInDom: 60,
-  heapMB: 250,
-};
+
+/**
+ * תקציבי ביצועים (ms אלא אם נאמר אחרת). מדידה על המחשב של המפתח; התקציב נדיב פי 1.5-3 מהמדידה, חוץ מהיעדים
+ * של המוצר (כרטיס ראשון בביקור שני 400, הקשה 60, מסנן 100), שהם התקציב עצמו.
+ */
+const BUDGETS = real
+  ? {
+      firstCardFirstVisitMs: 1500,
+      firstCardSecondVisitMs: 400,
+      typingEndToEndMs: 60,
+      typingSequenceWorstMs: 80,
+      searchMs: 50,
+      filterApplyMs: 100,
+      facetCountsMs: 100,
+      multiFilterSearchMs: 40,
+      filterPanelOpenMs: 200,
+      weekPickerOpenMs: 100,
+      scrollLongFrames: 3,
+      scrollWorstFrameMs: 120,
+      maxCardsInDom: 60,
+      liveHeapMB: 220,
+    }
+  : {
+      firstCardFirstVisitMs: 1500,
+      firstCardSecondVisitMs: 400,
+      typingEndToEndMs: 60,
+      typingSequenceWorstMs: 80,
+      searchMs: 40,
+      filterApplyMs: 100,
+      facetCountsMs: 100,
+      multiFilterSearchMs: 40,
+      filterPanelOpenMs: 200,
+      weekPickerOpenMs: 100,
+      scrollLongFrames: 3,
+      scrollWorstFrameMs: 120,
+      maxCardsInDom: 60,
+      liveHeapMB: 100,
+    };
+
 const browser = await Browser.launch();
 const out = {};
 try {
@@ -56,22 +86,31 @@ try {
   ]) {
     const page = await browser.newPage(1000, 800);
     const t0 = Date.now();
-    await page.goto(`${base}?today=2026-10-15&page=all${extra}`);
+    await page.goto(`${base}?today=2026-10-15&page=all&latency=2&settle=0${extra}`);
     await page.waitFor(
       "window.__alonimApp && document.querySelectorAll('.card').length > 0 && Boolean(document.querySelector('.search-input'))",
       60000,
     );
-    const firstCard = Date.now() - t0;
+    const pageFirstCard = Date.now() - t0;
     await page.waitFor(
       "window.__alonimApp.catalog.status.phase === 'idle' && window.__alonimApp.catalog.status.shardsLoaded >= window.__alonimApp.catalog.status.shardsTotal",
       180000,
     );
     const allLoaded = Date.now() - t0;
     const info = await page.eval(
-      `(() => { const a = window.__alonimApp; return { issues: a.index.size, lastBatchBuildMs: Math.round(a.index.lastBuildMs), warmShards: a.catalog.status.shardsTotal, heapMB: performance.memory ? Math.round(performance.memory.usedJSHeapSize / 1048576) : null }; })()`,
+      `(() => { const a = window.__alonimApp; return { issues: a.index.size, lastBatchBuildMs: Math.round(a.index.lastBuildMs), warmShards: a.catalog.status.shardsTotal, startup: a.timings, cacheMs: a.catalog.status.cacheMs }; })()`,
     );
-    out[label] = { firstCardMs: firstCard, allShardsMs: allLoaded, ...info };
+    out[label] = {
+      firstCardMs: info.startup.firstCard,
+      pageFirstCardMs: pageFirstCard,
+      allShardsMs: allLoaded,
+      ...info,
+    };
     if (!extra) {
+      // כמו משתמש אמיתי: מקלידים אחרי שהנתונים נרגעו והחימום ברקע (App.scheduleWarmUp) הסתיים.
+      await page
+        .waitFor('window.__alonimApp.timings.warm !== undefined', 15000)
+        .catch(() => console.log('(warm-up did not run)'));
       // חיפוש מההקלדה: זמן מאירוע input ועד שהרשימה צוירה.
       const queries = ['נח', 'אסיפת גליונות נח', 'year:5786 parasha:noach', 'torah'];
       const timings = {};
@@ -87,12 +126,53 @@ try {
         };
       }
       out.search = timings;
-      // DOM בגלילה
-      let maxDom = 0;
+      // הקלדה אות אחרי אות של שאילתה בת שלוש מילים: כל הקשה מורידה מילה נוספת, והמסכות מצמצמות (alonim-index-search)
+      const phrase = 'אסיפת גליונות נח';
+      out.typingSequence = await page.eval(`(async () => {
+        const input = document.querySelector('.search-input');
+        const times = [];
+        for (let k = 1; k <= ${JSON.stringify(phrase)}.length; k++) {
+          const t = performance.now();
+          input.value = ${JSON.stringify(phrase)}.slice(0, k);
+          input.dispatchEvent(new Event('input'));
+          await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+          times.push(performance.now() - t);
+        }
+        input.value = '';
+        input.dispatchEvent(new Event('input'));
+        const sorted = [...times].sort((a, b) => a - b);
+        return { keystrokes: times.length, medianMs: Math.round(sorted[Math.floor(sorted.length / 2)]), worstMs: Math.round(sorted[sorted.length - 1]), firstMs: Math.round(times[0]) };
+      })()`);
+      // DOM וגלילה: פריימים ארוכים (מעל 34ms) ביותר מ-90 פריימים של גלילה רציפה, והפריים הגרוע ביותר
       await page.eval(
         "(() => { const i = document.querySelector('.search-input'); i.value = ''; i.dispatchEvent(new Event('input')); })()",
       );
-      await page.sleep(300);
+      await page.sleep(400);
+      let maxDom = 0;
+      out.scrollJank = await page.eval(`(async () => {
+        const list = document.querySelector('.vlist');
+        const frames = [];
+        let last = performance.now();
+        let maxDom = 0;
+        for (let k = 0; k < 120; k++) {
+          list.scrollTop += 700;
+          await new Promise((r) => requestAnimationFrame(r));
+          const now = performance.now();
+          frames.push(now - last);
+          last = now;
+          maxDom = Math.max(maxDom, document.querySelectorAll('[data-item]').length);
+        }
+        frames.sort((a, b) => a - b);
+        return {
+          frames: frames.length,
+          p50: Math.round(frames[Math.floor(frames.length * 0.5)] * 10) / 10,
+          p95: Math.round(frames[Math.floor(frames.length * 0.95)] * 10) / 10,
+          worst: Math.round(frames[frames.length - 1] * 10) / 10,
+          long: frames.filter((f) => f > 34).length,
+          maxDom,
+        };
+      })()`);
+      maxDom = out.scrollJank.maxDom;
       for (const top of [0, 10000, 250000, 1000000, 4000000, 9000000]) {
         await page.eval(`document.querySelector('.vlist').scrollTop = ${top}`);
         await page.sleep(100);
@@ -101,16 +181,27 @@ try {
           await page.eval("document.querySelectorAll('[data-item]').length"),
         );
       }
-      // מסננים: ספירות לכל מסנן, חיפוש עם כמה מסננים, ופתיחת החלונות
-      out.filters = await page.eval(`(() => {
+      await page.eval("document.querySelector('.vlist').scrollTop = 0");
+      // מסננים: ספירות לכל מסנן, חיפוש עם כמה מסננים, החלה מקצה לקצה, ופתיחת החלונות
+      out.filters = await page.eval(`(async () => {
         const a = window.__alonimApp;
         const time = (fn, n = 3) => { fn(); const t = performance.now(); for (let i = 0; i < n; i++) fn(); return (performance.now() - t) / n; };
         const f = { lang: ['he', 'yi'], source: ['ladaat', 'tashma'], dateFrom: '2022-01-01', pagesMin: 4 };
-        return {
+        const res = {
           facetCountsMs: Math.round(time(() => a.index.facetCounts('נח', f, a.searchContext(), {})) * 10) / 10,
           multiFilterSearchMs: Math.round(time(() => a.index.search('נח OR וירא', f, a.searchContext(), { sort: 'date' })) * 10) / 10,
           groupMs: Math.round(time(() => a.index.groupResults(a.index.search('', {}, {}, {}).idx, 'series')) * 10) / 10,
         };
+        // החלת מסנן כמו שהמסך עושה: setFilters ← חיפוש ← ציור, עד שתי frames אחרי
+        const apply = [];
+        for (const filters of [{ lang: ['he'] }, { lang: ['he'], source: ['ladaat'] }, { hy: [5786] }, {}]) {
+          const t = performance.now();
+          a.screen.setFilters(filters);
+          await new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+          apply.push(performance.now() - t);
+        }
+        res.filterApplyMs = Math.round(Math.max(...apply));
+        return res;
       })()`);
       const timeOpen = async (click, ready) => {
         await page.eval(click);
@@ -137,6 +228,24 @@ try {
         maxCardsInDom: maxDom,
         totalNodes: await page.eval('document.getElementsByTagName("*").length'),
       };
+      // זיכרון מדויק (CDP `Runtime.getHeapUsage`; `performance.memory` מעוגל ומתעדכן לאט), לפני ואחרי איסוף זבל
+      const heapMB = async () =>
+        Math.round((await page.send('Runtime.getHeapUsage')).usedSize / 1048576);
+      const before = await heapMB();
+      await page.send('HeapProfiler.collectGarbage');
+      const after = await heapMB();
+      // הערכה: מה מזה של הגשר המדומה (הקטלוג כטקסט בנתוני התצוגה ובמטמון הפרטי המדומה). חלק מהמחרוזות
+      // משותפות עם התוסף, ולכן ההערכה גבוהה מדי; התקציב הוא על `liveMB` הכולל.
+      const harnessMB = await page.eval(`(() => {
+        // V8 stores a string with any non-ASCII character as 2 bytes per character, otherwise 1
+        const bytes = (text) => (/[^\x00-\x7f]/.test(text) ? 2 : 1) * text.length;
+        let total = 0;
+        for (const text of Object.values((window.__FIXTURE__ || {}).files || {})) total += bytes(text);
+        const fs = window.__sdk && window.__sdk.privateFs;
+        if (fs) for (const entry of fs.values()) total += bytes(entry.content || '');
+        return Math.round(total / 1048576);
+      })()`);
+      out.memory = { usedMB: before, liveMB: after, harnessMB, pluginMB: after - harnessMB };
     }
     if (page.errors.length) out.errors = page.errors;
     await browser.closePage(page);
@@ -153,13 +262,17 @@ const measured = {
   firstCardFirstVisitMs: first.firstCardMs,
   firstCardSecondVisitMs: second.firstCardMs,
   typingEndToEndMs: worst(out.search, 'endToEndMs'),
+  typingSequenceWorstMs: out.typingSequence && out.typingSequence.worstMs,
   searchMs: worst(out.search, 'searchMs'),
+  filterApplyMs: out.filters && out.filters.filterApplyMs,
   facetCountsMs: out.filters && out.filters.facetCountsMs,
   multiFilterSearchMs: out.filters && out.filters.multiFilterSearchMs,
   filterPanelOpenMs: out.filters && out.filters.filterPanelOpenMs,
   weekPickerOpenMs: out.filters && out.filters.weekPickerOpenMs,
+  scrollLongFrames: out.scrollJank && out.scrollJank.long,
+  scrollWorstFrameMs: out.scrollJank && out.scrollJank.worst,
   maxCardsInDom: out.scroll && out.scroll.maxCardsInDom,
-  heapMB: first.heapMB,
+  liveHeapMB: out.memory && out.memory.liveMB,
 };
 const violations = Object.entries(BUDGETS).filter(
   ([key, limit]) => measured[key] !== null && measured[key] !== undefined && measured[key] > limit,
@@ -177,6 +290,12 @@ for (const [key, limit] of Object.entries(BUDGETS)) {
       limit,
   );
 }
+const jsonAt = process.argv.indexOf('--json');
+if (jsonAt > 0)
+  writeFileSync(
+    process.argv[jsonAt + 1],
+    JSON.stringify({ real, measured, budgets: BUDGETS, out }, null, 2),
+  );
 if (violations.length || (out.errors && out.errors.length)) {
   console.error('\nתקציב ביצועים הופר או שיש שגיאות קונסול');
   process.exit(1);

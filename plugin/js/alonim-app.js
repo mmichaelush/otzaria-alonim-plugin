@@ -42,6 +42,9 @@
   ]);
   /** קודים שמעידים על תקלה בתוסף עצמו (ולא על מצב שאפשר לתקן): נרשמים כשגיאה ביומן. */
   const BUG_CODES = Object.freeze(['screen_failed', 'dialog_failed']);
+  /** המתנה מרבית לפני ציור בזמן שנתונים ממשיכים להגיע: ממטמון (הפעלה), ומהרשת (סנכרון). */
+  const DATA_MAX_WAIT_MS = 250;
+  const DATA_MAX_WAIT_NET_MS = 1500;
   const NEW_DAYS = 7;
   const DAY_MS = 86400000;
   const clock = () => (root.performance ? root.performance.now() : Date.now());
@@ -122,7 +125,7 @@
       throw new Error('alonim-ui-shell.js is not loaded');
     }
 
-    /** רושם אבן דרך (פעם אחת): `state`, `shell`, `firstData`, `firstSync`. */
+    /** רושם אבן דרך (פעם אחת): `state`, `shell`, `firstData`, `firstCard`, `firstSync`, `warm`. */
     stamp(name) {
       if (this.timings[name] === undefined)
         this.timings[name] = Math.round(clock() - this.startedAt);
@@ -289,6 +292,7 @@
 
     onCatalogData(event) {
       this.stamp('firstData');
+      const wasEmpty = this.index.size === 0;
       if (event.kind === 'series') {
         this.index.setSeries(event.data);
         this.state.migrateSeriesIds((id) => this.index.resolveSeriesId(id));
@@ -309,15 +313,45 @@
         const moved = this.state.migrateIssueIds((id) => this.index.resolveIssueId(id));
         if (moved) this.log.info('migrated ' + moved + ' state entries to new issue ids');
       }
-      // כמה שרדים ברצף = ציור אחד, לא אחד לכל שרד.
+      // כמה שרדים ברצף = ציור אחד, לא אחד לכל שרד. שני חריגים: הגיליונות הראשונים מצוירים מיד (אחרת הכרטיס
+      // הראשון חיכה שהזרם ייפסק: 740ms ולא 80ms בקטלוג של 30 אלף גיליונות מהמטמון), ובזרם ארוך הציור מתבצע
+      // לפחות פעם בכמה מאות ms (המתנה מרבית), כדי שהמסך לא יישאר ישן עד סוף הסנכרון.
+      const now = Date.now();
+      if (!this.dataPendingSince) this.dataPendingSince = now;
+      const streaming = event.cached === false && event.kind !== 'recent';
+      const overdue =
+        now - this.dataPendingSince >= (streaming ? DATA_MAX_WAIT_NET_MS : DATA_MAX_WAIT_MS);
+      const flush = () => {
+        this.dataPendingSince = 0;
+        this.emit('data', event.kind);
+        this.maybeAutoDownload();
+        this.scheduleWarmUp();
+      };
+      // הציור הראשון בטיימר נפרד: האירועים הבאים (series, weeks, שרדים) מגיעים באותה משימה ומאפסים את הטיימר הרגיל.
+      if (wasEmpty && this.index.size > 0) this.dataFirstTimer = setTimeout(flush, 0);
       clearTimeout(this.dataTimer);
-      this.dataTimer = setTimeout(
-        () => {
-          this.emit('data', event.kind);
-          this.maybeAutoDownload();
-        },
-        event.cached === false && event.kind !== 'recent' ? 400 : 60,
-      );
+      this.dataTimer = setTimeout(flush, overdue ? 0 : streaming ? 400 : 60);
+    }
+
+    /**
+     * חיפוש ראשון בקטלוג גדול איטי פי שניים משאר החיפושים (הקוד עוד לא עבר אופטימיזציה, והמיון הראשון
+     * נבנה): 70ms מול 35ms ב-123 אלף גיליונות. מריצים אותו מראש כשהנתונים נרגעים והדף בטל, כדי שההקשה
+     * הראשונה של המשתמש כבר תהיה חמה. אינו משנה מצב (תוצאה נזרקת).
+     */
+    scheduleWarmUp() {
+      clearTimeout(this.warmTimer);
+      if (this.index.size < 20000) return;
+      this.warmTimer = setTimeout(() => {
+        if (this.suspended) return;
+        try {
+          const ctx = this.searchContext();
+          this.index.search('נח', {}, ctx, { sort: 'relevance' });
+          this.index.facetCounts('', {}, ctx, {});
+          this.stamp('warm');
+        } catch (error) {
+          this.log.warn('warm-up failed', error);
+        }
+      }, 1500);
     }
 
     // ------------------------------------------------------- מקורות

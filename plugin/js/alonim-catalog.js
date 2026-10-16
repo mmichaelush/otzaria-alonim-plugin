@@ -266,9 +266,28 @@
      */
     async start() {
       await this.loadCache();
+      // הציור הראשון (מ-series/weeks/recent שבמטמון) קודם לשרדים: אחרת טעינת השרדים הכבדים (כל אחד כמה עשרות ms
+      // של פענוח ובנייה) הקדימה אותו, והכרטיס הראשון התעכב מ-60ms ל-300ms ויותר.
+      await this.paintGap();
       const syncing = this.sync();
       this.loadCachedShards().catch((error) => this.log.warn('cached shards failed', error));
       return syncing;
+    }
+
+    /**
+     * מחכה שהדפדפן יצייר (frame אחד), אבל לא יותר מ-120ms: דף נסתר אינו מצייר, והסנכרון אינו אמור להיתקע בגללו.
+     * בלי דפדפן (בדיקות): `sleep(0)`.
+     */
+    paintGap() {
+      const raf = root.requestAnimationFrame;
+      if (typeof raf !== 'function') return this.sleep(0);
+      return new Promise((resolve) => {
+        const timer = setTimeout(resolve, 120);
+        raf.call(root, () => {
+          clearTimeout(timer);
+          setTimeout(resolve, 0);
+        });
+      });
     }
 
     /** כמו `start`, ומחכה לסיום הסנכרון (בדיקות). */
