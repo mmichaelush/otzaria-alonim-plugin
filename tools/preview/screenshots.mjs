@@ -1,6 +1,7 @@
 // מצלם את כל המסכים, בהיר וכהה, ברוחב דסקטופ ובטלפון (400px).
 //   node tools/preview/screenshots.mjs [out-dir]     (SHOTS=week,all לחלק מהמסכים)
 //   MODES=light  — מצב אחד בלבד; FLAT=1 — בלי סיומת -light בשם הקובץ (docs/img למדריך)
+//   WIDTHS=1200,800,480 — כל מסך בכל אחד מהרוחבים (שם הקובץ name@רוחב-מצב), בלי narrow-*
 import { mkdirSync } from 'node:fs';
 import { dirname, join, resolve } from 'node:path';
 import { fileURLToPath, pathToFileURL } from 'node:url';
@@ -122,11 +123,18 @@ const shots = [
 ];
 
 const only = process.env.SHOTS ? process.env.SHOTS.split(',') : null;
+const widths = process.env.WIDTHS ? process.env.WIDTHS.split(',').map(Number) : null;
+const plan = widths
+  ? shots
+      .filter(([name]) => !name.startsWith('narrow-'))
+      .flatMap((shot) => widths.map((w) => [shot, w]))
+  : shots.map((shot) => [shot, null]);
 const browser = await Browser.launch();
 try {
   const modes = process.env.MODES ? process.env.MODES.split(',') : ['light', 'dark'];
-  for (const [name, query, width, height, base, after] of shots) {
+  for (const [[name, query, shotWidth, height, base, after], forced] of plan) {
     if (only && !only.includes(name)) continue;
+    const width = forced || shotWidth;
     for (const mode of modes) {
       const page = await browser.newPage(width, height);
       await page.goto(`${base || small}?today=2026-10-15&${query}&mode=${mode}`);
@@ -144,7 +152,8 @@ try {
         await page.eval(after);
         await page.sleep(600);
       }
-      const file = join(outDir, process.env.FLAT ? `${name}.png` : `${name}-${mode}.png`);
+      const label = forced ? `${name}@${forced}` : name;
+      const file = join(outDir, process.env.FLAT ? `${label}.png` : `${label}-${mode}.png`);
       await page.screenshot(file);
       if (page.errors.length)
         console.error('✖ ' + name + ' ' + mode + ': ' + page.errors.join(' | '));

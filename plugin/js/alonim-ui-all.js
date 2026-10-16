@@ -856,14 +856,16 @@
           { pressed: app.state.prefs.view === 'list', className: 'segment' },
         ),
       );
+      // שתי קבוצות: מסננים מהירים (בצר: שורה אחת שנגללת) ובקרות סדר ותצוגה.
       Ui.fill(
         this.filterRow,
-        ...QUICK_FLAGS.map(([key, label, iconName]) => toggle(key, t(label), iconName)),
-        A.Selection.modeButton(app),
-        el('span', { class: 'filter-spacer' }),
-        sortSelect,
-        groupSelect,
-        viewToggle,
+        el(
+          'div',
+          { class: 'filter-flags' },
+          ...QUICK_FLAGS.map(([key, label, iconName]) => toggle(key, t(label), iconName)),
+          A.Selection.modeButton(app),
+        ),
+        el('div', { class: 'filter-view' }, sortSelect, groupSelect, viewToggle),
       );
     }
 

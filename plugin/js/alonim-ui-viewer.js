@@ -281,44 +281,60 @@
         el(
           'div',
           { class: 'viewer-tools' },
-          Ui.iconButton(prevIcon, t('הגיליון הקודם'), () => this.go(-1), {
-            disabled: !nb.prev,
-            className: 'viewer-tool',
-          }),
-          Ui.iconButton(nextIcon, t('הגיליון הבא'), () => this.go(1), {
-            disabled: !nb.next,
-            className: 'viewer-tool',
-          }),
-          Ui.iconButton('document_pdf_24_regular', t('הדפסה'), () => this.print(), {
-            className: 'viewer-tool',
-          }),
-          dl,
-          Ui.iconButton(
-            st.favorite ? 'star_24_filled' : 'star_24_regular',
-            st.favorite ? t('הסר ממועדפים') : t('הוסף למועדפים'),
-            () => app.toggleFavorite(item),
-            { pressed: st.favorite, className: 'viewer-tool star-button', key: 'fav' },
+          // שלוש קבוצות עם מפריד: ניווט בין גיליונות, פעולות על הקובץ, פעולות על הגיליון.
+          el(
+            'div',
+            { class: 'tool-group' },
+            Ui.iconButton(prevIcon, t('הגיליון הקודם'), () => this.go(-1), {
+              disabled: !nb.prev,
+              className: 'viewer-tool',
+            }),
+            Ui.iconButton(nextIcon, t('הגיליון הבא'), () => this.go(1), {
+              disabled: !nb.next,
+              className: 'viewer-tool',
+            }),
           ),
-          Ui.iconButton(
-            'checkmark_circle_24_regular',
-            st.read ? t('סמן כלא נקרא') : t('סמן כנקרא'),
-            () => app.toggleRead(item),
-            { pressed: st.read, className: 'viewer-tool', key: 'read' },
+          el(
+            'div',
+            { class: 'tool-group' },
+            Ui.iconButton('document_pdf_24_regular', t('הדפסה'), () => this.print(), {
+              className: 'viewer-tool',
+            }),
+            dl,
+            Ui.iconButton('open_24_regular', t('פתח באתר המקור'), () => app.openSiteFor(item), {
+              className: 'viewer-tool',
+            }),
           ),
-          Ui.iconButton('open_24_regular', t('פתח באתר המקור'), () => app.openSiteFor(item), {
-            className: 'viewer-tool',
-          }),
-          Ui.iconButton('info_24_regular', t('פרטי הגיליון'), () => app.showDetails(item, s.ctx), {
-            className: 'viewer-tool',
-          }),
-          s.mode === 'direct'
-            ? Ui.iconButton(
-                'arrow_sync_24_regular',
-                t('הצגה חלופית (אם המסמך אינו מוצג)'),
-                () => this.useBlobView(),
-                { className: 'viewer-tool', key: 'alt-view' },
-              )
-            : null,
+          el(
+            'div',
+            { class: 'tool-group' },
+            Ui.iconButton(
+              st.favorite ? 'star_24_filled' : 'star_24_regular',
+              st.favorite ? t('הסר ממועדפים') : t('הוסף למועדפים'),
+              () => app.toggleFavorite(item),
+              { pressed: st.favorite, className: 'viewer-tool star-button', key: 'fav' },
+            ),
+            Ui.iconButton(
+              'checkmark_circle_24_regular',
+              st.read ? t('סמן כלא נקרא') : t('סמן כנקרא'),
+              () => app.toggleRead(item),
+              { pressed: st.read, className: 'viewer-tool', key: 'read' },
+            ),
+            Ui.iconButton(
+              'info_24_regular',
+              t('פרטי הגיליון'),
+              () => app.showDetails(item, s.ctx),
+              { className: 'viewer-tool' },
+            ),
+            s.mode === 'direct'
+              ? Ui.iconButton(
+                  'arrow_sync_24_regular',
+                  t('הצגה חלופית (אם המסמך אינו מוצג)'),
+                  () => this.useBlobView(),
+                  { className: 'viewer-tool', key: 'alt-view' },
+                )
+              : null,
+          ),
         ),
       );
       if (focused) {

@@ -226,7 +226,14 @@
           'div',
           { class: 'hero-text', 'aria-live': 'polite' },
           el('h1', { class: 'hero-title', id: 'week-title', dir: 'auto' }, view.title),
-          el('p', { class: 'hero-sub', dir: 'auto' }, sub),
+          // החלקים (עברי · לועזי) אינם נשברים באמצע: השורה נשברת רק בין הלוחות.
+          el(
+            'p',
+            { class: 'hero-sub', dir: 'auto' },
+            sub
+              .split(' • ')
+              .flatMap((part, k) => [k ? ' • ' : null, el('span', { class: 'nowrap' }, part)]),
+          ),
           el(
             'div',
             { class: 'hero-chips' },

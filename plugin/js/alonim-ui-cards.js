@@ -167,7 +167,7 @@
     const tokens = opts.tokens || [];
     const titleNode = el(
       'h3',
-      { class: 'card-title', dir: 'auto' },
+      { class: 'card-title', dir: 'auto', title },
       Ui.marked(title, highlightSpans(title, tokens)),
     );
     const metaNode = el(
@@ -293,13 +293,13 @@
           titleNode,
           el('div', { class: 'card-tools' }, star, menuBtn, removeBtn),
         ),
-        metaNode,
         el(
           'div',
-          { class: 'card-chips' },
-          el('span', { class: 'chip-row' }, chips),
+          { class: 'card-sub' },
+          metaNode,
           size ? el('span', { class: 'card-size' }, size) : null,
         ),
+        el('div', { class: 'card-chips' }, el('span', { class: 'chip-row' }, chips)),
         el(
           'div',
           { class: 'card-actions' },

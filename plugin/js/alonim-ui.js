@@ -159,11 +159,52 @@
     return frag;
   }
 
+  const SVG = 'http://www.w3.org/2000/svg';
+
+  /**
+   * איור קבוע למצבי ריק: שני דפי עלון מוטים וצל. הצבעים מגיעים מ-CSS (מחלקות
+   * `ill-*`), כך שהוא עוקב אחרי ערכת הנושא; הצורה אינה מתהפכת עם הכיוון.
+   */
+  function illustration() {
+    const svg = document.createElementNS(SVG, 'svg');
+    svg.setAttribute('viewBox', '0 0 160 110');
+    svg.setAttribute('aria-hidden', 'true');
+    svg.setAttribute('focusable', 'false');
+    svg.setAttribute('class', 'illustration');
+    const add = (tag, attributes) => {
+      const node = document.createElementNS(SVG, tag);
+      for (const [name, value] of Object.entries(attributes))
+        node.setAttribute(name, String(value));
+      svg.appendChild(node);
+    };
+    add('ellipse', { cx: 80, cy: 100, rx: 54, ry: 7, class: 'ill-shadow' });
+    add('rect', {
+      x: 36,
+      y: 14,
+      width: 62,
+      height: 80,
+      rx: 6,
+      class: 'ill-back',
+      transform: 'rotate(-9 67 54)',
+    });
+    add('rect', { x: 60, y: 10, width: 66, height: 84, rx: 6, class: 'ill-front' });
+    add('rect', { x: 70, y: 22, width: 36, height: 7, rx: 3.5, class: 'ill-accent' });
+    add('rect', { x: 70, y: 38, width: 46, height: 5, rx: 2.5, class: 'ill-line' });
+    add('rect', { x: 70, y: 49, width: 46, height: 5, rx: 2.5, class: 'ill-line' });
+    add('rect', { x: 70, y: 60, width: 30, height: 5, rx: 2.5, class: 'ill-line' });
+    return svg;
+  }
+
   function stateCard(o) {
     return el(
       'section',
       { class: 'state-card' + (o.error ? ' is-error' : '') + (o.compact ? ' is-compact' : '') },
-      el('div', { class: 'state-icon' }, icon(o.icon || 'info_24_regular', 'icon-lg')),
+      el(
+        'div',
+        { class: 'state-art' },
+        illustration(),
+        el('div', { class: 'state-icon' }, icon(o.icon || 'info_24_regular', 'icon-lg')),
+      ),
       el('h2', { class: 'state-title' }, o.title),
       ...(Array.isArray(o.text) ? o.text : [o.text])
         .filter(Boolean)
@@ -275,6 +316,7 @@
     copyText,
     marked,
     stateCard,
+    illustration,
     progress,
     preserveFocus,
     skeleton,

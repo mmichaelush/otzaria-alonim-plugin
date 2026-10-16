@@ -45,6 +45,15 @@
   --ui-scale: 1;
   --font-size-base: calc(15px * var(--ui-scale));
 
+  /* סולם טיפוגרפי (יחסי לגודל הממשק): תווית, קטן, בקרות, גוף, כותרת, כותרת ראשית, תצוגה. */
+  --fs-label: 0.78em;
+  --fs-small: 0.85em;
+  --fs-ui: 0.92em;
+  --fs-body: 1em;
+  --fs-title: 1.15em;
+  --fs-headline: 1.3em;
+  --fs-display: 1.7em;
+
   /* לאוצריא רדיוס אחד (AppTokens.radius = 8); גלולות לשבבים ולכפתורי ניווט. */
   --radius-sm: 8px;
   --radius-panel: 8px;
@@ -69,14 +78,31 @@
     var(--color-surface)
   );
   --card-surface: var(--color-surface);
+  --ill-front: var(--color-surface-container-lowest);
   --hover-overlay: color-mix(in srgb, var(--color-primary) 8%, transparent);
+  --press-overlay: color-mix(in srgb, var(--color-primary) 12%, transparent);
   --focus-ring: var(--color-primary);
+
+  --line: var(--color-outline-variant);
+  /* קו עדין לכרטיסים במנוחה: מפריד אותם מהרקע בלי לצייר מסגרת מלאה. */
+  --card-line: color-mix(in srgb, var(--color-outline-variant) 55%, transparent);
+  /* שבב נייטרלי: גוון של הטקסט, לא צבע קבוע, כך שהוא עובד על כל משטח. */
+  --chip-quiet: color-mix(in srgb, var(--color-on-surface) 8%, transparent);
+
+  /* גובה: שלוש דרגות בלבד; המנוחה שטוחה (כמו הכרטיסים של אוצריא). */
+  --elev-1: 0 1px 3px color-mix(in srgb, var(--color-shadow) 18%, transparent);
+  --elev-2: 0 4px 16px color-mix(in srgb, var(--color-shadow) 22%, transparent);
+  --elev-3: 0 8px 28px color-mix(in srgb, var(--color-shadow) 28%, transparent);
+
+  /* שוליים בצדי הפס והלשוניות: מיושרים לעמודת התוכן (72em) במסך רחב. */
+  --edge: max(var(--space-4), calc((100cqw - 72em) / 2));
 }
 
 :root[data-mode="dark"] {
   color-scheme: dark;
   --page-surface: var(--color-surface-container-lowest);
   --card-surface: var(--color-surface-container);
+  --ill-front: var(--color-surface-container-high);
 }
 
 *,
@@ -113,7 +139,7 @@ input,
 select,
 textarea {
   font-family: var(--font-ui);
-  font-size: 1em;
+  font-size: var(--fs-body);
   color: inherit;
 }
 
@@ -126,6 +152,12 @@ p {
 
 [hidden] {
   display: none !important;
+}
+
+/* טבעת מיקוד אחת לכל הבקרות; לרכיבים שצריכים היסט אחר יש כלל משלהם. */
+:where(button, a[href], input, select, textarea, summary, [tabindex]):focus-visible {
+  outline: 2px solid var(--focus-ring);
+  outline-offset: 2px;
 }
 
 .visually-hidden {
@@ -141,7 +173,7 @@ kbd {
   display: inline-block;
   padding: 0.1em 0.5em;
   font-family: var(--font-ui);
-  font-size: 0.85em;
+  font-size: var(--fs-small);
   color: var(--color-on-surface);
   background: var(--color-surface-container-highest);
   border: 1px solid var(--color-outline-variant);
@@ -162,8 +194,8 @@ kbd {
   gap: 10px;
   align-items: center;
   height: 56px;
-  /* 16 בצד הכותרת, 8 בצד הכפתורים. */
-  padding-inline: 16px 8px;
+  /* מיושר לעמודת התוכן; בצד הכפתורים 8px פחות, כי לאייקון יש ריפוד משלו. */
+  padding-inline: var(--edge) calc(var(--edge) - 8px);
   background: var(--color-surface-container-high);
 }
 
@@ -178,6 +210,7 @@ kbd {
   overflow: hidden;
   font-size: 16px;
   font-weight: 600;
+  line-height: 1.3;
   color: var(--color-on-surface);
   white-space: nowrap;
   text-overflow: ellipsis;
@@ -273,10 +306,8 @@ kbd {
   display: flex;
   flex-shrink: 0;
   gap: var(--space-1);
-  /* safe: כשהלשוניות גולשות, הראשונה אינה נחתכת מחוץ לגלילה. */
-  justify-content: center;
-  justify-content: safe center;
-  padding: var(--space-2) var(--space-4);
+  justify-content: flex-start;
+  padding: var(--space-2) var(--edge);
   overflow-x: auto;
   scrollbar-width: none;
   background: var(--page-surface);
@@ -292,7 +323,7 @@ kbd {
   min-height: 2.6em;
   padding: 0 1.1em;
   font: inherit;
-  font-size: 0.93em;
+  font-size: var(--fs-ui);
   font-weight: 500;
   color: var(--color-on-surface-variant);
   white-space: nowrap;
@@ -319,20 +350,6 @@ kbd {
   font-weight: 600;
   color: var(--color-on-secondary-container);
   background: var(--color-secondary-container);
-}
-
-.main-tab:focus-visible,
-.button:focus-visible,
-.icon-button:focus-visible,
-.link-button:focus-visible,
-.section-head:focus-visible,
-.segment-text:focus-visible,
-.choice-row:focus-visible,
-.compact-row:focus-visible,
-.menu-item:focus-visible,
-.toast-action:focus-visible {
-  outline: 2px solid var(--focus-ring);
-  outline-offset: 1px;
 }
 
 .main-tab-label,
@@ -368,7 +385,7 @@ kbd {
     min-width: 0;
     min-height: 4.2em;
     padding: var(--space-1) 0.25em;
-    font-size: 0.78em;
+    font-size: var(--fs-label);
   }
 
   .main-tab .icon {
@@ -498,7 +515,7 @@ kbd {
   min-height: 2.6em;
   padding: 0 1.25em;
   overflow: hidden;
-  font-size: 0.95em;
+  font-size: var(--fs-ui);
   font-weight: 500;
   white-space: nowrap;
   cursor: pointer;
@@ -544,7 +561,7 @@ kbd {
 .button-small {
   min-height: 2.2em;
   padding: 0 0.9em;
-  font-size: 0.88em;
+  font-size: var(--fs-small);
 }
 
 .button-filled {
@@ -733,8 +750,8 @@ kbd {
 
 .select-check {
   flex-shrink: 0;
-  width: 2em;
-  height: 2em;
+  width: 2.2em;
+  height: 2.2em;
   color: var(--color-primary);
   background: transparent;
   border: 0;
@@ -766,7 +783,7 @@ kbd {
   background: var(--color-surface-container-high);
   border: 1px solid var(--color-outline-variant);
   border-radius: var(--radius-sm);
-  box-shadow: 0 6px 20px color-mix(in srgb, var(--color-shadow) 25%, transparent);
+  box-shadow: var(--elev-2);
 }
 
 .suggest-title {
@@ -775,7 +792,7 @@ kbd {
   align-items: baseline;
   justify-content: space-between;
   margin: var(--space-2) var(--space-2) var(--space-1);
-  font-size: 0.8em;
+  font-size: var(--fs-label);
   font-weight: 600;
   color: var(--color-on-surface-variant);
 }
@@ -812,8 +829,8 @@ kbd {
 }
 
 .suggest-remove {
-  width: 2em;
-  height: 2em;
+  width: 2.2em;
+  height: 2.2em;
 }
 
 .recent-series {
@@ -828,7 +845,7 @@ kbd {
 }
 
 .recent-label {
-  font-size: 0.82em;
+  font-size: var(--fs-small);
   color: var(--color-on-surface-variant);
 }
 
@@ -864,7 +881,7 @@ kbd {
   flex: 1;
   min-width: 0;
   padding: var(--space-2) 0;
-  font-size: 1.05em;
+  font-size: var(--fs-body);
   color: var(--color-on-surface);
   background: transparent;
   border: 0;
@@ -900,12 +917,55 @@ kbd {
 .filter-row {
   display: flex;
   flex-wrap: wrap;
-  gap: var(--space-2);
+  gap: var(--space-2) var(--space-3);
   align-items: center;
 }
 
 .filter-spacer {
   flex: 1;
+}
+
+/* מסננים מהירים בצד ההתחלה; מיון, קיבוץ ותצוגה בצד הסוף. */
+.filter-flags,
+.filter-view {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.filter-view {
+  margin-inline-start: auto;
+}
+
+/* צר: המסננים המהירים בשורה אחת שנגללת עד קצה המסך, ומתחתיה הבקרות. */
+@container shell (max-width: 40em) {
+  .filter-flags {
+    flex: 1 1 100%;
+    flex-wrap: nowrap;
+    padding: 2px var(--space-3);
+    margin-inline: calc(var(--space-3) * -1);
+    overflow-x: auto;
+    scrollbar-width: none;
+  }
+
+  .filter-view {
+    flex: 1 1 100%;
+    flex-wrap: nowrap;
+  }
+
+  .filter-view .select {
+    flex: 1 1 0;
+    min-width: 0;
+  }
+
+  .filter-view .select-group {
+    max-width: none;
+  }
+
+  .filter-view .segmented {
+    flex-shrink: 0;
+  }
 }
 
 .select,
@@ -923,7 +983,7 @@ kbd {
   max-width: 100%;
   min-height: 2.2em;
   padding: 0 var(--space-2);
-  font-size: 0.9em;
+  font-size: var(--fs-ui);
   cursor: pointer;
 }
 
@@ -949,9 +1009,10 @@ kbd {
 }
 
 .filter-chip {
+  flex-shrink: 0;
   min-height: 2.2em;
   padding: 0 0.85em;
-  font-size: 0.88em;
+  font-size: var(--fs-small);
 }
 
 .segmented {
@@ -986,7 +1047,7 @@ kbd {
   justify-content: center;
   min-height: 2.2em;
   padding: 0 1em;
-  font-size: 0.92em;
+  font-size: var(--fs-ui);
   font-weight: 500;
   color: var(--color-on-surface-variant);
   white-space: nowrap;
@@ -1015,7 +1076,7 @@ kbd {
   gap: var(--space-2) var(--space-4);
   align-items: baseline;
   min-height: 1.6em;
-  font-size: 0.88em;
+  font-size: var(--fs-small);
   color: var(--color-on-surface-variant);
 }
 
@@ -1033,7 +1094,7 @@ kbd {
 
 .builder-help {
   margin-block-end: var(--space-3);
-  font-size: 0.85em;
+  font-size: var(--fs-small);
   color: var(--color-on-surface-variant);
 }
 
@@ -1047,7 +1108,7 @@ kbd {
   display: flex;
   flex-direction: column;
   gap: var(--space-1);
-  font-size: 0.85em;
+  font-size: var(--fs-small);
   color: var(--color-on-surface-variant);
 }
 
@@ -1112,18 +1173,21 @@ kbd {
   padding: var(--space-3) var(--space-4);
   overflow: hidden;
   background: var(--card-surface);
-  border: 1px solid transparent;
+  border: 1px solid var(--card-line);
   border-radius: var(--radius-panel);
   cursor: pointer;
   transition:
     background var(--motion),
-    border-color var(--motion),
-    box-shadow var(--motion);
+    border-color var(--motion);
 }
 
 .card:hover {
-  border-color: var(--color-outline-variant);
-  background: color-mix(in srgb, var(--color-primary) 3%, var(--card-surface));
+  background: color-mix(in srgb, var(--color-primary) 4%, var(--card-surface));
+  border-color: var(--line);
+}
+
+.card:active {
+  background: color-mix(in srgb, var(--color-primary) 7%, var(--card-surface));
 }
 
 .card:focus-visible {
@@ -1169,6 +1233,21 @@ kbd {
   min-width: 0;
 }
 
+/* שורת המשנה: פרשה · שנה · גיליון בהתחלה, עמודים וגודל בסוף. */
+.card-sub {
+  display: flex;
+  gap: var(--space-3);
+  align-items: baseline;
+  justify-content: space-between;
+  min-width: 0;
+  margin-inline-start: calc(0.55em + var(--space-2));
+}
+
+.card-sub .card-meta {
+  flex: 1;
+  min-width: 0;
+}
+
 .card-tools {
   display: flex;
   flex-shrink: 0;
@@ -1199,7 +1278,7 @@ kbd {
   flex: 1;
   min-width: 0;
   overflow: hidden;
-  font-size: 1.02em;
+  font-size: var(--fs-body);
   font-weight: 600;
   line-height: 1.4;
   color: var(--color-on-surface);
@@ -1214,7 +1293,7 @@ kbd {
 
 .card-meta {
   overflow: hidden;
-  font-size: 0.88em;
+  font-size: var(--fs-small);
   color: var(--color-on-surface-variant);
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -1222,48 +1301,42 @@ kbd {
 
 .card-chips {
   display: flex;
-  flex-wrap: nowrap;
-  gap: var(--space-1);
   align-items: center;
   min-width: 0;
   min-height: 1.7em;
-  overflow: hidden;
+  margin-inline-start: calc(0.55em + var(--space-2));
 }
 
-/* שורת השבבים נחתכת בסופה בהדרגה, והגודל נשאר גלוי. */
+/* שורה אחת של שבבים שלמים: מה שאינו נכנס יורד לשורה שנחתכת (לפי חשיבות, המקורות אחרונים). */
 .chip-row {
   display: flex;
   flex: 1;
-  flex-wrap: nowrap;
+  flex-wrap: wrap;
   gap: var(--space-1);
   min-width: 0;
+  max-height: 1.45em;
   overflow: hidden;
-  -webkit-mask-image: linear-gradient(to left, transparent 0, black 1.4em);
-  mask-image: linear-gradient(to left, transparent 0, black 1.4em);
-}
-
-[dir="ltr"] .chip-row {
-  -webkit-mask-image: linear-gradient(to right, transparent 0, black 1.4em);
-  mask-image: linear-gradient(to right, transparent 0, black 1.4em);
 }
 
 .card-size {
   flex-shrink: 0;
-  margin-inline-start: auto;
-  font-size: 0.8em;
+  font-size: var(--fs-label);
+  font-variant-numeric: tabular-nums;
   color: var(--color-on-surface-variant);
   white-space: nowrap;
 }
 
+/* "קריאה" בצד ההתחלה, הורדה והדפסה בצד הסוף. */
 .card-actions {
   display: flex;
   gap: var(--space-1);
   align-items: center;
   margin-block-start: auto;
+  margin-inline-start: calc(0.55em + var(--space-2));
 }
 
-.card-actions .button {
-  margin-inline-end: var(--space-1);
+.card-actions .button + .icon-button {
+  margin-inline-start: auto;
 }
 
 .card.is-hidden {
@@ -1294,12 +1367,13 @@ kbd {
 }
 
 .card.is-row .card-title {
-  font-size: 0.98em;
+  font-size: var(--fs-body);
 }
 
 .card.is-row .card-chips {
   flex: 0 1 auto;
   min-height: 0;
+  margin-inline-start: 0;
 }
 
 .row-actions {
@@ -1329,12 +1403,12 @@ kbd {
   align-items: center;
   max-width: 11em;
   padding: 0.1em 0.65em;
-  font-size: 0.78em;
+  font-size: var(--fs-label);
   font-weight: 500;
   line-height: 1.5;
   color: var(--color-on-surface-variant);
   white-space: nowrap;
-  background: var(--color-surface-container-high);
+  background: var(--chip-quiet);
   border-radius: var(--radius-pill);
 }
 
@@ -1350,6 +1424,7 @@ kbd {
 
 .chip-new,
 .chip-reason {
+  font-weight: 600;
   color: var(--color-on-primary-container);
   background: var(--color-primary-container);
 }
@@ -1376,6 +1451,10 @@ kbd {
   background: var(--color-error-container);
 }
 
+.nowrap {
+  white-space: nowrap;
+}
+
 /* כותרות בכיוון מעורב (עברית/אנגלית) מיושרות לכיוון הממשק, לא לכיוון הטקסט. */
 :where([dir="rtl"] [dir="auto"]) {
   text-align: right;
@@ -1391,20 +1470,32 @@ kbd {
   display: flex;
   gap: var(--space-3);
   align-items: center;
-  padding: var(--space-4) var(--space-3);
-  margin-block-end: var(--space-4);
-  background: var(--color-primary-container);
+  padding: var(--space-4) var(--space-3) var(--space-4);
+  margin-block-end: var(--space-5);
+  background: linear-gradient(
+    160deg,
+    var(--color-primary-container),
+    color-mix(in srgb, var(--color-primary-container) 80%, var(--color-tertiary-container))
+  );
   border-radius: var(--radius-panel);
 }
 
+/* חצים עגולים ברקע עדין: ברור שהם כפתורים, וגם כשהם מושבתים הם נשארים במקומם. */
 .hero-nav {
+  align-self: center;
   width: 2.8em;
   height: 2.8em;
   color: var(--color-on-primary-container);
+  background: color-mix(in srgb, var(--color-on-primary-container) 10%, transparent);
+  border-radius: var(--radius-pill);
 }
 
 .hero-nav::after {
   background: var(--color-on-primary-container);
+}
+
+.hero-nav:hover:not(:disabled)::after {
+  opacity: 0.1;
 }
 
 .hero-text {
@@ -1418,16 +1509,19 @@ kbd {
 }
 
 .hero-title {
-  font-size: 1.7em;
+  font-size: var(--fs-display);
   font-weight: 700;
   line-height: 1.25;
   color: var(--color-on-primary-container);
+  text-wrap: balance;
 }
 
+/* התאריך העברי והלועזי נשברים רק ביניהם, בלי להשאיר "2026" לבד בשורה. */
 .hero-sub {
-  font-size: 0.95em;
+  font-size: var(--fs-ui);
+  font-variant-numeric: tabular-nums;
   color: var(--color-on-primary-container);
-  opacity: 0.85;
+  text-wrap: balance;
 }
 
 .hero-chips {
@@ -1440,6 +1534,7 @@ kbd {
 }
 
 .week-hero .chip {
+  font-weight: 600;
   color: var(--color-on-primary-container);
   background: color-mix(in srgb, var(--color-on-primary-container) 12%, transparent);
 }
@@ -1482,7 +1577,7 @@ kbd {
 .hero-note {
   max-width: 36em;
   margin-block-start: var(--space-2);
-  font-size: 0.85em;
+  font-size: var(--fs-small);
   color: var(--color-on-surface-variant);
 }
 
@@ -1577,13 +1672,13 @@ kbd {
 }
 
 .week-row-event {
-  font-size: 0.82em;
+  font-size: var(--fs-small);
   color: var(--color-tertiary);
 }
 
 .week-row-date {
   width: 100%;
-  font-size: 0.82em;
+  font-size: var(--fs-small);
   color: var(--color-on-surface-variant);
 }
 
@@ -1594,7 +1689,7 @@ kbd {
 .week-row-count {
   min-width: 2em;
   padding: 0 0.5em;
-  font-size: 0.78em;
+  font-size: var(--fs-label);
   text-align: center;
   color: var(--color-on-surface-variant);
   background: var(--color-surface-container-high);
@@ -1609,7 +1704,7 @@ kbd {
 .picker-message,
 .picker-empty {
   margin: 0;
-  font-size: 0.85em;
+  font-size: var(--fs-small);
   color: var(--color-on-surface-variant);
 }
 
@@ -1632,7 +1727,7 @@ kbd {
 }
 
 .picker-label {
-  font-size: 0.82em;
+  font-size: var(--fs-small);
   font-weight: 600;
   color: var(--color-on-surface-variant);
 }
@@ -1672,22 +1767,26 @@ kbd {
   gap: 0.3em;
   align-items: center;
   max-width: 100%;
-  min-height: 1.9em;
-  padding: 0 0.5em 0 0.7em;
-  font-size: 0.85em;
+  min-height: 2em;
+  padding: 0 0.5em 0 0.8em;
+  font-size: var(--fs-small);
   color: var(--color-on-secondary-container);
+  cursor: pointer;
   background: var(--color-secondary-container);
   border-radius: var(--radius-pill);
-  transition: filter var(--motion);
+  transition: background var(--motion);
 }
 
 .filter-tag:hover {
-  filter: brightness(0.96);
+  background: color-mix(
+    in srgb,
+    var(--color-on-secondary-container) 12%,
+    var(--color-secondary-container)
+  );
 }
 
-.filter-tag:focus-visible {
-  outline: 2px solid var(--color-primary);
-  outline-offset: 1px;
+.filter-tag:hover .icon {
+  opacity: 1;
 }
 
 .filter-tag .icon {
@@ -1703,7 +1802,7 @@ kbd {
 }
 
 .loading-note {
-  font-size: 0.85em;
+  font-size: var(--fs-small);
   color: var(--color-tertiary);
 }
 
@@ -1715,7 +1814,7 @@ kbd {
 
 .filter-help {
   margin: 0;
-  font-size: 0.85em;
+  font-size: var(--fs-small);
   color: var(--color-on-surface-variant);
 }
 
@@ -1759,7 +1858,7 @@ kbd {
 
 .filter-group > summary::after {
   margin-inline-start: auto;
-  font-size: 0.8em;
+  font-size: var(--fs-label);
   color: var(--color-on-surface-variant);
   content: "▾";
   transition: transform var(--motion);
@@ -1782,7 +1881,7 @@ kbd {
 .filter-group-badge {
   min-width: 1.5em;
   padding: 0 0.4em;
-  font-size: 0.78em;
+  font-size: var(--fs-label);
   font-weight: 600;
   text-align: center;
   color: var(--color-on-primary);
@@ -1845,7 +1944,7 @@ kbd {
 }
 
 .opt-count {
-  font-size: 0.8em;
+  font-size: var(--fs-label);
   color: var(--color-on-surface-variant);
 }
 
@@ -1878,7 +1977,7 @@ kbd {
 
 .range-caption {
   min-height: 1.2em;
-  font-size: 0.82em;
+  font-size: var(--fs-small);
   color: var(--color-on-surface-variant);
 }
 
@@ -1900,13 +1999,13 @@ kbd {
   gap: var(--space-2);
   align-items: baseline;
   margin-block-end: var(--space-3);
-  font-size: 1.1em;
+  font-size: var(--fs-title);
   font-weight: 600;
 }
 
 .section-count {
   padding: 0 0.55em;
-  font-size: 0.78em;
+  font-size: var(--fs-label);
   font-weight: 500;
   color: var(--color-on-surface-variant);
   background: var(--color-surface-container-high);
@@ -1931,7 +2030,7 @@ kbd {
   align-items: center;
   min-height: 3em;
   padding: 0 var(--space-4);
-  font-size: 1em;
+  font-size: var(--fs-body);
   text-align: start;
   cursor: pointer;
   background: var(--card-surface);
@@ -1953,7 +2052,7 @@ kbd {
 
 .diag-table {
   width: 100%;
-  font-size: 0.88em;
+  font-size: var(--fs-small);
   border-collapse: collapse;
 }
 
@@ -1979,7 +2078,7 @@ kbd {
   margin: 0;
   overflow: auto;
   font-family: var(--font-mono, monospace);
-  font-size: 0.78em;
+  font-size: var(--fs-label);
   line-height: 1.5;
   white-space: pre-wrap;
   overflow-wrap: anywhere;
@@ -1989,14 +2088,14 @@ kbd {
 
 .log-area.is-empty {
   font-family: var(--font-main);
-  font-size: 0.88em;
+  font-size: var(--fs-small);
   color: var(--color-on-surface-variant);
 }
 
 .syntax dt code {
   padding: 0.1em 0.4em;
   font-family: var(--font-mono, monospace);
-  font-size: 0.9em;
+  font-size: var(--fs-ui);
   background: var(--color-surface-container-high);
   border-radius: var(--radius-sm);
   unicode-bidi: plaintext;
@@ -2073,7 +2172,7 @@ kbd {
   min-width: 0;
   min-height: 3em;
   padding: 0 var(--space-4);
-  font-size: 1em;
+  font-size: var(--fs-body);
   text-align: start;
   cursor: pointer;
   background: var(--card-surface);
@@ -2098,7 +2197,7 @@ kbd {
 
 .history-day {
   margin: var(--space-3) 0 var(--space-1);
-  font-size: 0.85em;
+  font-size: var(--fs-small);
   font-weight: 600;
   color: var(--color-on-surface-variant);
 }
@@ -2106,7 +2205,7 @@ kbd {
 .history-kind {
   margin-inline-start: var(--space-2);
   padding: 0 0.5em;
-  font-size: 0.78em;
+  font-size: var(--fs-label);
   font-weight: 500;
   color: var(--color-on-secondary-container);
   background: var(--color-secondary-container);
@@ -2114,7 +2213,7 @@ kbd {
 }
 
 .history-time {
-  font-size: 0.8em;
+  font-size: var(--fs-label);
   color: var(--color-on-surface-variant);
 }
 
@@ -2128,7 +2227,7 @@ kbd {
 }
 
 .compact-meta {
-  font-size: 0.85em;
+  font-size: var(--fs-small);
   color: var(--color-on-surface-variant);
   white-space: nowrap;
 }
@@ -2169,16 +2268,68 @@ kbd {
   background: transparent;
 }
 
+/* איור: דפים מוטים, ועליהם עיגול עם האייקון של המצב (כרטיס קטן: האייקון בלבד). */
+.state-art {
+  position: relative;
+  display: inline-block;
+  margin-block-end: var(--space-4);
+}
+
+.illustration {
+  display: block;
+  width: 11em;
+  height: auto;
+}
+
+.ill-shadow {
+  fill: var(--chip-quiet);
+}
+
+.ill-back {
+  fill: var(--color-surface-container-highest);
+  stroke: var(--line);
+}
+
+.ill-front {
+  fill: var(--ill-front);
+  stroke: var(--line);
+}
+
+.ill-line {
+  fill: var(--color-surface-container-highest);
+}
+
+.ill-accent {
+  fill: var(--color-primary-container);
+}
+
 .state-icon {
   display: inline-flex;
   align-items: center;
   justify-content: center;
-  width: 4em;
-  height: 4em;
-  margin-block-end: var(--space-4);
+  width: 3.4em;
+  height: 3.4em;
   color: var(--color-on-primary-container);
   background: var(--color-primary-container);
   border-radius: 50%;
+}
+
+.state-art .state-icon {
+  position: absolute;
+  top: 76%;
+  left: 74%;
+  box-shadow: 0 0 0 0.2em var(--card-surface);
+  transform: translate(-50%, -50%);
+}
+
+.state-card.is-compact .illustration {
+  display: none;
+}
+
+.state-card.is-compact .state-art .state-icon {
+  position: static;
+  box-shadow: none;
+  transform: none;
 }
 
 .state-card.is-error .state-icon {
@@ -2186,9 +2337,13 @@ kbd {
   background: var(--color-error-container);
 }
 
+.state-card.is-error .ill-accent {
+  fill: var(--color-error-container);
+}
+
 .state-title {
   margin-block-end: var(--space-2);
-  font-size: 1.3em;
+  font-size: var(--fs-headline);
   font-weight: 600;
 }
 
@@ -2216,7 +2371,7 @@ kbd {
 
 .state-note {
   margin-block-start: var(--space-4);
-  font-size: 0.8em;
+  font-size: var(--fs-label);
   color: var(--color-on-surface-variant);
   user-select: text;
 }
@@ -2314,7 +2469,7 @@ kbd {
   pointer-events: auto;
   background: var(--color-inverse-surface);
   border-radius: var(--radius-sm);
-  box-shadow: 0 4px 16px color-mix(in srgb, var(--color-shadow) 30%, transparent);
+  box-shadow: var(--elev-2);
   animation: toast-in 220ms cubic-bezier(0.2, 0, 0, 1);
 }
 
@@ -2346,7 +2501,7 @@ kbd {
 .toast-text {
   flex: 1;
   min-width: 0;
-  font-size: 0.92em;
+  font-size: var(--fs-ui);
 }
 
 .toast-action {
@@ -2360,8 +2515,8 @@ kbd {
 }
 
 .toast-close {
-  width: 2em;
-  height: 2em;
+  width: 2.2em;
+  height: 2.2em;
   color: inherit;
 }
 
@@ -2404,7 +2559,7 @@ kbd {
   max-height: 100%;
   background: var(--color-surface-container-high);
   border-radius: var(--radius-panel);
-  box-shadow: 0 8px 28px color-mix(in srgb, var(--color-shadow) 28%, transparent);
+  box-shadow: var(--elev-3);
   animation: dialog-in var(--motion-sheet) both;
 }
 
@@ -2452,7 +2607,7 @@ kbd {
 .dialog-title {
   flex: 1;
   min-width: 0;
-  font-size: 1.15em;
+  font-size: var(--fs-title);
   font-weight: 600;
   line-height: 1.35;
 }
@@ -2494,9 +2649,9 @@ kbd {
   max-width: 20em;
   padding: var(--space-1);
   background: var(--color-surface-container-high);
-  border: 1px solid var(--color-outline-variant);
+  border: 1px solid var(--line);
   border-radius: var(--radius-panel);
-  box-shadow: 0 4px 20px color-mix(in srgb, var(--color-shadow) 22%, transparent);
+  box-shadow: var(--elev-2);
   animation: menu-in 140ms cubic-bezier(0.2, 0, 0, 1);
 }
 
@@ -2513,7 +2668,7 @@ kbd {
   align-items: center;
   min-height: 2.5em;
   padding: 0 var(--space-3);
-  font-size: 0.95em;
+  font-size: var(--fs-ui);
   text-align: start;
   cursor: pointer;
   background: transparent;
@@ -2579,14 +2734,29 @@ kbd {
   gap: var(--space-2);
   align-items: center;
   padding: var(--space-2) var(--space-3);
-  font-size: 0.9em;
+  font-size: var(--fs-ui);
   color: var(--color-on-surface-variant);
   background: var(--color-surface-container-highest);
   border-radius: var(--radius-sm);
 }
 
+/* פעולות משניות בעמודות מיושרות, לא בשורה אחת שנשברת באמצע. */
+.details-more {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(12em, 1fr));
+  gap: 0 var(--space-2);
+}
+
+.details-more .button {
+  justify-content: flex-start;
+}
+
+.details-more + .details-more {
+  padding-block-start: var(--space-2);
+  border-block-start: 1px solid var(--card-line);
+}
+
 .details-primary,
-.details-more,
 .asset-actions,
 .setting-actions,
 .series-actions,
@@ -2602,7 +2772,7 @@ kbd {
   gap: var(--space-2);
   align-items: baseline;
   margin-block-start: var(--space-2);
-  font-size: 1em;
+  font-size: var(--fs-body);
   font-weight: 600;
 }
 
@@ -2646,7 +2816,7 @@ kbd {
 
 .asset-facts,
 .asset-note {
-  font-size: 0.85em;
+  font-size: var(--fs-small);
   color: var(--color-on-surface-variant);
 }
 
@@ -2657,9 +2827,20 @@ kbd {
 .facts {
   display: grid;
   grid-template-columns: auto 1fr;
-  gap: var(--space-1) var(--space-4);
+  gap: 0 var(--space-4);
   margin: 0;
-  font-size: 0.9em;
+  font-size: var(--fs-ui);
+}
+
+.facts dt,
+.facts dd {
+  padding-block: 0.35em;
+  border-block-end: 1px solid var(--card-line);
+}
+
+.facts dt:last-of-type,
+.facts dd:last-of-type {
+  border-block-end: 0;
 }
 
 .facts dt {
@@ -2669,6 +2850,7 @@ kbd {
 .facts dd {
   margin: 0;
   overflow-wrap: anywhere;
+  font-variant-numeric: tabular-nums;
 }
 
 .shortcuts {
@@ -2714,7 +2896,7 @@ kbd {
 }
 
 .failure-code {
-  font-size: 0.8em;
+  font-size: var(--fs-label);
   color: var(--color-on-surface-variant);
 }
 
@@ -2743,24 +2925,25 @@ kbd {
 .viewer-bar {
   display: flex;
   flex-shrink: 0;
-  gap: var(--space-2);
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-2);
   align-items: center;
   min-height: 3.4em;
-  padding: var(--space-1) var(--space-2);
+  padding: var(--space-1) max(var(--space-2), calc(var(--edge) - var(--space-2)));
   background: var(--color-surface-container-high);
-  border-bottom: 1px solid var(--color-outline-variant);
+  border-bottom: 1px solid var(--line);
 }
 
 .viewer-title {
   display: flex;
-  flex: 1;
+  flex: 1 1 8em;
   flex-direction: column;
   min-width: 0;
 }
 
 .viewer-name {
   overflow: hidden;
-  font-size: 1em;
+  font-size: var(--fs-body);
   font-weight: 600;
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -2768,7 +2951,8 @@ kbd {
 
 .viewer-sub {
   overflow: hidden;
-  font-size: 0.8em;
+  font-size: var(--fs-label);
+  line-height: 1.4;
   color: var(--color-on-surface-variant);
   text-overflow: ellipsis;
   white-space: nowrap;
@@ -2781,20 +2965,45 @@ kbd {
   align-items: center;
 }
 
+/* קבוצות הפעולות מופרדות בקו דק: ניווט, קובץ, גיליון. */
+.tool-group {
+  display: flex;
+  align-items: center;
+}
+
+.tool-group + .tool-group {
+  padding-inline-start: var(--space-2);
+  margin-inline-start: var(--space-2);
+  border-inline-start: 1px solid var(--line);
+}
+
 .viewer-tool {
   width: 2.5em;
   height: 2.5em;
 }
 
+/* צר: שורה ראשונה חזרה וכותרת, שורה שנייה כל הפעולות; בלי הפס העליון של התוסף. */
 @container shell (max-width: 40em) {
-  .viewer-tools {
-    flex-wrap: wrap;
-    justify-content: flex-end;
-    max-width: 55%;
+  .app-shell[data-mode="viewer"] .topbar,
+  .app-shell[data-mode="viewer"] .sync-bar {
+    display: none;
   }
 
-  .viewer-sub {
-    display: none;
+  .viewer-tools {
+    flex: 1 1 100%;
+    justify-content: space-between;
+    padding-block-start: var(--space-1);
+    border-block-start: 1px solid var(--card-line);
+  }
+
+  .tool-group + .tool-group {
+    padding-inline-start: 0;
+    margin-inline-start: 0;
+    border-inline-start: 0;
+  }
+
+  .viewer-tool {
+    width: 2.3em;
   }
 }
 
@@ -2827,12 +3036,12 @@ kbd {
 }
 
 .viewer-loading-title {
-  font-size: 1.1em;
+  font-size: var(--fs-title);
   font-weight: 600;
 }
 
 .viewer-loading-note {
-  font-size: 0.88em;
+  font-size: var(--fs-small);
   color: var(--color-on-surface-variant);
 }
 
@@ -2905,7 +3114,7 @@ kbd {
 }
 
 .series-title {
-  font-size: 1.3em;
+  font-size: var(--fs-headline);
   font-weight: 700;
   line-height: 1.3;
 }
@@ -2914,7 +3123,7 @@ kbd {
   display: inline-flex;
   gap: var(--space-2);
   align-items: center;
-  font-size: 0.88em;
+  font-size: var(--fs-small);
   color: var(--color-on-surface-variant);
 }
 
@@ -2924,7 +3133,7 @@ kbd {
   align-items: center;
   height: 100%;
   padding-inline: var(--space-1);
-  font-size: 1em;
+  font-size: var(--fs-body);
   font-weight: 600;
   color: var(--color-on-surface-variant);
 }
@@ -2993,7 +3202,7 @@ kbd {
   width: 100%;
   min-height: 3.2em;
   padding: 0 var(--space-4);
-  font-size: 1em;
+  font-size: var(--fs-body);
   font-weight: 600;
   text-align: start;
   cursor: pointer;
@@ -3045,7 +3254,7 @@ kbd {
 }
 
 .setting-help {
-  font-size: 0.85em;
+  font-size: var(--fs-small);
   color: var(--color-on-surface-variant);
 }
 
@@ -3068,7 +3277,7 @@ kbd {
 }
 
 .path {
-  font-size: 0.85em;
+  font-size: var(--fs-small);
   color: var(--color-on-surface-variant);
   overflow-wrap: anywhere;
   user-select: text;
@@ -3087,6 +3296,13 @@ kbd {
   transition:
     background var(--motion),
     border-color var(--motion);
+}
+
+/* אזור לחיצה רחב מהמתג עצמו (≥32px גם בגודל תצוגה רגיל). */
+.switch::before {
+  position: absolute;
+  inset: -0.25em -0.1em;
+  content: "";
 }
 
 .switch-thumb {
@@ -3169,7 +3385,7 @@ kbd {
 }
 
 .queue-status {
-  font-size: 0.85em;
+  font-size: var(--fs-small);
   color: var(--color-on-surface-variant);
 }
 
@@ -3206,7 +3422,7 @@ kbd {
 
 .example-list {
   padding-inline-start: var(--space-4);
-  font-size: 0.85em;
+  font-size: var(--fs-small);
   color: var(--color-on-surface-variant);
   list-style: disc;
 }
@@ -3232,7 +3448,7 @@ kbd {
   min-height: 6em;
   padding-block: var(--space-2);
   font-family: var(--font-ui);
-  font-size: 0.85em;
+  font-size: var(--fs-small);
   resize: vertical;
 }
 
@@ -3261,6 +3477,6 @@ kbd {
   flex-wrap: wrap;
   gap: 0.25em 0.5em;
   align-items: center;
-  font-size: 0.85em;
+  font-size: var(--fs-small);
   color: var(--color-on-surface-variant);
 }
