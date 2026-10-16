@@ -10,7 +10,7 @@
 
   const PLUGIN_ID = 'com.otzaria-alonim';
   /** זהה ל-`manifest.json` (נבדק ב-test/manifest.test.js). */
-  const PLUGIN_VERSION = '0.3.1';
+  const PLUGIN_VERSION = '0.3.2';
   const CATALOG_BASE = 'https://raw.githubusercontent.com/mmichaelush/otzaria-alonim-plugin/data/';
   /** גרסת הסכמה של הקטלוג שהתוסף מכיר. גבוהה יותר = "יש גרסה חדשה של התוסף". */
   const SCHEMA = 1;

@@ -268,7 +268,7 @@
   window.addEventListener('load', async () => {
     if (window.__seedDownloads) window.__seedDownloads();
     const payload = {
-      plugin: { id: 'com.otzaria-alonim', version: '0.3.1' },
+      plugin: { id: 'com.otzaria-alonim', version: '0.3.2' },
       app: {
         version:
           scenario === 'legacy-host' || params.get('host') === 'legacy' ? '0.9.98' : '0.9.99',

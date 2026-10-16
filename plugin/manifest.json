@@ -2,7 +2,7 @@
   "schemaVersion": 1,
   "id": "com.otzaria-alonim",
   "name": "עלוני שבת",
-  "version": "0.3.1",
+  "version": "0.3.2",
   "description": "עלוני שבת מכמה אתרים במקום אחד: חיפוש מיידי, סדרות, מעקב, קריאה בצפיין פנימי, הורדה והדפסה, גם בלי רשת.",
   "author": "מיכאלוש",
   "homepage": "https://github.com/mmichaelush/otzaria-alonim-plugin",
