@@ -158,13 +158,14 @@
       const ctx = (list) => (i) => ({ count: list.length, at: (k) => list[k], index: i });
 
       const page = el('div', { class: 'page week-page' });
-      page.appendChild(this.hero(sel, items.length));
       const status = app.catalog.status;
       const loading =
         !index.size &&
         (status.phase === 'checking' ||
           status.phase === 'downloading' ||
           (status.phase === 'idle' && !status.lastOkAt && !status.error));
+      // בלי לוח עדיין (הטעינה הראשונה) הכותרת היא "שבת" גנרית שמתחלפת בשם הפרשה; שלד במקומה, בלי קפיצה.
+      page.appendChild(this.hero(sel, items.length, loading && sel.cur.status === 'empty'));
 
       if (loading) {
         page.appendChild(el('h2', { class: 'section-title' }, t('מתעדכן…')));
@@ -205,7 +206,7 @@
       return rel.weeks === 1 ? t('שבוע שעבר') : t('לפני {n} שבועות', { n: rel.weeks });
     }
 
-    hero(sel, count) {
+    hero(sel, count, pending) {
       const { view, views, i, rel } = sel;
       const away = rel.kind !== 'current';
       const day = Weeks.displayDay(view);
@@ -225,7 +226,14 @@
         el(
           'div',
           { class: 'hero-text', 'aria-live': 'polite' },
-          el('h1', { class: 'hero-title', id: 'week-title', dir: 'auto' }, view.title),
+          pending
+            ? el(
+                'h1',
+                { class: 'hero-title is-pending', id: 'week-title' },
+                el('span', { class: 'visually-hidden' }, t('מתעדכן…')),
+                el('span', { class: 'skeleton-line is-hero-title', 'aria-hidden': 'true' }),
+              )
+            : el('h1', { class: 'hero-title', id: 'week-title', dir: 'auto' }, view.title),
           // החלקים (עברי · לועזי) אינם נשברים באמצע: השורה נשברת רק בין הלוחות.
           el(
             'p',
@@ -247,7 +255,7 @@
               ? Ui.chip(this.relationText(rel), { kind: 'away', icon: 'clock_24_regular' })
               : Ui.chip(t('השבוע'), { kind: 'now' }),
             ...view.secondary.map((slug) => Ui.chip(Core.eventName(slug), { kind: 'source' })),
-            view.derived
+            view.derived && !pending
               ? Ui.chip(t('לפי העלונים'), {
                   kind: 'source',
                   title: t('השנה הזו אינה בלוח הקטלוג; התאריך נלקח מהעלונים עצמם.'),

@@ -1422,6 +1422,42 @@ async function flows(browser) {
     await browser.closePage(page);
   }
 
+  // שורת הבחירה בצר: פעולות כאייקונים בלבד עם שם נגיש (שתי שורות במקום שלוש); ברחב התוויות נראות
+  for (const [width, narrow] of [
+    [480, true],
+    [1000, false],
+  ]) {
+    page = await open('page=all', small, width);
+    await page.eval("document.querySelector('[data-key=select-mode]').click()");
+    await page.sleep(300);
+    await page.eval(
+      "[...document.querySelectorAll('.select-check')].slice(0, 2).forEach((b) => b.click())",
+    );
+    await page.sleep(300);
+    const bar = await page.eval(
+      "(() => { const b = document.querySelector('.selection-bar'); const acts = [...b.querySelectorAll('.bar-action')]; return { n: acts.length, named: acts.every((a) => (a.getAttribute('aria-label') || '').length > 1 && a.title), hidden: acts.map((a) => getComputedStyle(a.querySelector('.bar-label')).display === 'none'), h: Math.round(b.getBoundingClientRect().height) }; })()",
+    );
+    check(
+      'שורת בחירה ב-' +
+        width +
+        'px: ' +
+        (narrow ? 'אייקונים בלבד, שמות נגישים, שתי שורות' : 'תוויות נראות'),
+      bar.n >= 3 && bar.named && bar.hidden.every((h) => h === narrow) && (!narrow || bar.h < 110),
+      JSON.stringify(bar),
+    );
+    await browser.closePage(page);
+  }
+
+  // כותרת השבוע בטעינה הראשונה: שלד, לא "שבת" גנרית שמתחלפת בשם הפרשה
+  page = await open('page=week&seed=0&netdelay=3000&settle=100&welcome=0', small, 480);
+  check(
+    'כותרת השבוע בטעינה: שלד עם שם נגיש, בלי "לפי העלונים"',
+    await page.eval(
+      "(() => { const h = document.querySelector('.hero-title'); return Boolean(h) && h.classList.contains('is-pending') && Boolean(h.querySelector('.skeleton-line')) && h.textContent.trim().length > 0 && !document.querySelector('.hero-chips').textContent.includes('לפי העלונים'); })()",
+    ),
+  );
+  await browser.closePage(page);
+
   // אבחון: יומן שכל אירועיו debug וסינון ברירת המחדל (info) — הספירה והרשימה מסכימות, וההסבר אומר מה קרה
   page = await open('page=settings&section=diagnostics');
   await page.eval(

@@ -746,6 +746,25 @@ kbd {
   font-weight: 600;
 }
 
+/* צר: פעולות הבחירה כאייקונים בלבד (השם ב-aria-label ובטולטיפ), כך שהן נכנסות בשורה אחת. */
+@container shell (max-width: 40em) {
+  .selection-bar .bar-action .bar-label {
+    display: none;
+  }
+
+  .selection-bar .bar-action {
+    min-width: var(--target);
+    justify-content: center;
+  }
+
+  /* שורה ראשונה: ספירה ובחירה; שורה שנייה: הפעולות (בלי שהראשונה תיפול לסוף הראשונה). */
+  .selection-bar .filter-spacer {
+    flex-basis: 100%;
+    height: 0;
+    margin-block-end: calc(var(--space-2) * -1);
+  }
+}
+
 .selection-close {
   width: 2.2em;
   height: 2.2em;
@@ -2468,6 +2487,22 @@ kbd {
 .skeleton-line.is-title {
   width: 70%;
   height: 1.1em;
+}
+
+/* שלד כותרת השבוע: בגובה השורה של הכותרת האמיתית, כדי שהטעינה לא תקפיץ את הדף. */
+.hero-title.is-pending {
+  display: flex;
+  align-items: center;
+  justify-content: center;
+  min-height: 1.25em;
+}
+
+.skeleton-line.is-hero-title {
+  width: 4.5em;
+  max-width: 100%;
+  height: 0.7em;
+  background: color-mix(in srgb, var(--color-on-primary-container) 16%, transparent);
+  animation: none;
 }
 
 .skeleton-line.is-meta {

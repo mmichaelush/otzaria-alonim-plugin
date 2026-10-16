@@ -179,6 +179,15 @@
       const items = () => app.selectedItems();
       const none = n === 0;
       const run = (fn) => () => fn(items());
+      // בצר רק האייקון נראה (`.bar-label` מוסתר ב-CSS), ולכן השם נגיש גם ב-aria-label ובטולטיפ.
+      const action = (label, onClick, iconName) =>
+        Ui.button('tonal', el('span', { class: 'bar-label' }, label), onClick, {
+          icon: iconName,
+          className: 'button-small bar-action',
+          disabled: none,
+          ariaLabel: label,
+          title: label,
+        });
       const more = Ui.iconButton(
         'more_horizontal_24_regular',
         t('עוד פעולות על הנבחרים'),
@@ -249,30 +258,23 @@
             })
           : null,
         el('span', { class: 'filter-spacer' }),
-        Ui.button(
-          'tonal',
+        action(
           t('הורדה'),
           run((list) => A.Bulk.download(app, list)),
-          { icon: 'arrow_download_24_regular', className: 'button-small', disabled: none },
+          'arrow_download_24_regular',
         ),
-        Ui.button(
-          'tonal',
+        action(
           t('למועדפים'),
           run((list) => A.Bulk.favorite(app, list, true)),
-          { icon: 'star_24_regular', className: 'button-small', disabled: none },
+          'star_24_regular',
         ),
-        Ui.button(
-          'tonal',
+        action(
           t('לאוסף…'),
           run((list) => app.addToListDialog(list)),
-          { icon: 'bookmark_multiple_24_regular', className: 'button-small', disabled: none },
+          'bookmark_multiple_24_regular',
         ),
         A.Bulk.canPrint(app)
-          ? Ui.button('tonal', t('הדפסה'), () => printDialog(app, items()), {
-              icon: 'document_pdf_24_regular',
-              className: 'button-small',
-              disabled: none,
-            })
+          ? action(t('הדפסה'), () => printDialog(app, items()), 'document_pdf_24_regular')
           : null,
         more,
       );
