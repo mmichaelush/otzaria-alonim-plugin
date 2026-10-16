@@ -958,6 +958,111 @@ async function hostFlows(browser, open, check) {
   await browser.closePage(page);
 }
 
+/**
+ * דליפות: מעבר מהיר בין לשוניות ופתיחה/סגירה חוזרות של הצפיין אינן מצטברות מאזינים, צמתי DOM, כתובות Blob או
+ * tokens שהוענקו מהמארח (מארח ישן: כל פתיחה מקומית מעניקה token ו-Blob, וכל סגירה משחררת אותם).
+ */
+async function leakFlows(browser, open, check) {
+  const page = await open('page=all&host=legacy');
+  await page.eval(
+    '(() => { window.__blobs = { made: 0, revoked: 0 }; const mk = URL.createObjectURL.bind(URL); const rv = URL.revokeObjectURL.bind(URL); URL.createObjectURL = (b) => (window.__blobs.made++, mk(b)); URL.revokeObjectURL = (u) => (window.__blobs.revoked++, rv(u)); })()',
+  );
+  const counts = () =>
+    page.eval(
+      "(() => { const a = window.__alonimApp; let n = 0; for (const set of a.listeners.values()) n += set.size; return { listeners: n, nodes: document.getElementsByTagName('*').length, opened: window.__sdk.calls.filter((c) => c.method === 'fs.openFolderFile').length, revoked: window.__sdk.revoked.length, blobsRevoked: window.__blobs.revoked }; })()",
+    );
+  const tabs = ['week', 'all', 'series', 'mine', 'settings'];
+  for (let round = 0; round < 2; round++)
+    for (const tab of tabs) {
+      await page.eval(`window.__alonimApp.go('${tab}')`);
+      await page.sleep(40);
+    }
+  await page.eval("window.__alonimApp.go('all')");
+  await page.sleep(500);
+  const before = await counts();
+  for (let k = 0; k < 20; k++) {
+    await page.eval(`window.__alonimApp.go('${tabs[k % tabs.length]}')`);
+    await page.sleep(30);
+  }
+  await page.eval("window.__alonimApp.go('all')");
+  await page.sleep(500);
+  const afterTabs = await counts();
+  check(
+    'מעבר מהיר בין לשוניות (20 פעמים) אינו מצטבר מאזינים',
+    afterTabs.listeners === before.listeners,
+    JSON.stringify([before, afterTabs]),
+  );
+  check(
+    'מעבר מהיר בין לשוניות אינו מצטבר צמתי DOM (עד 5% סטייה)',
+    Math.abs(afterTabs.nodes - before.nodes) <= before.nodes * 0.05,
+    JSON.stringify([before.nodes, afterTabs.nodes]),
+  );
+  await page.eval("window.__alonimApp.state.setPref('thumbs', false)");
+  const opens = 5;
+  const sdkBefore = await counts();
+  for (let k = 0; k < opens; k++) {
+    await page.eval(
+      "(() => { const a = window.__alonimApp; const idx = a.index.search('', {}, {}, { sort: 'date' }).idx; a.openIssue(a.index.item(idx[" +
+        k +
+        '])); })()',
+    );
+    await page.sleep(1700);
+    await page.eval('window.__alonimApp.closeViewer()');
+    await page.sleep(200);
+  }
+  const afterViewer = await counts();
+  check(
+    'צפיין: פתיחה וסגירה (5 פעמים) אינן מצטברות מאזינים',
+    afterViewer.listeners === sdkBefore.listeners,
+    JSON.stringify([sdkBefore, afterViewer]),
+  );
+  check(
+    'צפיין: כל token שהוענק מהמארח (fs.openFolderFile) שוחרר בסגירה',
+    afterViewer.opened - sdkBefore.opened === afterViewer.revoked - sdkBefore.revoked &&
+      afterViewer.opened - sdkBefore.opened >= opens,
+    JSON.stringify([sdkBefore, afterViewer]),
+  );
+  check(
+    'צפיין: כל Blob של הקובץ שוחרר בסגירה',
+    afterViewer.blobsRevoked - sdkBefore.blobsRevoked >= opens,
+    JSON.stringify([sdkBefore.blobsRevoked, afterViewer.blobsRevoked]),
+  );
+  // סגירה בזמן טעינה: אין token יתום
+  const midBefore = await counts();
+  await page.eval(
+    "(() => { const a = window.__alonimApp; const idx = a.index.search('', {}, {}, { sort: 'date' }).idx; a.openIssue(a.index.item(idx[7])); setTimeout(() => a.closeViewer(), 120); })()",
+  );
+  await page.sleep(2500);
+  const midAfter = await counts();
+  check(
+    'סגירת הצפיין באמצע הטעינה: אין token מוענק שנשאר',
+    midAfter.opened - midBefore.opened === midAfter.revoked - midBefore.revoked,
+    JSON.stringify([midBefore, midAfter]),
+  );
+  check('דליפות (מארח ישן): בלי שגיאות קונסול', page.errors.length === 0, page.errors.join('\n'));
+  await browser.closePage(page);
+
+  // "הצגה חלופית" פעמיים ברצף (מארח חדש): שתי טעינות מקבילות לא משאירות Blob בלי מי שישחרר אותו
+  const alt = await open('page=all');
+  await alt.eval(
+    "(() => { window.__blobs = { made: 0, revoked: 0 }; const mk = URL.createObjectURL.bind(URL); const rv = URL.revokeObjectURL.bind(URL); URL.createObjectURL = (b) => { if (!/fileUrl/.test(new Error().stack)) window.__blobs.made++; return mk(b); }; URL.revokeObjectURL = (u) => (window.__blobs.revoked++, rv(u)); const a = window.__alonimApp; const idx = a.index.search('', {}, {}, { sort: 'date' }).idx; a.openIssue(a.index.item(idx[2])); })()",
+  );
+  await alt.sleep(1200);
+  await alt.eval(
+    'window.__alonimApp.viewerUi.useBlobView(); window.__alonimApp.viewerUi.useBlobView();',
+  );
+  await alt.sleep(1500);
+  await alt.eval('window.__alonimApp.closeViewer()');
+  await alt.sleep(300);
+  check(
+    'הצגה חלופית פעמיים ברצף: כל Blob שנוצר שוחרר',
+    await alt.eval('window.__blobs.made >= 1 && window.__blobs.made === window.__blobs.revoked'),
+    await alt.eval('JSON.stringify(window.__blobs)'),
+  );
+  check('דליפות: בלי שגיאות קונסול', alt.errors.length === 0, alt.errors.join('\n'));
+  await browser.closePage(alt);
+}
+
 /** כשל במסך או בחלון אינו משאיר דף ריק: כרטיס שגיאה עם ניסיון חוזר, והלשוניות ממשיכות לעבוד. */
 async function failureFlows(browser, open, check) {
   const page = await open('page=week');
@@ -1142,6 +1247,7 @@ async function flows(browser) {
   await filterFlows(browser, open, check);
   await selectionFlows(browser, open, check);
   await failureFlows(browser, open, check);
+  await leakFlows(browser, open, check);
 
   // לחיצה על כרטיס = קריאה; הורדה = שמירה קבועה ומצב "הורד" מהדיסק
   page = await open('page=all');

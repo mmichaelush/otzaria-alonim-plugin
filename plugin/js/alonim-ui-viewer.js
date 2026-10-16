@@ -107,6 +107,9 @@
     async load() {
       const s = this.state;
       const token = this.token;
+      // טעינה חדשה ("הצגה חלופית", ניסיון חוזר) מבטלת את הקודמת שעוד רצה: אחרת שתיהן היו כותבות ל-`s` ו-Blob אחד נשאר בלי מי שישחרר אותו.
+      const load = (this.loadSeq = (this.loadSeq || 0) + 1);
+      const stale = () => token !== this.token || load !== this.loadSeq;
       const { app } = this;
       // בלי תיקייה אפשר לקרוא רק במארח חדש (קובץ מרוחק); אחרת בוחרים תיקייה.
       if (!app.files.hasFolder && !app.files.canReadRemote) {
@@ -122,7 +125,7 @@
         // קובץ שכבר בתיקייה נפתח בלי הכתובות (גם כשהקטלוג אינו זמין).
         const full =
           app.files.hasFolder && app.files.isDownloaded(s.item) ? s.item : await app.full(s.item);
-        if (token !== this.token) return;
+        if (stale()) return;
         if (!full) {
           s.phase = 'error';
           s.error = 'missing_data';
@@ -133,7 +136,7 @@
           s.job = job;
           this.drawBody();
         });
-        if (token !== this.token) {
+        if (stale()) {
           // הצפיין נסגר (או עבר לגיליון אחר) בזמן הטעינה: אין מי שישחרר את ההענקה.
           this.app.files.releaseFile(file);
           return;
@@ -157,7 +160,7 @@
           this.drawBody();
           this.refreshBar();
           const blobUrl = await app.files.readBlobUrl(file);
-          if (token !== this.token) {
+          if (stale()) {
             app.files.releaseBlobUrl(blobUrl);
             return;
           }
@@ -174,7 +177,7 @@
           setTimeout(() => token === this.token && this.print(), 700);
         else if (s.options.print) this.print();
       } catch (error) {
-        if (token !== this.token) return;
+        if (stale()) return;
         s.phase = 'error';
         s.error = error.code || 'failed';
         this.drawBody();
