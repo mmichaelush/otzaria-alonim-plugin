@@ -1,6 +1,6 @@
 {
   "name": "otzaria-alonim-plugin",
-  "version": "0.3.0",
+  "version": "0.3.1",
   "private": true,
   "description": "Dev tooling only (tests, format, lint, type check). The plugin itself (plugin/) has no build and no dependencies.",
   "license": "GPL-3.0-only",
