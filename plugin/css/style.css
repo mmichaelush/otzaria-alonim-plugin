@@ -37,7 +37,7 @@
   --color-outline: #79747e;
   --color-outline-variant: #cac4d0;
   --color-inverse-surface: #322f35;
-  --color-inverse-on-surface: #f5eff7;
+  --color-on-inverse-surface: #f5eff7;
   --color-shadow: #000000;
   --color-scrim: #000000;
 
@@ -82,6 +82,9 @@
   --hover-overlay: color-mix(in srgb, var(--color-primary) 8%, transparent);
   --press-overlay: color-mix(in srgb, var(--color-primary) 12%, transparent);
   --focus-ring: var(--color-primary);
+
+  /* מטרת לחיצה מינימלית בעכבר (WCAG 2.2: 24px; כאן 32px), מוכפלת בגודל התצוגה. */
+  --target: calc(32px * var(--ui-scale));
 
   --line: var(--color-outline-variant);
   /* קו עדין לכרטיסים במנוחה: מפריד אותם מהרקע בלי לצייר מסגרת מלאה. */
@@ -559,7 +562,7 @@ kbd {
 }
 
 .button-small {
-  min-height: 2.2em;
+  min-height: var(--target);
   padding: 0 0.9em;
   font-size: var(--fs-small);
 }
@@ -981,7 +984,7 @@ kbd {
 
 .select {
   max-width: 100%;
-  min-height: 2.2em;
+  min-height: var(--target);
   padding: 0 var(--space-2);
   font-size: var(--fs-ui);
   cursor: pointer;
@@ -1010,7 +1013,7 @@ kbd {
 
 .filter-chip {
   flex-shrink: 0;
-  min-height: 2.2em;
+  min-height: var(--target);
   padding: 0 0.85em;
   font-size: var(--fs-small);
 }
@@ -1045,7 +1048,7 @@ kbd {
   gap: var(--space-2);
   align-items: center;
   justify-content: center;
-  min-height: 2.2em;
+  min-height: var(--target);
   padding: 0 1em;
   font-size: var(--fs-ui);
   font-weight: 500;
@@ -1837,7 +1840,8 @@ kbd {
 }
 
 .filter-group {
-  background: var(--color-surface-container-high);
+  background: var(--color-surface-container-highest);
+  border: 1px solid var(--card-line);
   border-radius: var(--radius-sm);
 }
 
@@ -1845,11 +1849,16 @@ kbd {
   display: flex;
   gap: var(--space-2);
   align-items: center;
-  min-height: 2.6em;
+  min-height: 2.8em;
   padding: 0 var(--space-3);
   font-weight: 600;
   cursor: pointer;
   list-style: none;
+  border-radius: var(--radius-sm);
+}
+
+.filter-group > summary:hover {
+  background: var(--hover-overlay);
 }
 
 .filter-group > summary::-webkit-details-marker {
@@ -1928,6 +1937,8 @@ kbd {
 
 .filter-option input {
   flex-shrink: 0;
+  width: 1.15em;
+  height: 1.15em;
   accent-color: var(--color-primary);
 }
 
@@ -1944,8 +1955,14 @@ kbd {
 }
 
 .opt-count {
+  min-width: 2em;
+  padding: 0 0.5em;
   font-size: var(--fs-label);
+  font-variant-numeric: tabular-nums;
+  text-align: center;
   color: var(--color-on-surface-variant);
+  background: var(--chip-quiet);
+  border-radius: var(--radius-pill);
 }
 
 .filter-option.is-zero {
@@ -2034,12 +2051,12 @@ kbd {
   text-align: start;
   cursor: pointer;
   background: var(--card-surface);
-  border: 1px solid transparent;
+  border: 1px solid var(--card-line);
   border-radius: var(--radius-panel);
 }
 
 .compact-row:hover {
-  border-color: var(--color-outline-variant);
+  border-color: var(--line);
 }
 
 .diag-facts dt {
@@ -2176,12 +2193,12 @@ kbd {
   text-align: start;
   cursor: pointer;
   background: var(--card-surface);
-  border: 1px solid transparent;
+  border: 1px solid var(--card-line);
   border-radius: var(--radius-panel);
 }
 
 .history-open:hover {
-  border-color: var(--color-outline-variant);
+  border-color: var(--line);
 }
 
 .history-open:focus-visible {
@@ -2465,7 +2482,7 @@ kbd {
   max-width: 32em;
   padding: var(--space-2) var(--space-2) var(--space-2) var(--space-4);
   margin-block-start: var(--space-2);
-  color: var(--color-inverse-on-surface);
+  color: var(--color-on-inverse-surface);
   pointer-events: auto;
   background: var(--color-inverse-surface);
   border-radius: var(--radius-sm);
@@ -3054,7 +3071,7 @@ kbd {
   padding: 0 var(--space-3) 0 var(--space-2);
   cursor: pointer;
   background: var(--card-surface);
-  border: 1px solid transparent;
+  border: 1px solid var(--card-line);
   border-radius: var(--radius-panel);
   transition:
     background var(--motion),
@@ -3066,7 +3083,7 @@ kbd {
 }
 
 .series-row:hover {
-  border-color: var(--color-outline-variant);
+  border-color: var(--line);
 }
 
 .series-row:focus-visible {
