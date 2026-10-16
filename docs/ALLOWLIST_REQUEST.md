@@ -29,11 +29,11 @@ https://alonolam.com/wp-content/uploads
 | ערך | סוג | מה עובר | באיזה API |
 |-----|-----|---------|-----------|
 | `raw.githubusercontent.com/mmichaelush/otzaria-alonim-plugin/data` | **קטלוג** | קבצי JSON סטטיים (`manifest.json`, `series.json`, `weeks.json`, `recent.json`, `issues/*.json`) שנבנים ב-CI ומתפרסמים בענף `data`. אין בהם מידע על משתמשים | `network.fetchStream` (GET) |
-| `ladaat.co/gilyonot/uploads` | **קבצים** + **תמונות** | קובצי ה-PDF של האתר, והתמונות הממוזערות שלהם (`…/files/*.pdf`, `…/thumbnails/*.png`) | `network.download` (לתיקייה שהמשתמש בחר), `<img>` |
-| `tashma.co.il/gilyonot/file` | **קבצים** | קובצי PDF (`/gilyonot/file/<id>`) | `network.download` |
+| `ladaat.co/gilyonot/uploads` | **קבצים** + **תמונות** | קובצי ה-PDF של האתר, והתמונות הממוזערות שלהם (`…/files/*.pdf`, `…/thumbnails/*.png`) | `network.download` (לתיקייה שהמשתמש בחר), `network.fetchFile` (קריאה בלי שמירה, מארח 0.9.99+), `<img>` |
+| `tashma.co.il/gilyonot/file` | **קבצים** | קובצי PDF (`/gilyonot/file/<id>`) | `network.download`, `network.fetchFile` |
 | `tashma.co.il/gilyonot/thumb` | **תמונות** | תמונה ממוזערת (`/gilyonot/thumb/<id>.png`) | `<img>` |
-| `gilyoines.com/storage` | **קבצים** + **תמונות** | קובצי PDF ותמונות כריכה (`/storage/<שם>.pdf`, `.jpg`) | `network.download`, `<img>` |
-| `alonolam.com/wp-content/uploads` | **קבצים** + **תמונות** | קובצי PDF ותמונות (`/wp-content/uploads/<שנה>/<חודש>/…`) | `network.download`, `<img>` |
+| `gilyoines.com/storage` | **קבצים** + **תמונות** | קובצי PDF ותמונות כריכה (`/storage/<שם>.pdf`, `.jpg`) | `network.download`, `network.fetchFile`, `<img>` |
+| `alonolam.com/wp-content/uploads` | **קבצים** + **תמונות** | קובצי PDF ותמונות (`/wp-content/uploads/<שנה>/<חודש>/…`) | `network.download`, `network.fetchFile`, `<img>` |
 
 הקידומות נבדקו מול `docs/SOURCES.md` (הנתיבים שהקטלוג מפרסם בפועל). הן ברמת הנתיב המינימלית
 שהתוסף צריך, ולא דומיין שלם. דפי האתרים עצמם (`assets[].page`) נפתחים בדפדפן דרך `app.openUrl`, ולכן

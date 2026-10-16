@@ -5,7 +5,7 @@
 ## סדר קריאה
 
 1. `README.md`
-2. `docs/ARCHITECTURE.md`: ההחלטות, השכבות והסיבות.
+2. `docs/ARCHITECTURE.md`: ההחלטות, השכבות והסיבות. לדיבוג: `docs/DEBUGGING.md`; לביצועים: `docs/PERFORMANCE.md`.
 3. `docs/CATALOG_FORMAT.md`: החוזה בין `catalog/` ל-`plugin/`. שינוי בו מחייב לעדכן את שני הצדדים (ואת `schema` אם הוא שובר תאימות).
 4. הקובץ הרלוונטי והבדיקות שלו.
 
@@ -19,11 +19,12 @@
 - **`plugin/`:** HTML/CSS/JS רגיל, בלי build.
   - טקסט נכנס ל-DOM רק דרך `textContent`. אין `innerHTML`.
   - כל טקסט בממשק עובר `t('…')` (ליטרל אחד); מחרוזת חדשה נכנסת גם ל-`i18n/en.js`.
-  - קריאות SDK רק דרך `alonim-runtime.js`. מגביל הקצב של אוצריא הוא "מצוק" ושקט: דלי 50, ‏10ms, ועודף נזרק.
+  - קריאות SDK רק דרך `alonim-runtime.js`. מגביל הקצב של אוצריא הוא "מצוק" ושקט: דלי 50, אסימון כל 10ms (נמדד: ~15ms ב-Windows), ועודף נזרק; התוסף מחזיק עותק שלו (45, ‏15ms) וממתין.
+  - **כשל שהמשתמש רואה:** קוד ברישום (`alonim-errors.js`) ו-`app.reportFailure(code, error)`, לא `toast` עם טקסט חופשי; אין לבלוע חריגה בלי שורה ביומן (`docs/DEBUGGING.md`). משאב שנפתח מהמארח (`fs.openFolderFile`, `network.fetchFile`) משוחרר (`files.releaseFile`).
   - **קריאה שנכשלה אינה מצב ריק.** לעולם לא מוחקים/דורסים מצב משתמש אחרי כשל קריאה.
   - **עיצוב:** רק משתני ערכת הנושא (`var(--…)`), `var(--font-*)`, רדיוסים ו-`font-size` ב-`em`/`rem`. ערכים מוחלטים (hex, `rgb()`, `px` ב-radius) רק בהגדרת custom property. הוולידטור של החנות דוחה אחרת, והוא מדווח על כך רק כ-notice.
   - שם התוסף ≤ 14 תווים ושווה לכותרת ה-toolTab.
-- **גרסה:** `plugin/manifest.json` הוא המקור. `minAppVersion` = הגרסה שבה נוסף ה-API החדש ביותר שבשימוש (היום 0.9.98).
+- **גרסה:** `plugin/manifest.json` הוא המקור (ראו "רשימת בדיקה לגרסה" ב-`docs/DEVELOPMENT.md`). `minAppVersion` = הגרסה הנמוכה ביותר שהמסלול הישן שלה נתמך (0.9.98); API חדש של אוצריא נבדק ב-`Capabilities` ואינו מעלה אותו.
 - **לפני קומיט:**
   - `node --check` לכל קובץ JS;
   - `node --test "catalog/test/*.test.js" "plugin/test/*.test.js"`;

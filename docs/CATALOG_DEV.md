@@ -19,6 +19,24 @@ node build.mjs --out out --now 2026-10-15T09:00:00Z   # זמן קבוע: פלט 
 - פלט: `manifest.json`, `series.json`, `weeks.json`, `weeks-archive.json`, `recent.json`, `issues/*.json`.
 - בדיקות: `node --test "test/*.test.js"` מתוך `catalog/` (או `node --test "catalog/test/*.test.js"` מהשורש). **לא** `node --test test`: ב-Node 22 ומעלה תיקייה אינה מתפרשת. עובד על Node 22 ו-24.
 
+## בדיקת נכונות: לוח ושיוך לשבועות
+
+שני כלים בלי רשת, שמושווים להתייחסויות שאינן חולקות איתם קוד:
+
+```
+node tools/verify-calendar.mjs [--from 1800 --to 2300]   # לוח עברי, חגים, צומות, ר"ח, שבתות מיוחדות ופרשה (חו"ל וארץ ישראל)
+node tools/audit-dates.mjs [--seed 1] [--sample 200]     # השבוע של כל עותק מול כותרת, תיקיות וזמן העלאה (משחזר מ-catalog/.cache)
+node tools/audit-dates.mjs --examples title-parasha --src tashma --limit 30
+```
+
+- `verify-calendar` משווה: (א) תאריך עברי לכל יום מול `Intl` (`en-u-ca-hebrew`), הן לתוסף (`plugin/js/alonim-hebcal.js`) הן ל-Hebcal; (ב) מועדים
+  מול כללים שנגזרו מתאריכי ICU (כולל "17 בתמוז, או 18 בו אם חל בשבת"); (ג) פרשה מול טבלאות KosherJava (`test/fixtures/parasha-oracle.json`: 17 סוגי שנה,
+  חו"ל וארץ ישראל) ותכונות שחייבות להתקיים (בראשית אחרי שמחת תורה, דברים = שבת חזון, מסעי לפני דברים, רק שבעת הזוגות המותרים). נכשל (קוד 1) ומדפיס כל אי-התאמה.
+  `test/calendar-crosscheck.test.js` מריץ אותו על 1950-2100. **1800-2300: אפס אי-התאמות** (16.10.2026).
+- `audit-dates` מחליף את הרשת במטמון (החמצה במטמון היא שגיאה, לא בקשה). לכל עותק: האם התאריך הוא שורת לוח, השנה, הקריאה השמורה מול הלוח, ושלוש השוואות
+  לכותרת (פרשה, שנה, חג) ולזמן ההעלאה, עם מזהה משלו (בלי `lib/parasha.mjs`). התוצאות והפירוש: `SOURCES.md` ("נכונות התאריכים"). "סומן" אינו "טעות": כותרת של שני שבועות,
+  או שם סדרה שנראה כפרשה, מסומנים ויש לשפוט אותם (`--examples`).
+
 ## דיבוג: למה גיליון יצא כך?
 
 ```
@@ -50,7 +68,7 @@ node build.mjs --explain https://tashma.co.il/gilyonot/101853 --cache
 | `lib/archive.mjs`, `lib/urls.mjs`, `lib/wire.mjs`, `lib/shards.mjs` | דגל archive, דחיסת URL וירושה, כתיבה ופיצול |
 | `lib/prev.mjs` | הקטלוג הקודם ← Items (שימור, `cid` דביק) |
 | `lib/explain.mjs` | `--explain` |
-| `tools/` | `sanity.mjs` (מגן פרסום), `suggest-aliases.mjs`, `publish-data-branch.sh` |
+| `tools/` | `sanity.mjs` (מגן פרסום), `suggest-aliases.mjs`, `publish-data-branch.sh`, `verify-calendar.mjs`, `audit-dates.mjs` |
 
 סוגי הנתונים המרכזיים מתועדים ב-JSDoc: `lib/types.mjs` (Asset, Issue, Series), `enrich.mjs` (RawIssue, Item), `calendar.mjs` (WeekRow),
 `pipeline.mjs` (SourceResult).
@@ -95,7 +113,9 @@ node build.mjs --explain https://tashma.co.il/gilyonot/101853 --cache
 | ה-commit בענף `data` אינו ריק כשלא השתנה דבר | משהו לא דטרמיניסטי (מפתחות, זמן) או `autocrlf` | `--now` קבוע; בדקו `diff -r` בין שתי ריצות; הסקריפט כבר מכבה autocrlf |
 | tashma מחזיר 409 על עמוד סדרה | `X-Inertia-Version` חסר או ישן | נלקח מ-`/gilyonot` בתחילת הסריקה; בדקו שהדף עדיין מכיל `data-page` |
 | `url round-trip failed` | URL מהמחבר אינו מוצפן במלואו | `safeUrl` ב-`enrich` מצפין; אם נכשל, מחבר מחזיר תו חריג שלא טופל |
-| גיליון בשבוע לא נכון | כותרת עם שם פרשה לא נכון, שנה שגויה, או שבוע שבו לוח חו"ל וארץ ישראל שונים | `--explain` ובדקו "מי החליט"; תיקון בכללי `parasha.mjs` או alias |
+| גיליון בשבוע לא נכון | כותרת עם שם פרשה לא נכון, שנה שגויה, או שבוע שבו לוח חו"ל וארץ ישראל שונים | `--explain` ובדקו "מי החליט"; `tools/audit-dates.mjs`; תיקון בכללי `parasha.mjs` או alias |
+| מספר גיליון נקרא כפרשה ("גליון צו - ויחי" ← צו) | מספר בגימטריה אחרי "גליון" שזהה לשם פרשה (צו=96, נח=58, שלח=338) | `detectParashaNotIssueNumber` ב-`parasha.mjs`: כשיש פרשה אחרת בכותרת, המילה נקראת כמספר. "גליון צו" לבד נשאר פרשה |
+| גיליון של ladaat בקריאה של חו"ל כשהכותרת אומרת "חקת" | קריאת חו"ל וארץ ישראל שונות באותה שבת | `applyCalendarRow` ב-`enrich.mjs` שומר את הקריאה שהכותרת נקבה (גם כשהתאריך מהמקור) |
 | פרשה לא זוהתה | שם דו-משמעי (בא, שמות, דברים) בלי רמז | הכלל: דיוק לפני כיסוי. סדרה שבועית מקבלת קריאה מקלה (`relaxed`); אחרת הוסיפו רמז או וריאנט כתיב |
 | חג מזוהה בגלל מסכת (שבועות, ראש השנה) | שם המסכת זהה לחג | `TRACTATE_EVENTS` ב-`parasha.mjs`: הוסיפו הקשר חדש לפי הצורך |
 | שנה מופרכת (תשצט) | הכותרת מכילה אות-מספר שנראית כשנה | נדחות שנים מעל השנה הבאה; אחרת הצרו את `parseYearWord` |
@@ -110,4 +130,6 @@ node build.mjs --explain https://tashma.co.il/gilyonot/101853 --cache
 `tools/publish-data-branch.sh <out> <remote> [data]`: משווה למה שמפורסם; אם זהה אינו עושה דבר; אחרת יוצר commit יתום יחיד ודוחף ב-force
 לענף `data` בלבד (מסרב ל-`main`/`master`). ב-CI נקרא מ-`.github/workflows/catalog.yml` אחרי `tools/sanity.mjs` (מסרב לקטלוג ריק או שאיבד
 מעל 30% מהקודם). `test/publish.test.js` מוכיח את ההתנהגות מול ריפו bare מקומי. ה-workflow לא הורץ מעולם ב-GitHub: בהפעלה הראשונה בדקו
-ידנית (`workflow_dispatch`).
+ידנית (`workflow_dispatch`). נבדק מקומית (16.10.2026): `actionlint` (גרסת WASM, בלי shellcheck) על שלושת הקבצים נקי, `bash -n` על כל צעדי `run`, כל הנתיבים קיימים, וסקריפט הפרסום
+הורץ מול ריפו bare מקומי על הקטלוג המלא (commit יתום יחיד, והרצה שנייה "unchanged"). **הרצה ראשונה (אין ענף `data`) סורקת הכול (`--full`)** במקום לפרסם קטלוג חלקי; ב-GitHub Actions
+(כתובות IP של מרכזי נתונים) ייתכן שמקורות יחסמו (`403`), ואז הם מסומנים `blocked` ולא עוקפים.

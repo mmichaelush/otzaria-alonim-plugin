@@ -11,10 +11,14 @@
 ```bash
 npm install                    # פעם אחת: prettier, eslint, typescript (כלי פיתוח בלבד)
 npm test                       # בדיקות יחידה (node:test), כולל מטריצת הסינון
-npm run smoke                  # כל מסך ותרחיש בדפדפן אמיתי (Edge/Chrome headless), נכשל על שגיאת קונסול
-npm run perf                   # תקציבי ביצועים בדפדפן (קוד יציאה 1 כשתקציב מופר)
+npm run test:catalog           # בדיקות הקטלוג (כולל הצלבת הלוח מול ICU ו-KosherJava); ראו catalog/package.json
+npm run smoke                  # כל מסך ותרחיש בדפדפן אמיתי (Edge/Chrome headless), נכשל על שגיאת קונסול (SMOKE_PARALLEL=4: כשתי דקות)
+npm run perf                   # תקציבי ביצועים בדפדפן, קטלוג סינתטי (קוד יציאה 1 כשתקציב מופר)
+node tools/preview/perf.mjs --real   # אותו דבר על הקטלוג האמיתי (catalog/out)
 npm run check                  # syntax + format:check + lint + typecheck + test
 npm run format                 # prettier (printWidth 100)
+node catalog/tools/verify-calendar.mjs   # לוח, מועדים ופרשה מול ICU ו-KosherJava, 1800-2300
+node catalog/tools/audit-dates.mjs       # שיוך העותקים לשבועות מול כותרות המקור (מהמטמון)
 ```
 
 לפני קומיט (AGENTS.md): `npm run check`, `npm run smoke`, והוולידטור הרשמי של החנות:
@@ -53,6 +57,8 @@ node <path-to>/otzaria-plugin-validator/src/cli.js plugin --app-version 0.9.98 -
 
 ## איך מדבגים
 
+מדריך מלא — מה לבקש מהמשתמש, טבלת קודי שגיאה, תסמין ← סיבה, ושחזור (תצוגה מקדימה, שרת QA, אוצריא אמיתית): `DEBUGGING.md`. בקצרה:
+
 **בתוך אוצריא.** הגדרות ← **אבחון**: גרסת המארח והיכולות (ולמה כל אחת זמינה או לא), מצב הקטלוג והקבצים,
 והיומן עם סינון לפי רמה וקטגוריה; "העתקת הדיווח" מעתיקה טקסט בלי נתיבי דיסק וכתובות מקומיות. כשל
 בציור מסך מציג כרטיס "משהו השתבש" עם "נסה שוב" ו"העתקת פרטים לדיווח". כל כשל נרשם עם קוד
@@ -63,9 +69,10 @@ node <path-to>/otzaria-plugin-validator/src/cli.js plugin --app-version 0.9.98 -
 אמיתי דרך CDP (בלי תלויות). כתובת התצוגה: `tools/preview/out/preview.html?today=2026-10-15&page=all`.
 פרמטרים: `page=week|all|series|mine|settings`, `section=`, `minetab=`, `query=`, `series=N`, `open=N`,
 `details=N`, `print=1`, `nofolder=1`, `mode=dark`, `lang=en`, `scale=1.5`, `welcome=1`, `host=legacy`,
+`latency=2` (השהיה לכל קריאת SDK, ms), `settle=0`, `warm=1` (מטמון מלא),
 `scenario=` (`offline`, `blocked`, `slow`, `bad-schema`, `rate-limit`, `download-blocked`,
-`download-html`, `no-folder-permission`, `reader-permission`, `folder-gone`, `legacy-host`,
-`fetchfile-blocked`, `fetchfile-html`, `print-cancel`).
+`download-html`, `no-folder-permission`, `reader-permission`, `reader-hang`, `reader-nolibrary`, `folder-gone`, `legacy-host`,
+`fetchfile-blocked`, `fetchfile-html`, `print-cancel`, `print-gesture`, `print-gesture-first`, `print-slow`; פירוט ב-`DEBUGGING.md`).
 
 ```bash
 node tools/preview/build-preview.mjs [--large]           # בונה את הדף (--large: 30,000 גיליונות)
@@ -113,8 +120,10 @@ node --expose-gc tools/preview/measure-real.mjs <catalog/out>   # זמן בני�
 
 ## רשימת בדיקה לגרסה
 
-1. `npm run check`, `npm run smoke`, `npm run perf`, והוולידטור.
-2. `plugin/manifest.json` (`version`) = `PLUGIN_VERSION` ב-`alonim-core.js` (נבדק).
+1. `npm run check`, `npm run test:catalog`, `npm run smoke`, `npm run perf` (וגם `perf.mjs --real`), והוולידטור של החנות.
+2. הגרסה בארבעה מקומות: `plugin/manifest.json` (`version`, המקור), `package.json`, `PLUGIN_VERSION` ב-`alonim-core.js` (נבדק מול המניפסט), ו-`plugin` ב-`tools/preview/stub.js` (`plugin.boot` המדומה).
+   `minAppVersion` = הגרסה הנמוכה ביותר שהמסלול הישן שלה נתמך (0.9.98); API חדש נבדק ב-`Capabilities`, לא מעלה אותו.
 3. `docs/ALLOWLIST_REQUEST.md` זהה ל-`network.allowlist` במניפסט (נבדק).
-4. עדכון `CHANGELOG.md` וצילומי המסך במדריך (`docs/img`, `FLAT=1 MODES=light`).
-5. בדיקה חיה באוצריא (ראו הרשימה בסוף `CHANGELOG.md` לגרסה).
+4. עדכון `CHANGELOG.md` וצילומי המסך במדריך (`docs/img`, `FLAT=1 MODES=light node tools/preview/screenshots.mjs docs/img`).
+5. אריזה לבדיקה חיה: `node tools/qa/make-variant.mjs …` ואז `C:WindowsSystem32	ar.exe --format zip` (ראו `DEBUGGING.md` §4.2).
+6. בדיקה חיה באוצריא (ראו הרשימה בסוף `CHANGELOG.md` לגרסה).
