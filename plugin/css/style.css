@@ -777,7 +777,7 @@ kbd {
 }
 
 .card.is-selected {
-  background: var(--color-primary-container);
+  background: color-mix(in srgb, var(--color-primary-container) 60%, var(--card-surface));
   outline: 2px solid var(--color-primary);
   outline-offset: -2px;
 }
@@ -1095,6 +1095,19 @@ kbd {
   color: var(--color-on-surface);
 }
 
+/* פעולות בשורת התוצאות ("איפוס", "הצג מוסתרים"): קישורים עם אזור לחיצה נוח. */
+.results-line .link-button {
+  padding: 0.2em 0.6em;
+  margin-block: -0.2em;
+  border-radius: var(--radius-pill);
+  transition: background var(--motion);
+}
+
+.results-line .link-button:hover {
+  text-decoration: none;
+  background: var(--hover-overlay);
+}
+
 .builder {
   padding: var(--space-3) var(--space-4);
   background: var(--card-surface);
@@ -1200,9 +1213,10 @@ kbd {
   background: color-mix(in srgb, var(--color-primary) 7%, var(--card-surface));
 }
 
+/* הטבעת בתוך הכרטיס: הרשימה הווירטואלית חותכת (contain) כל מה שמחוצה לה. */
 .card:focus-visible {
   outline: 2px solid var(--focus-ring);
-  outline-offset: 0;
+  outline-offset: -2px;
 }
 
 .card-grid {
@@ -1573,6 +1587,15 @@ kbd {
 .week-hero.is-away .chip {
   color: var(--color-on-tertiary-container);
   background: var(--color-tertiary-container);
+}
+
+.week-hero .button-tonal {
+  color: var(--color-on-primary-container);
+  background: color-mix(in srgb, var(--color-on-primary-container) 12%, transparent);
+}
+
+.week-hero .button-text {
+  color: var(--color-on-primary-container);
 }
 
 .hero-actions {
@@ -2860,7 +2883,7 @@ kbd {
 .facts {
   display: grid;
   grid-template-columns: auto 1fr;
-  gap: 0 var(--space-4);
+  gap: 0;
   margin: 0;
   font-size: var(--fs-ui);
 }
@@ -2877,6 +2900,7 @@ kbd {
 }
 
 .facts dt {
+  padding-inline-end: var(--space-4);
   color: var(--color-on-surface-variant);
 }
 
@@ -3104,6 +3128,7 @@ kbd {
 
 .series-row:focus-visible {
   outline: 2px solid var(--focus-ring);
+  outline-offset: -2px;
 }
 
 .series-row.is-muted {
@@ -3372,7 +3397,7 @@ kbd {
 }
 
 .progress {
-  height: 4px;
+  height: 0.4em;
   overflow: hidden;
   background: var(--color-surface-container-highest);
   border-radius: var(--radius-pill);
@@ -3493,6 +3518,23 @@ kbd {
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
+}
+
+/* כפתור ישיר בתוך מקטע אינו נמתח לרוחב מלא. */
+.section-body > .button,
+.disk-usage > .button {
+  align-self: flex-start;
+}
+
+/* מצב ניגודיות גבוהה של המערכת: הרקעים נעלמים, ולכן שבבים וכפתורים מקבלים מסגרת. */
+@media (forced-colors: active) {
+  .chip,
+  .filter-tag,
+  .button,
+  .switch,
+  .main-tab[aria-selected="true"] {
+    outline: 1px solid ButtonText;
+  }
 }
 
 @media (prefers-reduced-motion: reduce) {
