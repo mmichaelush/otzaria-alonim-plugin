@@ -570,6 +570,24 @@
       this.emit('selection');
     }
 
+    /**
+     * משאיר בבחירה רק גיליונות ש-[keep] מאשרת (והנמצאים באינדקס). הבחירה היא לפי מזהה, ולכן כשהתוצאות
+     * משתנות (חיפוש, מסנן, כלל) הנבחרים שיצאו מהתוצאות נושרים: מה שנספר ומה שהפעולות חלות עליו הוא תמיד
+     * מה שנראה ברשימה. מפיץ `selection` רק אם משהו נשר.
+     */
+    pruneSelection(keep) {
+      const ids = this.selection.ids;
+      let removed = false;
+      for (const id of [...ids]) {
+        const item = this.index.get(id);
+        if (!item || !keep(item)) {
+          ids.delete(id);
+          removed = true;
+        }
+      }
+      if (removed) this.emit('selection');
+    }
+
     /** הגיליונות שנבחרו (אלה שנמצאים באינדקס), בסדר הבחירה. */
     selectedItems() {
       return [...this.selection.ids].map((id) => this.index.get(id)).filter(Boolean);

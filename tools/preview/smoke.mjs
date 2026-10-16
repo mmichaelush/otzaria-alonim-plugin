@@ -696,6 +696,66 @@ async function selectionFlows(browser, open, check) {
     (await page.eval("document.querySelector('.selection-bar').hidden")) &&
       (await num("document.querySelectorAll('.select-check').length")) === 0,
   );
+  // הבחירה לפי מזהה: כשהתוצאות משתנות, "בחירת כל התוצאות (N)" מציג את הספירה הנוכחית והנבחרים שיצאו מהתוצאות נושרים
+  await page.eval("document.querySelector('[data-key=select-mode]').click()");
+  await page.sleep(200);
+  const selectAllLabel = () =>
+    page.eval(
+      "(() => { const b = [...document.querySelectorAll('.selection-bar button')].find((x) => x.textContent.includes('בחירת כל התוצאות')); return b ? Number(b.textContent.replace(/[^0-9]/g, '')) : null; })()",
+    );
+  const resultCount = () =>
+    num("document.querySelector('.results-count').textContent.replace(/[^0-9]/g, '')");
+  const fullCount = await resultCount();
+  await page.eval(
+    "[...document.querySelectorAll('.select-check')].slice(0, 3).forEach((b) => b.click())",
+  );
+  await page.sleep(200);
+  check('בחירה: לפני סינון הכפתור מציג את כל התוצאות', (await selectAllLabel()) === fullCount);
+  await page.eval("document.querySelector('.search-input').focus()");
+  await page.type('נח');
+  await page.sleep(400);
+  const narrowCount = await resultCount();
+  check('בחירה: הסינון צמצם את התוצאות', narrowCount > 0 && narrowCount < fullCount);
+  check(
+    'בחירה: אחרי חיפוש הכפתור מציג את הספירה החדשה',
+    (await selectAllLabel()) === narrowCount || (await selectAllLabel()) === null,
+    String(await selectAllLabel()) + ' מול ' + narrowCount,
+  );
+  check(
+    'בחירה: נבחרים שיצאו מהתוצאות נושרים, והספירה והפעולות תואמות את הנראה',
+    await page.eval(
+      "(() => { const a = window.__alonimApp; const n = a.selection.ids.size; const shown = new Set(a.index.search(a.view.all.query, a.view.all.filters, a.searchContext(), { sort: a.view.all.sort, includeHidden: a.view.all.includeHidden }).idx); return a.selectedItems().length === n && a.selectedItems().every((it) => shown.has(it._i)) && document.querySelector('.selection-count').textContent.includes(String(n)); })()",
+    ),
+  );
+  await page.eval(
+    "[...document.querySelectorAll('.selection-bar button')].find((b) => b.textContent.includes('בחירת כל התוצאות'))?.click()",
+  );
+  await page.sleep(200);
+  check(
+    'בחירה: "בחירת כל התוצאות" בתוצאות מסוננות בוחר אותן בלבד',
+    (await num('window.__alonimApp.selection.ids.size')) === narrowCount,
+  );
+  await page.eval("document.querySelector('[aria-label^=ניקוי]').click()");
+  await page.sleep(400);
+  check(
+    'בחירה: אחרי ניקוי החיפוש הכפתור חוזר לספירה המלאה (לא 380 ישן)',
+    (await resultCount()) === fullCount && (await selectAllLabel()) === fullCount,
+    String(await selectAllLabel()),
+  );
+  check(
+    'בחירה: מה שנבחר בתוצאות המסוננות נשאר נבחר',
+    (await num('window.__alonimApp.selection.ids.size')) === narrowCount,
+  );
+  await page.eval("document.querySelector('.search-input').focus()");
+  await page.type('ויקרא');
+  await page.sleep(400);
+  check(
+    'בחירה: חיפוש שמוציא את כל הנבחרים מהתוצאות מרוקן את הבחירה',
+    (await resultCount()) === 0 && (await num('window.__alonimApp.selection.ids.size')) === 0,
+    (await resultCount()) + ' / ' + (await num('window.__alonimApp.selection.ids.size')),
+  );
+  await page.eval('window.__alonimApp.setSelecting(false)');
+
   // היסטוריה: פתיחת גיליון נרשמת ומופיעה בלשונית
   await page.eval('window.__alonimApp.openIssue(window.__alonimApp.index.item(0))');
   await page.sleep(500);

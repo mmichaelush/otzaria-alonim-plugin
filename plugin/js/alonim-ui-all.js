@@ -445,6 +445,7 @@
       const v = this.v;
       if (!app.index.size) {
         this.result = { idx: [], total: 0, hidden: 0, ms: 0, query: { tokens: [] } };
+        this.syncSelection();
         this.layout();
         this.updateCount();
         return;
@@ -456,8 +457,22 @@
       app.lastQueryMs = this.result.ms;
       if (!keepScroll) this.list.resetScroll();
       this.persist();
+      this.syncSelection();
       this.layout();
       this.updateCount();
+    }
+
+    /**
+     * אחרי כל חישוב תוצאות: נבחרים שאינם בתוצאות החדשות נושרים, ושורת הבחירה נבנית מחדש מהספירה הנוכחית
+     * ("בחירת כל התוצאות (N)" לא נשארת עם המספר מהחיפוש הקודם).
+     */
+    syncSelection() {
+      const { app } = this;
+      if (app.selection.ids.size) {
+        const inResult = new Set(this.result.idx);
+        app.pruneSelection((item) => inResult.has(item._i));
+      }
+      this.selectionBar.update();
     }
 
     /**
