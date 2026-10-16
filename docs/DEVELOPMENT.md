@@ -77,7 +77,8 @@ node <path-to>/otzaria-plugin-validator/src/cli.js plugin --app-version 0.9.98 -
 ```bash
 node tools/preview/build-preview.mjs [--large]           # בונה את הדף (--large: 30,000 גיליונות)
 node tools/preview/shot.mjs "page=all" out.png 1000x820   # צילום אחד; SHOT_EVAL="…" מריץ קוד לפני הצילום
-node tools/preview/screenshots.mjs [dir]                  # כל המסכים, בהיר וכהה (SHOTS=…, MODES=light, FLAT=1)
+node tools/preview/screenshots.mjs [dir]                  # כל המסכים, בהיר וכהה (SHOTS=…, MODES=light, FLAT=1, WIDTHS=1200,800,480: כל מסך בכל רוחב)
+node tools/preview/a11y.mjs                              # שמות נגישים, ARIA, ניגודיות AA ומטרות ≥32px, בהיר וכהה, ברוחב 1000 ו-420
 node --expose-gc tools/preview/measure-real.mjs <catalog/out>   # זמן בנייה, זיכרון וחיפוש על הקטלוג האמיתי
 ```
 
@@ -114,6 +115,10 @@ node --expose-gc tools/preview/measure-real.mjs <catalog/out>   # זמן בני�
   אין טלמטריה, ואין בקשת רשת מלבד `network.*` לקטלוג ולקבצים; היסטוריה וחיפושים נשארים במכשיר ולא נכללים בייצוא.
 - **קריאה שנכשלה אינה מצב ריק:** תחום שהקריאה שלו נכשלה אינו נכתב עד שקריאה חוזרת מצליחה.
 - **עיצוב:** רק משתני ערכת הנושא ו-`em`; אין `style` inline לתוכן (רק CSSOM); `design.test.js` והוולידטור אוכפים.
+  בראש `style.css` האסימונים של התוסף: סולם טיפוגרפי `--fs-label … --fs-display` (אל תכתבו `font-size` חדש בערך מספרי), רווחים `--space-*`, גובה `--elev-1…3`
+  (המנוחה שטוחה; צל רק לשכבות צפות), קווים `--line` / `--card-line`, שבב נייטרלי `--chip-quiet`, מטרת לחיצה `--target` (32px), ושוליים מיושרים `--edge`.
+  שמות תפקידי הצבע הם שמות המארח ב-kebab (`onInverseSurface` ← `--color-on-inverse-surface`); שם שגוי נראה תקין בבהיר ושבור בכהה. פריסה לפי רוחב:
+  `@container shell` (40em = צר), לא `@media`. רשימה וירטואלית: בלי צללים, מסננים ו-`backdrop-filter` בתוך השורות, ואין `outline-offset` חיובי (נחתך).
 - **טיפוסים:** `npm run typecheck` (tsc, `checkJs`) על כל `plugin/js`; הטיפוסים הציבוריים (`Item`, `WeekRow`,
   `FilterSpec`, `SearchContext`) ב-`tools/plugin-types.d.ts` (ההגדרה: `tools/tsconfig.plugin.json`, מחוץ לחבילת התוסף).
 - **קומיטים:** קטנים; עברית ב-docs, אנגלית בקוד ובהודעות commit.
