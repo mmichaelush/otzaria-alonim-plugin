@@ -256,12 +256,16 @@
               ? Ui.stateCard({
                   icon: 'search_24_regular',
                   title: t('לא נמצאו סדרות'),
-                  text:
+                  text: [
                     v.mode === 'all'
                       ? t('אפשר לקצר את החיפוש או להסיר מסנן.')
                       : t(
                           'עוד לא סימנתם סדרות כאן. פתחו סדרה כדי לעקוב אחריה, להשתיק או לסמן כמועדפת.',
                         ),
+                    Core.isLatinOnlyQuery(v.query)
+                      ? t('החיפוש הוא בעברית — נסו לכתוב את השם באותיות עבריות')
+                      : '',
+                  ],
                   compact: true,
                   actions: [
                     Ui.button('tonal', t('כל הסדרות'), () => {
@@ -612,7 +616,12 @@
                 icon: 'news_24_regular',
                 title: q.clauses.length ? t('לא נמצאו גיליונות') : t('אין גיליונות בסדרה'),
                 text: q.clauses.length
-                  ? t('אפשר לקצר את החיפוש.')
+                  ? [
+                      t('אפשר לקצר את החיפוש.'),
+                      Core.isLatinOnlyQuery(app.view.seriesPage.query)
+                        ? t('החיפוש הוא בעברית — נסו לכתוב את השם באותיות עבריות')
+                        : '',
+                    ]
                   : t('ייתכן שהגיליונות של הסדרה עוד נטענים, או שהוסתרו.'),
                 compact: true,
               }),

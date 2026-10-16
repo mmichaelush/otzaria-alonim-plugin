@@ -21,6 +21,17 @@ test('normalizeKey: ניקוד, מקפים, מרכאות, סופיות, אותי
   assert.equal(normalizeKey(null), '');
 });
 
+test('isLatinOnlyQuery: תעתיק לטיני מקבל רמז; עברית, תחביר שדה וריק לא', () => {
+  assert.equal(Core.isLatinOnlyQuery('mashiv nefesh'), true);
+  assert.equal(Core.isLatinOnlyQuery('  Torah  '), true);
+  assert.equal(Core.isLatinOnlyQuery('משיב נפש'), false);
+  assert.equal(Core.isLatinOnlyQuery('משיב nefesh'), false, 'תערובת: יש עברית');
+  assert.equal(Core.isLatinOnlyQuery('year:5786 parasha:noach'), false, 'שאילתת שדה');
+  assert.equal(Core.isLatinOnlyQuery('5786'), false, 'ספרות בלבד');
+  assert.equal(Core.isLatinOnlyQuery(''), false);
+  assert.equal(Core.isLatinOnlyQuery(null), false);
+});
+
 test('searchKey: פיסוק הופך לרווח', () => {
   assert.equal(searchKey('נח, (תשפ"ז)'), 'נח תשפז');
 });

@@ -785,6 +785,8 @@
     "מטמון {a} ms · סנכרון אחרון {b} ms · בניית אינדקס {c} ms": "cache {a} ms · last sync {b} ms · index build {c} ms",
     "הפעלה (מיצירת התוסף)": "Startup (since the plugin was created)",
     "חימום החיפוש": "Search warm-up",
+    "החיפוש הוא בעברית — נסו לכתוב את השם באותיות עבריות":
+      "Search is in Hebrew — try typing the name in Hebrew letters",
     "לא רץ": "Not run",
     "{ms} ms של עבודה · הסתיים {at} ms מיצירת התוסף":
       "{ms} ms of work · finished {at} ms after the plugin was created",

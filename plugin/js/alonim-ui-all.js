@@ -773,6 +773,9 @@
               loading
                 ? t('השנים שביקשתם עדיין נטענות, והתוצאות יופיעו כשיגיעו.')
                 : t('אפשר לקצר את החיפוש, לבדוק את האיות או להסיר מסנן.'),
+              !loading && Core.isLatinOnlyQuery(v.query)
+                ? t('החיפוש הוא בעברית — נסו לכתוב את השם באותיות עבריות')
+                : '',
               !loading && app.catalog.shards.length > app.catalog.status.shardsLoaded
                 ? t('חלק מהנתונים עדיין נטענים ברקע.')
                 : '',

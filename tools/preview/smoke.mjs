@@ -39,7 +39,12 @@ const scenarios = [
   [
     'all-none',
     'page=all&query=' + encodeURIComponent('זזזזזז'),
-    "document.querySelector('.state-card')",
+    "document.querySelector('.state-card') && !/החיפוש הוא בעברית|Search is in Hebrew/.test(document.querySelector('.state-card').textContent)",
+  ],
+  [
+    'all-latin-hint',
+    'page=all&query=' + encodeURIComponent('mashiv nefesh'),
+    "document.querySelector('.state-card') && /החיפוש הוא בעברית|Search is in Hebrew/.test(document.querySelector('.state-card').textContent)",
   ],
   ['all-list-view', 'page=all&view=list', "document.querySelector('.card.is-row')"],
   ['series', 'page=series', "document.querySelectorAll('.series-row').length > 3"],
@@ -1394,6 +1399,25 @@ async function flows(browser) {
       'פתח באתר המקור (' + scenario + '): ההודעה לפי התוצאה',
       !forbidden.test(text) && (!expected || expected.test(text)),
       text,
+    );
+    await browser.closePage(page);
+  }
+
+  // רמז "החיפוש הוא בעברית" גם בחיפוש בסדרות ובדף סדרה
+  for (const [q, field] of [
+    ['page=series', '.search-input'],
+    ['series=0', '.page-search input, input'],
+  ]) {
+    page = await open(q);
+    await page.eval(
+      `(() => { const i = document.querySelector(${JSON.stringify(field)}); i.value = 'mashiv nefesh'; i.dispatchEvent(new Event('input', { bubbles: true })); })()`,
+    );
+    await page.sleep(500);
+    check(
+      'רמז לחיפוש בעברית (' + q + ')',
+      await page.eval(
+        "/החיפוש הוא בעברית/.test((document.querySelector('.state-card') || {}).textContent || '')",
+      ),
     );
     await browser.closePage(page);
   }

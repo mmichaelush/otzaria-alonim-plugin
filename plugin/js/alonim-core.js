@@ -461,6 +461,15 @@
     return event.code === 'Key' + wanted.toUpperCase();
   }
 
+  /**
+   * שאילתה באותיות לטיניות בלבד (למשל תעתיק "mashiv nefesh"): החיפוש הוא בעברית, ולכן 0 תוצאות כאן
+   * מצדיק רמז. שאילתת שדה (`year:5786`) היא תחביר ולא תעתיק, ולכן אינה נחשבת.
+   */
+  const isLatinOnlyQuery = (text) => {
+    const q = String(text || '');
+    return /[A-Za-z]/.test(q) && !/[֐-׿]/.test(q) && !q.includes(':');
+  };
+
   const api = {
     PLUGIN_ID,
     PLUGIN_VERSION,
@@ -498,6 +507,7 @@
     matchesPrefix,
     isDownloadUrl,
     isSiteUrl,
+    isLatinOnlyQuery,
     resolveAssetUrls,
     encodeNonAscii,
     keyIs,
