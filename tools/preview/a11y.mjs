@@ -33,6 +33,16 @@ export const REPORT_SOURCE = String.raw`(() => {
   for (const el of document.querySelectorAll('[aria-controls]')) for (const id of el.getAttribute('aria-controls').split(' ')) if (!document.getElementById(id) && el.getAttribute('aria-expanded') !== 'false') problems.push('aria-controls points nowhere: ' + id);
   if (document.querySelectorAll('h1').length < 1) problems.push('no h1');
 
+  // גודל מטרה: לפחות 32px בשני הצירים (עכבר, WCAG 2.2: 24px מינימום). קישור-טקסט בתוך משפט
+  // ושדות סימון בתוך תווית (התווית היא המטרה) פטורים.
+  const small = [];
+  for (const el of document.querySelectorAll('button, select, summary, a[href], [role=tab], [role=menuitem], input:not([type=checkbox]):not([type=radio]):not([type=hidden])')) {
+    if (!visible(el) || el.closest('.visually-hidden, .offscreen, .vlist-measure') || el.classList.contains('link-button')) continue;
+    const r = el.getBoundingClientRect();
+    if (Math.min(r.width, r.height) < 31.5) small.push(where(el) + ' ' + Math.round(r.width) + 'x' + Math.round(r.height));
+  }
+  for (const s of [...new Set(small)].slice(0, 12)) problems.push('target < 32px: ' + s);
+
   // ניגודיות
   const parse = (value) => {
     const m = /rgba?\(([^)]+)\)/.exec(value) || /color\(srgb ([^)]+)\)/.exec(value);
@@ -62,6 +72,10 @@ export const REPORT_SOURCE = String.raw`(() => {
   let min = 99;
   for (const el of document.querySelectorAll('body *')) {
     if (!visible(el) || el.closest('[disabled], .is-hidden, .vlist-measure, svg')) continue;
+    // אלמנט באמצע כניסה (toast, דיאלוג): השקיפות של אב אינה סופית.
+    let faded = false;
+    for (let n = el; n && !faded; n = n.parentElement) faded = Number(getComputedStyle(n).opacity) < 1;
+    if (faded) continue;
     const text = [...el.childNodes].filter((n) => n.nodeType === 3 && n.textContent.trim()).map((n) => n.textContent.trim()).join(' ');
     if (!text) continue;
     const cs = getComputedStyle(el);
@@ -111,9 +125,10 @@ if (isMain) {
   const browser = await Browser.launch();
   let total = 0;
   try {
-    for (const mode of ['light', 'dark']) {
+    // רחב (חלון רגיל) וצר (לשונית צרה בכלים): הפריסה, גודל המטרות והניגודיות נבדקים בשניהם.
+    for (const [mode, width] of ['light', 'dark'].flatMap((m) => [1000, 420].map((w) => [m, w]))) {
       for (const q of scenarios) {
-        const page = await browser.newPage(1000, 800);
+        const page = await browser.newPage(width, 800);
         await page.goto(`${base}?today=2026-10-15&${q}&mode=${mode}`);
         await page
           .waitFor("document.documentElement.dataset.previewReady === '1'", 20000)
@@ -125,6 +140,8 @@ if (isMain) {
         console.log(
           (problems.length ? '✖ ' : '✔ ') +
             mode +
+            ' ' +
+            width +
             ' ' +
             q +
             ' [' +
