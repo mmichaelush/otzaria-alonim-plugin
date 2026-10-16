@@ -14,11 +14,11 @@ npm test                       # בדיקות יחידה (node:test), כולל �
 npm run test:catalog           # בדיקות הקטלוג (כולל הצלבת הלוח מול ICU ו-KosherJava); ראו catalog/package.json
 npm run smoke                  # כל מסך ותרחיש בדפדפן אמיתי (Edge/Chrome headless), נכשל על שגיאת קונסול (SMOKE_PARALLEL=4: כשתי דקות)
 npm run perf                   # תקציבי ביצועים בדפדפן, קטלוג סינתטי (קוד יציאה 1 כשתקציב מופר)
-node tools/preview/perf.mjs --real   # אותו דבר על הקטלוג האמיתי (catalog/out)
+npm run perf:real              # אותו דבר על הקטלוג האמיתי (catalog/out)
 npm run check                  # syntax + format:check + lint + typecheck + test
 npm run format                 # prettier (printWidth 100)
-node catalog/tools/verify-calendar.mjs   # לוח, מועדים ופרשה מול ICU ו-KosherJava, 1800-2300
-node catalog/tools/audit-dates.mjs       # שיוך העותקים לשבועות מול כותרות המקור (מהמטמון)
+npm run verify:calendar        # לוח, מועדים ופרשה מול ICU ו-KosherJava, 1800-2300
+npm run audit:dates            # שיוך העותקים לשבועות מול כותרות המקור (מהמטמון)
 ```
 
 לפני קומיט (AGENTS.md): `npm run check`, `npm run smoke`, והוולידטור הרשמי של החנות:

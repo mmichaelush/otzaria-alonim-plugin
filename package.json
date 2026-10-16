@@ -17,7 +17,10 @@
     "format:check": "prettier --check \"plugin/js/**/*.js\" \"plugin/test/**/*.js\" \"plugin/css/**/*.css\" \"tools/preview/**/*.{js,mjs}\" \"tools/icon/**/*.mjs\" \"tools/*.mjs\" eslint.config.js",
     "lint": "eslint plugin/js plugin/test tools/preview tools/icon tools/*.mjs",
     "typecheck": "tsc --noEmit -p tools/tsconfig.plugin.json",
-    "check": "npm run syntax && npm run format:check && npm run lint && npm run typecheck && npm test"
+    "check": "npm run syntax && npm run format:check && npm run lint && npm run typecheck && npm test",
+    "perf:real": "node tools/preview/perf.mjs --real",
+    "verify:calendar": "node catalog/tools/verify-calendar.mjs",
+    "audit:dates": "node catalog/tools/audit-dates.mjs"
   },
   "devDependencies": {
     "@eslint/js": "^9.0.0",
