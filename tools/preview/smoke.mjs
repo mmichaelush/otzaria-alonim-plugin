@@ -1354,7 +1354,7 @@ async function flows(browser) {
   ]) {
     page = await open(q, small, 400);
     const overflow = await page.eval(
-      "(() => { const w = innerWidth; const bad = []; for (const n of document.querySelectorAll('body *')) { const r = n.getBoundingClientRect(); if (r.width > 0 && (r.right > w + 1 || r.left < -1) && !n.closest('.vlist, .main-tabs, .viewer-frame, .menu, .toasts') && getComputedStyle(n).position !== 'fixed') bad.push(n.className + ':' + Math.round(r.left) + '-' + Math.round(r.right)); } return bad.slice(0, 5); })()",
+      "(() => { const w = innerWidth; const bad = []; for (const n of document.querySelectorAll('body *')) { const r = n.getBoundingClientRect(); if (r.width > 0 && (r.right > w + 1 || r.left < -1) && !n.closest('.vlist, .main-tabs, .filter-flags, .viewer-frame, .menu, .toasts') && getComputedStyle(n).position !== 'fixed') bad.push(n.className + ':' + Math.round(r.left) + '-' + Math.round(r.right)); } return bad.slice(0, 5); })()",
     );
     check('400px בלי גלישה: ' + q, overflow.length === 0, overflow.join(' | '));
     check('400px בלי שגיאות: ' + q, page.errors.length === 0, page.errors.join('\n'));

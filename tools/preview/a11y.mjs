@@ -38,8 +38,10 @@ export const REPORT_SOURCE = String.raw`(() => {
   const small = [];
   for (const el of document.querySelectorAll('button, select, summary, a[href], [role=tab], [role=menuitem], input:not([type=checkbox]):not([type=radio]):not([type=hidden])')) {
     if (!visible(el) || el.closest('.visually-hidden, .offscreen, .vlist-measure') || el.classList.contains('link-button')) continue;
-    const r = el.getBoundingClientRect();
-    if (Math.min(r.width, r.height) < 31.5) small.push(where(el) + ' ' + Math.round(r.width) + 'x' + Math.round(r.height));
+    // offset*: גודל הפריסה, בלי טרנספורם של אנימציית כניסה (דיאלוג שנכנס ב-scale 0.98).
+    const w = el.offsetWidth;
+    const h = el.offsetHeight;
+    if (Math.min(w, h) < 31.5) small.push(where(el) + ' ' + w + 'x' + h);
   }
   for (const s of [...new Set(small)].slice(0, 12)) problems.push('target < 32px: ' + s);
 

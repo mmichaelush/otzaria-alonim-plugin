@@ -769,6 +769,13 @@ kbd {
   cursor: pointer;
 }
 
+/* מצב בחירה: עיגול הסימון תופס עמודה, ושאר השורות מתיישרות לכותרת. */
+.card.is-selecting .card-sub,
+.card.is-selecting .card-chips,
+.card.is-selecting .card-actions {
+  margin-inline-start: calc(2.2em + 0.55em + var(--space-2) * 2);
+}
+
 .card.is-selected {
   background: var(--color-primary-container);
   outline: 2px solid var(--color-primary);
@@ -1691,6 +1698,7 @@ kbd {
 
 .week-row-count {
   min-width: 2em;
+  font-variant-numeric: tabular-nums;
   padding: 0 0.5em;
   font-size: var(--fs-label);
   text-align: center;
@@ -2022,6 +2030,7 @@ kbd {
 
 .section-count {
   padding: 0 0.55em;
+  font-variant-numeric: tabular-nums;
   font-size: var(--fs-label);
   font-weight: 500;
   color: var(--color-on-surface-variant);
@@ -2408,9 +2417,10 @@ kbd {
   display: flex;
   flex-direction: column;
   gap: var(--space-2);
-  height: 8em;
+  height: 9.8em;
   padding: var(--space-4);
   background: var(--card-surface);
+  border: 1px solid var(--card-line);
   border-radius: var(--radius-panel);
 }
 
@@ -2443,7 +2453,13 @@ kbd {
 
 .skeleton-line.is-chips {
   width: 30%;
+}
+
+.skeleton-line.is-actions {
+  width: 5.5em;
+  height: 2em;
   margin-block-start: auto;
+  border-radius: var(--radius-sm);
 }
 
 @keyframes shimmer {
@@ -3303,8 +3319,8 @@ kbd {
 .switch {
   position: relative;
   flex-shrink: 0;
-  width: 3.2em;
-  height: 1.9em;
+  width: 3.6em;
+  height: 2.15em;
   padding: 0;
   cursor: pointer;
   background: var(--color-surface-container-highest);
@@ -3325,9 +3341,9 @@ kbd {
 .switch-thumb {
   position: absolute;
   inset-block-start: 50%;
-  inset-inline-start: 0.2em;
-  width: 1em;
-  height: 1em;
+  inset-inline-start: 0.45em;
+  width: 1.1em;
+  height: 1.1em;
   background: var(--color-outline);
   border-radius: 50%;
   transform: translateY(-50%);
@@ -3344,9 +3360,9 @@ kbd {
 }
 
 .switch[aria-checked="true"] .switch-thumb {
-  inset-inline-start: 1.5em;
-  width: 1.3em;
-  height: 1.3em;
+  inset-inline-start: 1.65em;
+  width: 1.5em;
+  height: 1.5em;
   background: var(--color-on-primary);
 }
 

@@ -632,8 +632,8 @@
             node.appendChild(
               el(
                 'h3',
-                { class: 'year-header', dir: 'auto' },
-                d.header,
+                { class: 'year-header' },
+                el('span', { dir: 'auto' }, d.header),
                 el('span', { class: 'section-count' }, Core.formatCount(d.count)),
               ),
             );

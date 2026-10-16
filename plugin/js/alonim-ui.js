@@ -299,6 +299,7 @@
           el('span', { class: 'skeleton-line is-title' }),
           el('span', { class: 'skeleton-line is-meta' }),
           el('span', { class: 'skeleton-line is-chips' }),
+          mode === 'row' ? null : el('span', { class: 'skeleton-line is-actions' }),
         ),
       );
     }
