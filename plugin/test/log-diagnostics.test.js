@@ -33,6 +33,25 @@ test('Log: רמות, קטגוריות, קוד שגיאה מתוך Error, וטב�
   );
 });
 
+test('Log.view: הספירה והרשימה מאותו סינון — יומן עם 4 אירועי debug ורמת info אינו "ריק"', () => {
+  const log = new Log(null);
+  for (const text of ['a', 'b', 'c', 'd']) log.debug(text);
+  const view = log.view({ level: 'info', cat: '' });
+  assert.deepEqual([view.entries.length, view.matched, view.total], [0, 0, 4]);
+  const all = log.view({ level: 'debug', cat: '' });
+  assert.deepEqual([all.entries.length, all.matched, all.total], [4, 4, 4]);
+  log.warn('w');
+  assert.equal(log.view({ level: 'info' }).matched, 1);
+  assert.equal(log.view({ level: 'debug' }, 2).entries.length, 2, 'רק האחרונים');
+  assert.equal(log.view({ level: 'debug' }, 2).matched, 5);
+  assert.equal(log.view({ level: 'debug', cat: 'files' }).total, 5, 'total אינו תלוי בסינון');
+  // הדיווח אינו משתתק כשהסינון מסתיר הכול
+  const quiet = new Log(null);
+  quiet.debug('x');
+  const app = { log: quiet };
+  assert.match(A.Diagnostics.logTail(app.log, { filter: { level: 'info' } }), /1 in the log/);
+});
+
 test('Log: הטבעת מוגבלת, console רק מ-info ומעלה, ומנויים מקבלים אירועים', () => {
   const seen = [];
   const sink = {

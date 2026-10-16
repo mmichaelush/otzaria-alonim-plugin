@@ -225,11 +225,19 @@
       ...(d.errors.last.length ? d.errors.last : ['  (none)']),
       '',
       'log:',
-      app.log.tail(o.tail || 60, o.filter),
+      logTail(app.log, o),
     ];
     return lines.join('\n');
   }
 
-  A.Diagnostics = { snapshot, report };
+  /** זנב היומן המסונן; כשהסינון מסתיר הכול אומרים זאת (במקום לשתוק מול "log: debug 4"). */
+  function logTail(log, o) {
+    const text = log.tail(o.tail || 60, o.filter);
+    if (text) return text;
+    const { total } = log.view(o.filter);
+    return total ? '  (no events match the filter; ' + total + ' in the log)' : '  (none)';
+  }
+
+  A.Diagnostics = { snapshot, report, logTail };
   if (typeof module === 'object' && module.exports) module.exports = A.Diagnostics;
 })(typeof self !== 'undefined' ? self : globalThis);

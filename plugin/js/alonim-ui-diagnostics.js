@@ -184,16 +184,22 @@
     });
     const counts = el('p', { class: 'setting-help' });
     const draw = () => {
-      const entries = log.filter({ level: state.level, cat: state.cat });
-      const shown = entries.slice(-200);
+      const view = log.view({ level: state.level, cat: state.cat }, 200);
+      const shown = view.entries;
       area.classList.toggle('is-empty', !shown.length);
       area.dir = shown.length ? 'ltr' : '';
       area.textContent = shown.length
         ? shown.map(A.Log.Log.format).join('\n')
-        : t('אין אירועים להצגה.');
+        : view.total
+          ? t(
+              'אין אירועים שמתאימים לסינון הנוכחי. ביומן {n} אירועים: שנו את הרמה או את הקטגוריה כדי לראות אותם.',
+              { n: view.total },
+            )
+          : t('אין אירועים להצגה.');
       const c = log.counts();
-      counts.textContent = t('{n} אירועים ביומן · שגיאות {e} · אזהרות {w}', {
-        n: log.entries.length,
+      counts.textContent = t('מוצגים {shown} מתוך {n} אירועים ביומן · שגיאות {e} · אזהרות {w}', {
+        shown: shown.length,
+        n: view.total,
         e: c.error,
         w: c.warn,
       });

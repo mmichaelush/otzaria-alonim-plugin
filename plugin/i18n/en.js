@@ -824,7 +824,10 @@
     "זיכרון": "Memory",
     "יומן התוסף": "Plugin log",
     "אין אירועים להצגה.": "No events to show.",
-    "{n} אירועים ביומן · שגיאות {e} · אזהרות {w}": "{n} log events · errors {e} · warnings {w}",
+    "מוצגים {shown} מתוך {n} אירועים ביומן · שגיאות {e} · אזהרות {w}":
+      "Showing {shown} of {n} log events · errors {e} · warnings {w}",
+    "אין אירועים שמתאימים לסינון הנוכחי. ביומן {n} אירועים: שנו את הרמה או את הקטגוריה כדי לראות אותם.":
+      "No events match the current filter. The log has {n} events: change the level or the category to see them.",
     "רמת יומן": "Log level",
     "קטגוריית יומן": "Log category",
     "כל הקטגוריות": "All categories",

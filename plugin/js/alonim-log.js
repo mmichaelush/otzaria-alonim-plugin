@@ -85,6 +85,20 @@
       return this._root.entries.filter((e) => rank(e.level) >= min && (!o.cat || e.cat === o.cat));
     }
 
+    /**
+     * מה שמסך האבחון מציג: `entries` (האחרונים, עד [limit]), `matched` (כמה מתאימים לסינון) ו-`total`
+     * (כל הטבעת). הספירה והרשימה חייבות לבוא מאותו סינון: `total > 0` עם `matched === 0` פירושו
+     * שהסינון (רמה, קטגוריה) הסתיר הכול, ולא שהיומן ריק.
+     */
+    view(options, limit) {
+      const matched = this.filter(options);
+      return {
+        entries: matched.slice(-(limit || 200)),
+        matched: matched.length,
+        total: this._root.entries.length,
+      };
+    }
+
     /** ספירה לפי רמה, למסך האבחון. */
     counts() {
       const out = { debug: 0, info: 0, warn: 0, error: 0 };

@@ -1398,6 +1398,24 @@ async function flows(browser) {
     await browser.closePage(page);
   }
 
+  // אבחון: יומן שכל אירועיו debug וסינון ברירת המחדל (info) — הספירה והרשימה מסכימות, וההסבר אומר מה קרה
+  page = await open('page=settings&section=diagnostics');
+  await page.eval(
+    "(() => { const a = window.__alonimApp; a.log.clear(); for (const x of 'abcd') a.log.debug(x); const s = document.querySelector('[data-section=diagnostics] select[aria-label=\"קטגוריית יומן\"]'); s.value = 'app'; s.dispatchEvent(new Event('change', { bubbles: true })); })()",
+  );
+  await page.sleep(300);
+  const diagText = await page.eval(
+    "document.querySelector('[data-section=diagnostics] .log-area').textContent + ' | ' + document.querySelector('[data-section=diagnostics] .log-area').previousElementSibling.textContent",
+  );
+  check(
+    'אבחון: 4 אירועי debug מול סינון info — "מוצגים 0 מתוך 4" והסבר, לא "אין אירועים להצגה"',
+    /אין אירועים שמתאימים לסינון/.test(diagText) &&
+      /מוצגים 0 מתוך 4 אירועים ביומן/.test(diagText) &&
+      !/אין אירועים להצגה/.test(diagText),
+    diagText,
+  );
+  await browser.closePage(page);
+
   // כללים: "הסתר סדרה" מכרטיס, ביטול (Undo)
   page = await open('page=all');
   const total = await page.eval(
