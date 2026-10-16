@@ -98,7 +98,7 @@ try {
     );
     const allLoaded = Date.now() - t0;
     const info = await page.eval(
-      `(() => { const a = window.__alonimApp; return { issues: a.index.size, lastBatchBuildMs: Math.round(a.index.lastBuildMs), warmShards: a.catalog.status.shardsTotal, startup: a.timings, cacheMs: a.catalog.status.cacheMs }; })()`,
+      `(() => { const a = window.__alonimApp; return { issues: a.index.size, lastBatchBuildMs: Math.round(a.index.lastBuildMs), warmShards: a.catalog.status.shardsTotal, startup: a.timings, warmUpMs: a.warmUpMs, cacheMs: a.catalog.status.cacheMs }; })()`,
     );
     out[label] = {
       firstCardMs: info.startup.firstCard,
@@ -109,7 +109,7 @@ try {
     if (!extra) {
       // כמו משתמש אמיתי: מקלידים אחרי שהנתונים נרגעו והחימום ברקע (App.scheduleWarmUp) הסתיים.
       await page
-        .waitFor('window.__alonimApp.timings.warm !== undefined', 15000)
+        .waitFor('window.__alonimApp.timings.warmedAt !== undefined', 15000)
         .catch(() => console.log('(warm-up did not run)'));
       // חיפוש מההקלדה: זמן מאירוע input ועד שהרשימה צוירה.
       const queries = ['נח', 'אסיפת גליונות נח', 'year:5786 parasha:noach', 'torah'];

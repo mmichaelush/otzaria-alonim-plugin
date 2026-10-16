@@ -69,6 +69,8 @@
       /** אבני דרך של ההפעלה, במילישניות מיצירת ה-App (רק הפעם הראשונה): לאבחון ולמדידות. */
       this.startedAt = clock();
       this.timings = {};
+      /** כמה ms ארכה העבודה של חימום החיפוש עצמה (בלי ההשהיה לפניו); `null` אם לא רץ. */
+      this.warmUpMs = null;
 
       /** יכולות המארח (fetchFile, printFile): המקור היחיד לשאלה "האם יש". */
       this.caps = new A.Capabilities.Capabilities({ log: this.log.scoped('host') });
@@ -125,7 +127,7 @@
       throw new Error('alonim-ui-shell.js is not loaded');
     }
 
-    /** רושם אבן דרך (פעם אחת): `state`, `shell`, `firstData`, `firstCard`, `firstSync`, `warm`. */
+    /** רושם אבן דרך (פעם אחת): `state`, `shell`, `firstData`, `firstCard`, `firstSync`, `warmedAt` (מתי החימום הסתיים: כולל ההשהיה לפניו). */
     stamp(name) {
       if (this.timings[name] === undefined)
         this.timings[name] = Math.round(clock() - this.startedAt);
@@ -344,10 +346,12 @@
       this.warmTimer = setTimeout(() => {
         if (this.suspended) return;
         try {
+          const started = clock();
           const ctx = this.searchContext();
           this.index.search('נח', {}, ctx, { sort: 'relevance' });
           this.index.facetCounts('', {}, ctx, {});
-          this.stamp('warm');
+          this.warmUpMs = Math.round((clock() - started) * 10) / 10;
+          this.stamp('warmedAt');
         } catch (error) {
           this.log.warn('warm-up failed', error);
         }

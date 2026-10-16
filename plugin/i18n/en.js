@@ -784,6 +784,10 @@
     "זמנים": "Timings",
     "מטמון {a} ms · סנכרון אחרון {b} ms · בניית אינדקס {c} ms": "cache {a} ms · last sync {b} ms · index build {c} ms",
     "הפעלה (מיצירת התוסף)": "Startup (since the plugin was created)",
+    "חימום החיפוש": "Search warm-up",
+    "לא רץ": "Not run",
+    "{ms} ms של עבודה · הסתיים {at} ms מיצירת התוסף":
+      "{ms} ms of work · finished {at} ms after the plugin was created",
     "אחסון": "Storage",
     "מצב משתמש {a} תווים · מטמון קטלוג {b}": "user state {a} characters · catalog cache {b}",
     "אזהרות ושגיאות לפי קוד": "Warnings and errors by code",

@@ -189,6 +189,15 @@ test('Diagnostics: גיל קטלוג, זמני הפעלה, גודל אחסון �
   assert.match(text, /catalog age: 120 min, last ok sync/);
   assert.match(text, /cache read 55ms, last sync 900ms/);
   assert.match(text, /startup: state 40ms, shell 120ms, firstData 300ms/);
+  assert.match(text, /warm-up: not run/);
+  // חימום שרץ: "warm" הישן אמר 7002ms כשהעבודה עצמה ארכה 40ms; עכשיו שני המספרים נפרדים ומוסברים
+  app.timings.warmedAt = 7002;
+  app.warmUpMs = 38.4;
+  const warmed = A.Diagnostics.snapshot(app, { now });
+  assert.equal(warmed.perf.warmUpMs, 38.4);
+  assert.equal(warmed.perf.startup.warmedAt, 7002);
+  assert.match(A.Diagnostics.report(app, { now }), /warm-up: 38.4ms of work, finished at 7002ms/);
+  assert.equal('warm' in warmed.perf.startup, false, 'אין עוד מדד "warm" דו-משמעי');
   assert.match(
     text,
     /storage: state \d+ chars \(favorites \d+, read \d+\), catalog cache 3145728\/104857600 bytes/,

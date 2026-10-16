@@ -151,8 +151,18 @@
         [
           t('הפעלה (מיצירת התוסף)'),
           Object.entries(d.perf.startup)
+            .filter(([k]) => k !== 'warmedAt')
             .map(([k, v]) => k + ' ' + v + ' ms')
             .join(' · ') || '?',
+        ],
+        [
+          t('חימום החיפוש'),
+          d.perf.warmUpMs === null
+            ? t('לא רץ')
+            : t('{ms} ms של עבודה · הסתיים {at} ms מיצירת התוסף', {
+                ms: d.perf.warmUpMs,
+                at: d.perf.startup.warmedAt || '?',
+              }),
         ],
         [
           t('אחסון'),

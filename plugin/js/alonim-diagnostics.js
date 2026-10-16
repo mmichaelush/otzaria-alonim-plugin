@@ -115,6 +115,8 @@
         lastSyncMs: s.lastSyncMs || 0,
         /** אבני דרך בהפעלה, ms מיצירת ה-App: state, shell, firstData, firstCard, firstSync. */
         startup: { ...(app.timings || {}) },
+        /** עבודת חימום החיפוש בפועל (ms), בלי ההשהיה לפניה; `null` אם לא רץ. `startup.warmedAt` הוא מתי הסתיימה. */
+        warmUpMs: app.warmUpMs === undefined ? null : app.warmUpMs,
         memory: memory(),
       },
       log: app.log.counts(),
@@ -206,6 +208,10 @@
         'ms' +
         (d.perf.memory ? ', heap ' + d.perf.memory.usedMb + 'MB' : ''),
       'startup: ' + (startup || '?'),
+      'warm-up: ' +
+        (d.perf.warmUpMs === null
+          ? 'not run'
+          : d.perf.warmUpMs + 'ms of work, finished at ' + (d.perf.startup.warmedAt || '?') + 'ms'),
       'storage: state ' +
         d.storage.state.total +
         ' chars (' +
