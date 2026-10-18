@@ -143,6 +143,7 @@
         el(
           'div',
           { class: 'page fill-page' },
+          el('h2', { class: 'visually-hidden' }, t('רשימת הסדרות')),
           el(
             'div',
             { class: 'toolbar' },

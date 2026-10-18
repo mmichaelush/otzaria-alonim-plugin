@@ -85,14 +85,16 @@
       const counts = ready ? app.index.topicCounts() : null;
       // קטלוג בלי שום תיוג של מועדים (ישן): אריחי המועדים נעלמים במקום להראות אפסים שקריים
       const tagged = Boolean(counts && counts.event.size);
+      const dates = Cycle.stationDates(views, hy);
       return {
         hy,
         leap,
         ready,
-        order: Cycle.order(leap),
+        // מועדי השנה במקומם המדויק לפי הלוח; בלי לוח — הטבלה הקבועה לשנה פשוטה או מעוברת
+        order: Cycle.order(leap, dates),
         counts,
         tagged,
-        dates: Cycle.stationDates(views, hy),
+        dates,
         nowKeys,
         currentView,
         today,

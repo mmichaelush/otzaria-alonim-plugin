@@ -275,9 +275,11 @@ try {
         res.cycleOpenMs = round(performance.now() - t);
         res.cycleTiles = document.querySelectorAll('.cycle-tile').length;
         res.ringSegments = document.querySelectorAll('.ring-seg').length;
+        // פתיחת דף נושא עד שהכרטיס הראשון מצויר (VList מצייר ב-frame שאחרי הפריסה)
         t = performance.now();
         a.openTopic('p:bereshit');
-        await frames();
+        for (let k = 0; k < 30 && !document.querySelector('.topic-list [data-item]'); k++)
+          await new Promise((r) => requestAnimationFrame(r));
         res.topicOpenMs = round(performance.now() - t);
         res.topicIssues = a.screen.shown.length;
         res.topicGroups = a.screen.groups().length;

@@ -108,9 +108,11 @@
   );
 
   /**
-   * המקום של כל מועד בין הפרשות: "אחרי הפרשה X". נמדד על לוח הקטלוג (35 שנים): הפרשה של השבת
-   * האחרונה שלפני המועד (או של אותה שבת, בשבתות מיוחדות). בשנה מעוברת מועדי אדר ופסח נקראים
-   * חמישה שבועות מאוחר יותר ביחס לפרשות, ולכן יש שתי טבלאות; `cycle.test.js` בודק אותן מול הלוח.
+   * המקום הקבוע של כל מועד בין הפרשות: "אחרי הפרשה X", כשאין לוח של השנה (הטעינה הראשונה, קטלוג בלי
+   * לוח). נמדד על לוח הקטלוג (34 שנים): הפרשה של השבת האחרונה שלפני המועד (או של אותה שבת, בשבתות
+   * מיוחדות). בשנה מעוברת מועדי אדר ופסח נקראים חמישה שבועות מאוחר יותר ביחס לפרשות, ולכן שתי טבלאות;
+   * הן מתאימות ל-83% מהמועדים בשנה נתונה (69% בשנים מעוברות), ו-`order(leap, dates)` מחליף אותן בתאריך
+   * המדויק כשהלוח זמין (`cycle.test.js`).
    */
   const AFTER = Object.freeze({
     plain: Object.freeze({
@@ -252,22 +254,59 @@
   // ------------------------------------------------------------- הסדר
 
   /**
+   * הפרשה שאחריה עומד כל מועד, ותאריכו: לפי התאריכים של השנה ([dates], מ-`stationDates`) — המועד
+   * עומד אחרי הפרשה האחרונה שנקראה עד אליו (או באותו יום), ולכן הסדר כרונולוגי בדיוק גם כשפסח מוקדם
+   * או חנוכה נפתח בשישי; בלי תאריכים (קטלוג שעוד לא נטען, מועד שאינו בלוח) — הטבלה הקבועה.
+   * @param {Record<string, string>} base
+   * @param {Map<string, any>} [dates]
+   * @returns {Map<string, { slug: string, date: string }>}
+   */
+  function anchors(base, dates) {
+    const portions = [];
+    if (dates)
+      // עד נצבים: וילך והאזינו נקראות לפעמים בתשרי, ולכן אינן עוגן
+      for (const slug of PARASHA_ORDER.slice(0, PARASHA_ORDER.indexOf('vayeilech'))) {
+        const view = dates.get(pKey(slug));
+        if (view) portions.push([slug, view.date]);
+      }
+    const out = new Map();
+    for (const event of YEAR_EVENTS) {
+      if (ALIAS_OF[event]) continue;
+      const view = dates && dates.get(eKey(event));
+      let slug = base[event];
+      let date = '';
+      if (view && portions.length) {
+        date = view.date;
+        for (const [portion, when] of portions) if (when <= date) slug = portion;
+      }
+      out.set(event, { slug, date });
+    }
+    return out;
+  }
+
+  /**
    * סדר השנה: חגי תשרי, ואחריהם החומשים (ובתוכם הפרשות ומועדי השנה במקומם).
-   * [leap]: שנה מעוברת. מחזיר `{ sections, stations }`; תחנה: `{ key, kind, slug, section, n }`
+   * [leap]: שנה מעוברת. [dates]: תאריכי השנה (`stationDates`): בלעדיהם המועדים לפי הטבלה הקבועה, ועימם
+   * לפי התאריך המדויק. מחזיר `{ sections, stations }`; תחנה: `{ key, kind, slug, section, n }`
    * (n: מספר הפרשה 1-54, בפרשה בלבד) ו-`alias` (מועד-כינוי שנשען עליה).
    */
   const cache = new Map();
-  function order(leap) {
+  function order(leap, dates) {
     const flag = leap ? 'leap' : 'plain';
-    if (cache.has(flag)) return cache.get(flag);
-    const after = AFTER[flag];
+    const useDates = Boolean(dates && dates.size);
+    if (!useDates && cache.has(flag)) return cache.get(flag);
     const bySlug = new Map();
-    for (const event of YEAR_EVENTS) {
-      if (ALIAS_OF[event]) continue;
-      const slug = after[event];
+    for (const [event, { slug, date }] of anchors(AFTER[flag], useDates ? dates : null)) {
       if (!bySlug.has(slug)) bySlug.set(slug, []);
-      bySlug.get(slug).push(event);
+      bySlug.get(slug).push({ event, date });
     }
+    // באותה פרשה: לפי התאריך (פורים וצום אסתר אינם תמיד באותו סדר מול שבת זכור), ואז לפי סדר השנה
+    for (const list of bySlug.values())
+      list.sort(
+        (a, b) =>
+          (a.date < b.date ? -1 : a.date > b.date ? 1 : 0) ||
+          YEAR_EVENTS.indexOf(a.event) - YEAR_EVENTS.indexOf(b.event),
+      );
     const station = (kind, slug, section) => ({
       key: (kind === 'parasha' ? 'p:' : 'e:') + slug,
       kind,
@@ -292,13 +331,13 @@
         parasha.n = k + 1;
         if (ALIAS_BY_PARASHA[slug]) parasha.alias = ALIAS_BY_PARASHA[slug];
         stations.push(parasha);
-        for (const event of bySlug.get(slug) || [])
+        for (const { event } of bySlug.get(slug) || [])
           stations.push(station('event', event, chumash.id));
       }
       sections.push({ id: chumash.id, name: chumash.name, kind: 'chumash', stations });
     }
     const result = { sections, stations: sections.flatMap((s) => s.stations) };
-    cache.set(flag, result);
+    if (!useDates) cache.set(flag, result);
     return result;
   }
 

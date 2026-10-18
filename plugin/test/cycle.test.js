@@ -18,6 +18,19 @@ const fixture = (name) =>
 const rows = [...fixture('weeks-archive-real.json'), ...fixture('weeks-real.json')];
 const il = Weeks.build(rows, { diaspora: false });
 const diaspora = Weeks.build(rows, { diaspora: true });
+
+// לוח של 35 שנים עם פרשות ומועדים: רק בקטלוג האמיתי (צילום הארכיון בבדיקות מכיל תאריכים בלבד)
+const realDir = findCatalog();
+const realRows = realDir
+  ? [
+      ...JSON.parse(fs.readFileSync(path.join(realDir, 'weeks-archive.json'), 'utf8')),
+      ...JSON.parse(fs.readFileSync(path.join(realDir, 'weeks.json'), 'utf8')),
+    ]
+  : [];
+const realViews = {
+  il: Weeks.build(realRows, { diaspora: false }),
+  diaspora: Weeks.build(realRows, { diaspora: true }),
+};
 const keys = (list) => list.map((s) => s.key);
 
 // ---------------------------------------------------------------- הסדר
@@ -107,35 +120,100 @@ test('order: שנה מעוברת מזיזה את מועדי אדר ופסח אח
   );
 });
 
-test('order: הסדר תואם את לוח השנים האמיתי (35 שנים), בשתי הטבלאות', () => {
-  for (const views of [diaspora, il]) {
-    const stat = { plain: [0, 0], leap: [0, 0] };
-    for (const { hy } of Weeks.years(views)) {
-      if (Weeks.ofYear(views, hy).filter((v) => v.shabbat).length < 45) continue;
-      const leap = HebCal.isLeap(hy);
-      const dates = Cycle.stationDates(views, hy);
-      // מבראשית עד נצבים: וילך והאזינו לפעמים בתשרי, והגלגל מסיים בהן לפי סדר התורה
-      const seq = Cycle.order(leap)
-        .stations.filter((s) => s.section !== 'tishrei')
-        .filter((s) => !['p:vayeilech', 'p:haazinu', 'p:vezot-haberakhah'].includes(s.key));
-      let prev = '';
-      let violations = 0;
-      for (const s of seq) {
-        const view = dates.get(s.key);
-        if (!view) continue;
-        if (prev && view.date < prev) violations++;
-        prev = view.date;
-      }
-      const bucket = stat[leap ? 'leap' : 'plain'];
-      bucket[0]++;
-      if (violations === 0) bucket[1]++;
-      assert.ok(violations <= 3, hy + ': ' + violations + ' חריגות');
-    }
-    // רוב מוחלט של השנים בסדר מושלם (שנה שבה פסח מאוחר או חנוכה מתחיל בשישי היא חריגה מוכרת)
-    assert.ok(stat.plain[0] >= 20 && stat.plain[1] / stat.plain[0] >= 0.9, JSON.stringify(stat));
-    assert.ok(stat.leap[0] >= 10 && stat.leap[1] / stat.leap[0] >= 0.85, JSON.stringify(stat));
+/** מבראשית עד נצבים, בלי תשרי: וילך והאזינו לפעמים בתשרי, והגלגל מסיים בהן לפי סדר התורה. */
+const chronological = (leap, dates) =>
+  Cycle.order(leap, dates)
+    .stations.filter((s) => s.section !== 'tishrei')
+    .filter((s) => !['p:vayeilech', 'p:haazinu', 'p:vezot-haberakhah'].includes(s.key));
+
+/** תחנות שתאריכן לא עולה בסדר: ריק כשהסדר כרונולוגי. */
+function outOfOrder(stations, dates) {
+  let prev = '';
+  const bad = [];
+  for (const s of stations) {
+    const view = dates.get(s.key);
+    if (!view) continue;
+    if (prev && view.date < prev) bad.push(s.key);
+    if (view.date > prev) prev = view.date;
   }
+  return bad;
+}
+
+test('order: עם תאריכי השנה הסדר כרונולוגי בדיוק (תשפ״ו ותשפ״ז, ארץ ישראל וחוץ לארץ)', () => {
+  for (const views of [diaspora, il]) {
+    for (const hy of [5786, 5787]) {
+      const dates = Cycle.stationDates(views, hy);
+      const seq = chronological(HebCal.isLeap(hy), dates);
+      assert.ok(seq.filter((s) => dates.has(s.key)).length > 55, String(hy));
+      assert.deepEqual(outOfOrder(seq, dates), [], String(hy));
+    }
+  }
+  // חנוכה בתשפ״ז נפתח בשישי, לפני שבת וישב: הטבלה הקבועה אומרת "אחרי וישב", והלוח — אחרי וישלח
+  const dates = Cycle.stationDates(il, 5787);
+  const keys = keysOf(Cycle.order(true, dates).stations);
+  assert.equal(keys[keys.indexOf('e:chanukah') - 1], 'p:vayishlach');
+  assert.equal(keys[keys.indexOf('e:chanukah') + 1], 'p:vayeshev');
+  const staticKeys = keysOf(Cycle.order(true).stations);
+  assert.equal(staticKeys[staticKeys.indexOf('e:chanukah') - 1], 'p:vayeshev');
 });
+
+function keysOf(stations) {
+  return stations.map((s) => s.key);
+}
+
+test('order: בלי תאריכים (או לוח ריק) — הטבלה הקבועה, ובאותן תחנות', () => {
+  const same = (a, b) => assert.deepEqual(keysOf(a.stations), keysOf(b.stations));
+  same(Cycle.order(true, new Map()), Cycle.order(true));
+  same(Cycle.order(false, undefined), Cycle.order(false));
+  // מועד שאין לו תאריך באותה שנה נשאר במקומו הקבוע, והשאר לפי הלוח
+  const dates = Cycle.stationDates(il, 5787);
+  dates.delete('e:purim');
+  const keys = keysOf(Cycle.order(true, dates).stations);
+  assert.ok(keys.indexOf('e:purim') > keys.indexOf('p:vayikra'));
+  assert.equal(new Set(keys).size, keys.length);
+  assert.equal(keys.length, Cycle.order(true).stations.length);
+});
+
+test(
+  'order: בכל 34 השנים בלוח האמיתי הסדר כרונולוגי בדיוק (שתי הטבלאות, ארץ ישראל וחוץ לארץ)',
+  { skip: !realDir && 'אין catalog/out' },
+  () => {
+    for (const views of [realViews.diaspora, realViews.il]) {
+      let years = 0;
+      let leaps = 0;
+      const hits = [0, 0];
+      for (const { hy } of Weeks.years(views)) {
+        if (Weeks.ofYear(views, hy).filter((v) => v.shabbat).length < 45) continue;
+        years++;
+        const leap = HebCal.isLeap(hy);
+        if (leap) leaps++;
+        const dates = Cycle.stationDates(views, hy);
+        assert.deepEqual(outOfOrder(chronological(leap, dates), dates), [], String(hy));
+        // הטבלה הקבועה (בלי לוח): הפרשה שלפני כל מועד תואמת את הלוח ברוב המקרים
+        const exact = Cycle.order(leap, dates).stations;
+        const fixed = Cycle.order(leap).stations;
+        const before = (list, key) => {
+          let k = list.findIndex((x) => x.key === key);
+          while (list[k].kind !== 'parasha') k--;
+          return list[k].key;
+        };
+        for (const s of exact) {
+          if (s.kind !== 'event' || s.section === 'tishrei' || !dates.has(s.key)) continue;
+          hits[1]++;
+          if (before(exact, s.key) === before(fixed, s.key)) hits[0]++;
+        }
+      }
+      assert.ok(years >= 30 && leaps >= 10, years + ' שנים, ' + leaps + ' מעוברות');
+      assert.ok(hits[0] / hits[1] >= 0.75, 'הטבלה הקבועה: ' + hits.join('/'));
+    }
+    // 5771 (מעוברת): צום אסתר קודם לשבת זכור; הסדר הקבוע שם אותם הפוך
+    const dates = Cycle.stationDates(realViews.il, 5771);
+    const keys = keysOf(Cycle.order(true, dates).stations);
+    assert.ok(keys.indexOf('e:taanit-esther') < keys.indexOf('e:shabbat-zachor'));
+    const fixed = keysOf(Cycle.order(true).stations);
+    assert.ok(fixed.indexOf('e:taanit-esther') > fixed.indexOf('e:shabbat-zachor'));
+  },
+);
 
 // ------------------------------------------------------------- נושאים
 
@@ -183,7 +261,8 @@ test('topicOfView: פרשה (הראשונה בשבת משולבת), ושבת א�
 test('PAIRS: כל שבת משולבת בלוח (35 שנים, ארץ ישראל וחוץ לארץ) היא אחד הזוגות', () => {
   const pairs = new Set(Cycle.PAIRS.map((p) => p.join('+')));
   const seen = new Set();
-  for (const views of [il, diaspora])
+  const all = realDir ? [realViews.il, realViews.diaspora] : [il, diaspora];
+  for (const views of all)
     for (const v of views) if (v.parasha.length === 2) seen.add(v.parasha.join('+'));
   for (const p of seen) assert.ok(pairs.has(p), p);
   assert.ok(seen.size >= 6);
@@ -506,8 +585,6 @@ test('נתונים חסרים: אינדקס ריק, נושא בלי גיליונ
 });
 
 // ---------------------------------------------- הקטלוג האמיתי (אם קיים)
-
-const realDir = findCatalog();
 
 test(
   'קטלוג אמיתי: ספירת כל פרשה ומועד שווה לספירה נאיבית על הנתונים הגולמיים',

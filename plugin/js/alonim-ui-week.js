@@ -425,7 +425,7 @@
       const app = this.app;
       const list = el('div', {
         class: 'compact-list',
-        role: 'list',
+        role: 'group',
         'aria-label': t('המשך קריאה'),
       });
       for (const snap of snaps) {
@@ -440,7 +440,6 @@
             {
               type: 'button',
               class: 'compact-row',
-              role: 'listitem',
               onclick: () =>
                 item ? app.openIssue(item) : app.go('all', { query: snap.st || snap.ti }),
             },

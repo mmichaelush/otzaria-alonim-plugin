@@ -158,6 +158,8 @@
         el(
           'div',
           { class: 'page fill-page all-page' },
+          // כותרת משנה נסתרת: כרטיסי התוצאות הם h3, והדף מתחיל ב-h1 (סדר כותרות תקין)
+          el('h2', { class: 'visually-hidden' }, t('תוצאות החיפוש')),
           el(
             'div',
             { class: 'toolbar' },
