@@ -268,7 +268,7 @@
   window.addEventListener('load', async () => {
     if (window.__seedDownloads) window.__seedDownloads();
     const payload = {
-      plugin: { id: 'com.otzaria-alonim', version: '0.3.2' },
+      plugin: { id: 'com.otzaria-alonim', version: '0.4.0' },
       app: {
         version:
           scenario === 'legacy-host' || params.get('host') === 'legacy' ? '0.9.98' : '0.9.99',
@@ -295,10 +295,10 @@
     if (params.get('query')) {
       app.go('all', { query: params.get('query') });
     }
-    // דף נושא ("מעגל השנה"): topic=p:noach|e:purim, mode=combined, from=week
+    // דף נושא ("מעגל השנה"): topic=p:noach|e:purim, topicmode=combined, from=week
     if (params.get('topic'))
       app.openTopic(params.get('topic'), {
-        mode: params.get('mode') || undefined,
+        mode: params.get('topicmode') || undefined,
         from: params.get('from') || 'cycle',
       });
     if (params.get('series'))

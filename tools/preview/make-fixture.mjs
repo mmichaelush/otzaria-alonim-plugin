@@ -167,6 +167,92 @@ function smallCatalog() {
   return files;
 }
 
+/**
+ * (ד) קטלוג "מעגל השנה" לצילומי מסך: שמונה שנים (תש״פ-תשפ״ז) של עלונים מומצאים ב-12 סדרות, בתדירות שונה
+ * לכל סדרה, כדי שהגלגל והספירות ייראו כמו בקטלוג אמיתי. דטרמיניסטי; בלי כותרות של עלונים אמיתיים.
+ */
+function wheelCatalog() {
+  const weeks = weeksFixture();
+  // צילום הארכיון בבדיקות מכיל תאריכים בלבד (בלי פרשות); כשיש קטלוג אמיתי מקומי — הלוח המלא שלו
+  const localArchive = join(here, '..', '..', 'catalog', 'out', 'weeks-archive.json');
+  const archive = JSON.parse(
+    readFileSync(
+      existsSync(localArchive)
+        ? localArchive
+        : join(here, '..', '..', 'plugin', 'test', 'fixtures', 'weeks-archive-real.json'),
+      'utf8',
+    ),
+  );
+  const rows = [...archive, ...weeks].filter(
+    (w) => w.hy >= 5780 && w.hy <= 5787 && w.date <= '2026-10-17',
+  );
+  const series = SERIES.map(([title, lang, circle, src], i) => ({
+    id: 's_' + (0x3fa91c02b1 + i * 7919).toString(16).slice(0, 10),
+    title,
+    aliases: [],
+    previousIds: [],
+    lang,
+    circle,
+    kind: 'weekly',
+    sources: [{ src, ext: String(37 + i), title }],
+    issueCount: 0,
+    first: '2020-01-04',
+    last: '2026-10-17',
+  }));
+  // כל סדרה יוצאת בחלק משבועות השנה: מ-90% (שבועון קבוע) עד 25% (סדרה שנעלמה לתקופות)
+  const rate = [92, 88, 80, 74, 66, 58, 52, 46, 40, 34, 28, 22];
+  const sources = ['ladaat', 'tashma', 'gilyoines', 'alonolam'];
+  const issues = [];
+  let n = 0;
+  series.forEach((s, si) => {
+    rows.forEach((row, ri) => {
+      // חגים באמצע השבוע: רק חלק מהסדרות מפרסמות עלון חג
+      const holiday = row.shabbat === false;
+      const roll = (si * 7919 + ri * 104729 + (n % 7)) % 100;
+      if (roll >= (holiday ? rate[si] * 0.9 : rate[si])) return;
+      const src = sources[(si + ri) % 4];
+      const parasha = holiday ? [] : row.parasha;
+      issues.push({
+        id: 'i_' + (0x8c11d0e47a93 + n * 104729).toString(16).padStart(12, '0').slice(-12),
+        series: s.id,
+        title: s.title,
+        no: 10 + (ri % 60),
+        date: row.date,
+        hy: row.hy,
+        parasha,
+        event: row.event || undefined,
+        lang: s.lang,
+        pages: 4 + ((n * 13) % 40),
+        added: new Date(
+          Date.UTC(2026, 9, 14, 20, 0, 0) - ((rows.length - ri) % 90) * 86400000,
+        ).toISOString(),
+        assets: [
+          {
+            src,
+            ext: String(1000 + n),
+            url: 'https://ladaat.co/gilyonot/uploads/' + row.date + '/files/' + (si + 1) + '.pdf',
+            page: 'https://ladaat.co/gilyonot/view/' + n,
+            bytes: 200000 + ((n * 7919) % 1000000),
+            pages: 4 + ((n * 13) % 40),
+            downloads: (n * 37) % 700,
+          },
+        ],
+      });
+      s.issueCount++;
+      n++;
+    });
+  });
+  const { files } = buildFiles({
+    series,
+    issues,
+    weeks,
+    weeksArchive: archive,
+    sources: DEFAULT_SOURCES,
+    recentCount: 40,
+  });
+  return files;
+}
+
 function write(name, files) {
   writeFileSync(join(out, name), 'window.__FIXTURE__ = ' + JSON.stringify({ files }) + ';');
   const bytes = Object.values(files).reduce((s, t) => s + t.length, 0);
@@ -177,6 +263,7 @@ if (value('--catalog')) {
   write('fixture-real.js', readDir(value('--catalog')));
 } else {
   write('fixture-small.js', smallCatalog());
+  if (flag('--wheel')) write('fixture-wheel.js', wheelCatalog());
   if (flag('--large')) {
     const size = Number(value('--size') || 32000);
     const { series, issues } = makeCatalog(size, 1200, 5);

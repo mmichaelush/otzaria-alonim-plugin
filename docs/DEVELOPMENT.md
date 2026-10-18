@@ -42,10 +42,10 @@ node <path-to>/otzaria-plugin-validator/src/cli.js plugin --app-version 0.9.98 -
 |------|-------|-------|
 | תשתית | `i18n`, `log`, `runtime`, `capabilities`, `errors`, `boundary` | תרגום; יומן עם רמות וקטגוריות; SDK עם מגביל קצב; יכולות מארח; קודי שגיאה; גבול שגיאות |
 | טהור (נתונים) | `core`, `hebcal`, `weeks`, `normalize`, `filters`, `rules`, `storage`, `bulk`, `diagnostics` | כלים בלי DOM: תאריכים ולוח, זהות מפתחות, מודל מסננים, כללים, חישובי אחסון, פעולות מרובות, אבחון |
-| אינדקס | `index`, `index-search` | עמודות בזיכרון; חיפוש, קבוצות סינון, `facetCounts`, קיבוץ, העברת מזהים |
+| אינדקס | `index`, `index-search`, `cycle` | עמודות בזיכרון; חיפוש, קבוצות סינון, `facetCounts`, `topicCounts`, קיבוץ, העברת מזהים; `cycle`: סדר השנה ונושאי "מעגל השנה" (טהור, מעל האינדקס) |
 | אחסון ורשת | `state-schema`, `state`, `catalog`, `files` | מצב משתמש ב-`storage.*`; סנכרון קטלוג ל-`fs` הפרטי; תיקיית הקבצים, תור, קריאה והדפסה |
 | בקר | `app` | חיבור השכבות, ניווט, פעולות, בחירה מרובה |
-| ממשק | `ui` (רכיבים), `ui-overlays` (דיאלוג, תפריט, toast), `ui-vlist` (גלילה וירטואלית), `ui-cards`, `ui-shell`, `ui-week`, `ui-weekpicker`, `ui-dates`, `ui-all`, `ui-filters`, `ui-select`, `ui-browse` (סדרות), `ui-mine`, `ui-detail`, `ui-viewer`, `ui-settings` (+`-rules`, `-backup`), `ui-storage`, `ui-help`, `ui-diagnostics` | מסכים וחלונות |
+| ממשק | `ui` (רכיבים), `ui-overlays` (דיאלוג, תפריט, toast), `ui-vlist` (גלילה וירטואלית), `ui-cards`, `ui-shell`, `ui-week`, `ui-weekpicker`, `ui-dates`, `ui-all`, `ui-filters`, `ui-select`, `ui-browse` (סדרות), `ui-ring` (הטבעת), `ui-cycle` (מעגל השנה), `ui-topic` (דף נושא), `ui-mine`, `ui-detail`, `ui-viewer`, `ui-settings` (+`-rules`, `-backup`), `ui-storage`, `ui-help`, `ui-diagnostics` | מסכים וחלונות |
 
 הוספת מרכיבים נפוצים:
 
@@ -67,7 +67,7 @@ node <path-to>/otzaria-plugin-validator/src/cli.js plugin --app-version 0.9.98 -
 
 **מחוץ לאוצריא (תצוגה מקדימה).** `tools/preview` בונה דף עם SDK מדומה וקטלוג מקומי, ומפעיל אותו בדפדפן
 אמיתי דרך CDP (בלי תלויות). כתובת התצוגה: `tools/preview/out/preview.html?today=2026-10-15&page=all`.
-פרמטרים: `page=week|all|series|mine|settings`, `section=`, `minetab=`, `query=`, `series=N`, `open=N`,
+פרמטרים: `page=week|cycle|all|series|mine|settings`, `topic=p:noach|e:purim`, `topicmode=combined`, `from=week`, `section=`, `minetab=`, `query=`, `series=N`, `open=N`,
 `details=N`, `print=1`, `nofolder=1`, `mode=dark`, `lang=en`, `scale=1.5`, `welcome=1`, `host=legacy`,
 `latency=2` (השהיה לכל קריאת SDK, ms), `settle=0`, `warm=1` (מטמון מלא),
 `scenario=` (`offline`, `blocked`, `slow`, `bad-schema`, `rate-limit`, `download-blocked`,
@@ -79,6 +79,9 @@ node tools/preview/build-preview.mjs [--large]           # בונה את הדף 
 node tools/preview/shot.mjs "page=all" out.png 1000x820   # צילום אחד; SHOT_EVAL="…" מריץ קוד לפני הצילום
 node tools/preview/screenshots.mjs [dir]                  # כל המסכים, בהיר וכהה (SHOTS=…, MODES=light, FLAT=1, WIDTHS=1200,800,480: כל מסך בכל רוחב)
 node tools/preview/a11y.mjs                              # שמות נגישים, ARIA, ניגודיות AA ומטרות ≥32px, בהיר וכהה, ברוחב 1000 ו-420
+AXE_CORE=<נתיב>/axe.min.js node tools/preview/axe.mjs   # axe-core המלא (לא תלות של הריפו: npm pack axe-core בתיקייה זמנית); 0 הפרות במסכי הבית, המעגל והרשימות
+SMOKE_ONLY=cycle node tools/preview/smoke.mjs            # רק "מעגל השנה" (תרחישים וזרימות), לעבודה על המסך
+node tools/preview/build-preview.mjs --wheel             # קטלוג דוגמה של שמונה שנים לצילומי המעגל (preview-wheel.html)
 node --expose-gc tools/preview/measure-real.mjs <catalog/out>   # זמן בנייה, זיכרון וחיפוש על הקטלוג האמיתי
 ```
 
@@ -125,7 +128,7 @@ node --expose-gc tools/preview/measure-real.mjs <catalog/out>   # זמן בני�
 
 ## רשימת בדיקה לגרסה
 
-1. `npm run check`, `npm run test:catalog`, `npm run smoke`, `npm run perf` (וגם `perf.mjs --real`), והוולידטור של החנות.
+1. `npm run check`, `npm run test:catalog`, `npm run smoke`, `npm run perf` (וגם `perf.mjs --real`), והוולידטור של החנות, ו-`tools/preview/axe.mjs` (אפס הפרות).
 2. הגרסה בארבעה מקומות: `plugin/manifest.json` (`version`, המקור), `package.json`, `PLUGIN_VERSION` ב-`alonim-core.js` (נבדק מול המניפסט), ו-`plugin` ב-`tools/preview/stub.js` (`plugin.boot` המדומה).
    `minAppVersion` = הגרסה הנמוכה ביותר שהמסלול הישן שלה נתמך (0.9.98); API חדש נבדק ב-`Capabilities`, לא מעלה אותו.
 3. `docs/ALLOWLIST_REQUEST.md` זהה ל-`network.allowlist` במניפסט (נבדק).

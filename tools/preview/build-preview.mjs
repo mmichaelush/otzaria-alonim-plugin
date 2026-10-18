@@ -1,7 +1,7 @@
 // בונה tools/preview/out/preview.html (וגם preview-large.html) מתוך plugin/index.html
 // האמיתי, עם הגשר המדומה והקטלוג המקומי. כך התצוגה המקדימה היא תמיד הדף שנשלח.
 //
-//   node tools/preview/build-preview.mjs [--large] [--catalog dir]
+//   node tools/preview/build-preview.mjs [--large] [--wheel] [--catalog dir]
 import { execFileSync } from 'node:child_process';
 import { mkdirSync, readFileSync, writeFileSync } from 'node:fs';
 import { dirname, join, relative } from 'node:path';
@@ -36,3 +36,4 @@ const real = args.includes('--catalog');
 if (real) console.log(build('preview-real.html', 'fixture-real.js'));
 else console.log(build('preview.html', 'fixture-small.js'));
 if (args.includes('--large')) console.log(build('preview-large.html', 'fixture-large.js'));
+if (args.includes('--wheel')) console.log(build('preview-wheel.html', 'fixture-wheel.js'));

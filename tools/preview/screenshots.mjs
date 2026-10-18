@@ -11,9 +11,13 @@ import { Browser } from './cdp.mjs';
 const here = dirname(fileURLToPath(import.meta.url));
 const outDir = resolve(process.argv[2] || join(here, 'out', 'shots'));
 mkdirSync(outDir, { recursive: true });
-execFileSync(process.execPath, [join(here, 'build-preview.mjs'), '--large'], { stdio: 'ignore' });
+execFileSync(process.execPath, [join(here, 'build-preview.mjs'), '--large', '--wheel'], {
+  stdio: 'ignore',
+});
 const small = pathToFileURL(join(here, 'out', 'preview.html')).href;
 const large = pathToFileURL(join(here, 'out', 'preview-large.html')).href;
+// שמונה שנים של עלונים מומצאים: הגלגל והספירות נראים כמו בקטלוג אמיתי
+const wheel = pathToFileURL(join(here, 'out', 'preview-wheel.html')).href;
 
 const q = encodeURIComponent;
 // [שם, שאילתה, רוחב, גובה, preview, קוד שרץ בדף לפני הצילום]
@@ -22,7 +26,7 @@ const open = (selector) => `document.querySelector('${selector}').click()`;
 const shots = [
   ['week', 'page=week', 1000, 820],
   ['week-skeleton', 'page=week&seed=0&netdelay=3000&settle=100', 1000, 620],
-  ['week-offline-cached', 'scenario=offline&page=week&warm=1', 1000, 620],
+  ['week-offline-cached', 'scenario=offline&page=week&warm=1&settle=2500', 1000, 620],
   ['week-blocked', 'scenario=blocked&page=week&seed=0', 1000, 620],
   ['week-empty-folder', 'page=week&seed=0&nofolder=1', 1000, 760],
   ['all', 'page=all', 1000, 820],
@@ -30,6 +34,18 @@ const shots = [
   ['all-query', 'page=all&query=' + q('אסיפת נח'), 1000, 640],
   ['all-none', 'page=all&query=' + q('זזזזז'), 1000, 560],
   ['all-large', 'page=all', 1000, 820, large],
+  ['cycle', 'page=cycle&warm=1&settle=2500', 1000, 900, wheel],
+  ['cycle-topic', 'topic=p:noach&warm=1&settle=2500', 1000, 820, wheel],
+  [
+    'cycle-topic-combined',
+    'topic=p:nitzavim&topicmode=combined&warm=1&settle=2500',
+    1000,
+    820,
+    wheel,
+  ],
+  ['cycle-event', 'topic=e:purim&warm=1&settle=2500', 1000, 760, wheel],
+  ['narrow-cycle', 'page=cycle&warm=1&settle=2500', 400, 800, wheel],
+  ['narrow-cycle-topic', 'topic=p:noach&warm=1&settle=2500', 400, 800, wheel],
   ['series', 'page=series', 1000, 760],
   ['series-page', 'series=0', 1000, 760],
   ['mine-favorites', 'page=mine', 1000, 620],

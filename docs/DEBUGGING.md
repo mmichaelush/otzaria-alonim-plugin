@@ -9,7 +9,7 @@
 
 | שורה בדיווח | מה היא אומרת |
 |-------------|--------------|
-| `Alonim plugin 0.3.2 (he)` | גרסת התוסף ושפת הממשק |
+| `Alonim plugin 0.4.0 (he)` | גרסת התוסף ושפת הממשק |
 | `Otzaria 0.9.99 / windows / he` | גרסת המארח, מערכת הפעלה ושפה; `/ offline` כשאין חיבור |
 | `permissions:` | ההרשאות שהמשתמש אישר; חסרה הרשאה — ראו `permission` בטבלה |
 | `capabilities:` | כל יכולת חדשה של המארח (`fetchFile`, `printFile`, תצוגה ישירה): `yes/no` ו**למה** (`version`, `old-version`, `unknown-version`, `learned`, `override`). `learned` = המארח אמר שיש ופלט `unknown_method`; `override` = "תאימות לאחור" דולקת |
