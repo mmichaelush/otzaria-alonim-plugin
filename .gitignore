@@ -7,3 +7,4 @@ build/
 tools/preview/out/
 .claude/
 .sentry-native/
+tools/qa/out/
