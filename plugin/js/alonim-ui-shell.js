@@ -13,11 +13,21 @@
 
   const SCREENS = () => ({
     week: A.WeekScreen,
+    cycle: A.CycleScreen,
+    /** דף נושא: חלק מלשונית "מעגל השנה" (`route.topic`), עם מסך משלו. */
+    topic: A.TopicScreen,
     all: A.AllScreen,
     series: A.SeriesScreen,
     mine: A.MineScreen,
     settings: A.SettingsScreen,
   });
+
+  /** שם הלשונית לקורא מסך: השם המלא, ואם הצורה הקצרה אינה חלק ממנו — היא קודמת לו. */
+  function accessibleTabName(tab) {
+    const label = t(tab.label);
+    const short = t(tab.short || tab.label);
+    return label.includes(short) ? label : short + ', ' + label;
+  }
 
   /** "לפני 5 דקות". */
   function ago(ms, now) {
@@ -164,6 +174,7 @@
     this.doc.title = title;
     this.titleNode.textContent = title;
     this.tabBar.setAttribute('aria-label', t('לשוניות התוסף'));
+    this.tabBar.parentElement.setAttribute('aria-label', t('לשוניות התוסף'));
     this.tabButtons = null;
     this.buildTopActions();
   };
@@ -196,7 +207,8 @@
             role: 'tab',
             id: 'main-tab-' + tab.id,
             'aria-controls': 'main-panel',
-            'aria-label': t(tab.label),
+            // השם הנגיש מכיל את הטקסט הנראה (גם בצר, שבו מוצגת הצורה הקצרה): WCAG 2.5.3
+            'aria-label': accessibleTabName(tab),
             title: t(tab.label),
             onclick: () => this.go(tab.id),
             dataset: { tab: tab.id },
@@ -222,7 +234,11 @@
       this.screen = null;
     }
     this.renderTabs();
-    const Screen = SCREENS()[this.view.route.tab] || A.WeekScreen;
+    const route = this.view.route;
+    // נושא שאינו מוכר (מצב ישן): חוזרים לגלגל, ולא לדף ריק
+    if (route.topic && !A.Cycle.topic(route.topic)) route.topic = null;
+    const Screen =
+      SCREENS()[route.tab === 'cycle' && route.topic ? 'topic' : route.tab] || A.WeekScreen;
     const screen = new Screen(this);
     this.screen = screen;
     this.scroller.classList.toggle('is-fill', Boolean(screen.fill));
@@ -231,7 +247,7 @@
     this.scroller.scrollTop = 0;
     screen.mount(this.column);
     const tab = TABS.find((x) => x.id === this.view.route.tab);
-    this.announce(t(tab.label));
+    this.announce(screen.title ? screen.title() : t(tab.label));
   };
 
   /** כותרת המשנה בפס העליון ופס הסנכרון, בלי חלון קופץ. */

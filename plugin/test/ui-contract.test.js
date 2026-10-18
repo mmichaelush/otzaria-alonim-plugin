@@ -31,6 +31,12 @@ const HOOKS = new Set([
   'series-list',
   'series-issues',
   'live-region',
+  'cycle-hero',
+  'topic-page',
+  'topic-title',
+  'topic-when-text',
+  'topic-filters',
+  'topic-list',
   'is-unread',
   'dialog-close',
 ]);

@@ -148,7 +148,8 @@ export class Page {
     writeFileSync(file, Buffer.from(res.data, 'base64'));
   }
 
-  async key(key, modifiers, physical) {
+  /** [text]: התו שהמקש מקליד ("\r" ב-Enter: בלעדיו כפתור אינו מופעל בדפדפן). */
+  async key(key, modifiers, physical, text) {
     const map = {
       Enter: 13,
       Escape: 27,
@@ -172,7 +173,7 @@ export class Page {
     await this.send('Input.dispatchKeyEvent', {
       type: 'keyDown',
       ...base,
-      text: key.length === 1 ? key : undefined,
+      text: text || (key.length === 1 ? key : undefined),
     });
     await this.send('Input.dispatchKeyEvent', { type: 'keyUp', ...base });
   }

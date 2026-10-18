@@ -343,6 +343,9 @@
     return dates;
   }
 
+  /** היום שמוצג לתחנה: חנוכה מתוארך בלוח בערב הנר הראשון, ומוצג היום הראשון (כ״ה בכסלו). */
+  const displayDay = (key, view) => (key === 'e:chanukah' ? Core.addDays(view.day, 1) : view.day);
+
   /** שורת השבוע הבאה של נושא (מהיום והלאה); אחרת האחרונה שיש; אחרת `null`. */
   function nextOccurrence(views, tp, todayYmd) {
     // "וזאת הברכה" נקראת בשמחת תורה, ואין לה שורת שבת משלה.
@@ -541,6 +544,7 @@
     chumashOf,
     cycleYear,
     stationDates,
+    displayDay,
     nextOccurrence,
     issuesOf,
     isCombined,

@@ -51,6 +51,7 @@ ICONS = [
     'circle_24_regular',
     'clock_24_regular',
     'copy_24_regular',
+    'data_sunburst_24_regular',
     'delete_24_regular',
     'dismiss_24_regular',
     'dismiss_circle_24_regular',

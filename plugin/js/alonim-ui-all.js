@@ -554,14 +554,7 @@
         render: (r, node) => {
           const d = rowsDesc[r];
           if (d.header !== undefined) {
-            node.appendChild(
-              el(
-                'h3',
-                { class: 'year-header' },
-                el('span', { dir: 'auto' }, d.header),
-                el('span', { class: 'section-count' }, Core.formatCount(d.count)),
-              ),
-            );
+            node.appendChild(Cards.groupHeader(d.header, d.count));
             return;
           }
           node.classList.add('is-grid');

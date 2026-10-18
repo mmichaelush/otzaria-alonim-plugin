@@ -523,6 +523,7 @@
       const prefs = app.state.prefs;
       const tabs = [
         ['week', t('השבוע')],
+        ['cycle', t('מעגל השנה')],
         ['all', t('כל העלונים')],
         ['series', t('סדרות')],
         ['mine', t('האוספים שלי')],

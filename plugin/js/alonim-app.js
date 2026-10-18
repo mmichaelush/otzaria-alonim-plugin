@@ -21,6 +21,7 @@
 
   const TABS = Object.freeze([
     { id: 'week', label: N('השבוע'), icon: 'calendar_star_24_regular' },
+    { id: 'cycle', label: N('מעגל השנה'), short: N('מעגל'), icon: 'data_sunburst_24_regular' },
     { id: 'all', label: N('כל העלונים'), short: N('הכול'), icon: 'library_24_regular' },
     { id: 'series', label: N('סדרות'), icon: 'text_bullet_list_24_regular' },
     { id: 'mine', label: N('האוספים שלי'), short: N('שלי'), icon: 'star_24_regular' },
@@ -93,7 +94,8 @@
 
       /** מצב התצוגה של המסכים: שורד מעבר בין לשוניות. */
       this.view = {
-        route: { tab: 'week', series: null },
+        /** `topic`: מפתח נושא ("מעגל השנה", דף הנושא), `from`: לאן חוזרים ממנו ('cycle' או 'week'). */
+        route: { tab: 'week', series: null, topic: null, from: '' },
         /** 'blob' אחרי שהמשתמש ביקש הצגה חלופית: הצפיין לא משתמש ב-iframe ישיר עד הסגירה. */
         viewerMode: '',
         weekDate: '',
@@ -109,6 +111,18 @@
         },
         seriesList: { query: '', circle: '', lang: '', mode: 'all', scroll: 0 },
         seriesPage: { query: '', scroll: 0 },
+        /** הגלגל: גלילה, והאריח שמוקד אליו בחזרה מדף נושא. */
+        cycle: { scroll: 0, focus: '' },
+        /** דף הנושא הפתוח: המפתח והתצוגה (מתאפסים כשעוברים לנושא אחר; `group` נשמר בין הפעלות). */
+        topicPage: {
+          key: '',
+          mode: 'all',
+          query: '',
+          lang: '',
+          source: '',
+          hy: 0,
+          group: 'series',
+        },
         mine: { tab: 'favorites', list: '' },
         settings: { section: '' },
       };
@@ -240,6 +254,8 @@
         });
       const series = this.state.viewState('seriesList');
       if (series) Object.assign(this.view.seriesList, series);
+      const cycle = this.state.viewState('cycle');
+      if (cycle) this.view.topicPage.group = cycle.group;
     }
 
     /** "שנים ישנות": טוען את השרדים הקרים (לא נטענים אוטומטית, בגלל הנפח). */
@@ -527,7 +543,12 @@
       const o = options || {};
       if (this.selection.on) this.setSelecting(false);
       this.closeViewer();
-      this.view.route = { tab, series: o.series || null };
+      this.view.route = {
+        tab,
+        series: o.series || null,
+        topic: o.topic || null,
+        from: o.from || '',
+      };
       if (o.mineTab) this.view.mine.tab = o.mineTab;
       if (o.section) this.view.settings.section = o.section;
       if (o.query !== undefined) this.view.all.query = o.query;
@@ -538,6 +559,31 @@
 
     openSeries(seriesId) {
       this.go('series', { series: this.index.resolveSeriesId(seriesId) });
+    }
+
+    /**
+     * דף "בכל השנים" של פרשה או מועד (`p:noach`, `e:purim`). [options]: `mode` (`all|combined|alone`:
+     * בפרשה משולבת), `from` (`'cycle'|'week'`: לאן חוזרים). מפתח לא תקין — חוזרים לגלגל.
+     */
+    openTopic(key, options) {
+      const o = options || {};
+      const canonical = A.Cycle.canonicalKey(key);
+      if (!canonical) {
+        this.go('cycle');
+        return;
+      }
+      const page = this.view.topicPage;
+      if (page.key !== canonical || o.mode !== undefined)
+        Object.assign(page, {
+          key: canonical,
+          mode: A.Cycle.MODES.includes(o.mode) ? o.mode : 'all',
+          query: '',
+          lang: '',
+          source: '',
+          hy: 0,
+        });
+      this.view.cycle.focus = canonical;
+      this.go('cycle', { topic: canonical, from: o.from || 'cycle' });
     }
 
     /** Ctrl+/ או /: חיפוש. עובר ל"כל העלונים" וממקד את השדה. */

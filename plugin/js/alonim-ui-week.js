@@ -9,6 +9,7 @@
   const Cards = A.Cards;
   const Core = A.Core;
   const Weeks = A.Weeks;
+  const Cycle = A.Cycle;
   const I18n = A.I18n;
   const { el, icon } = Ui;
   const t = (text, vars) => I18n.t(text, vars);
@@ -206,6 +207,70 @@
       return rel.weeks === 1 ? t('שבוע שעבר') : t('לפני {n} שבועות', { n: rel.weeks });
     }
 
+    /**
+     * כותרת השבוע: שם הפרשה (או החג) הוא קישור ל"בכל השנים" שלה. בשבת משולבת כל פרשה היא קישור,
+     * ופותחת את דף הפרשה על "שבת משולבת" (כל השנים שבהן נקראו שתיהן יחד). בלי נושא (ראש חודש,
+     * שבת בלי כלום): טקסט.
+     */
+    titleParts(view) {
+      const key = Cycle.topicOfView(view);
+      if (!key) return view.title;
+      const link = (name, topicKey, mode) =>
+        el(
+          'button',
+          {
+            type: 'button',
+            class: 'hero-title-link',
+            title: t('{name} בכל השנים', { name }),
+            onclick: () => this.app.openTopic(topicKey, { from: 'week', mode }),
+          },
+          name,
+        );
+      if (view.kind === 'holiday' || !view.parasha.length) return link(view.title, key);
+      const [before, after] = t('פרשת {name}', { name: '\u0001' }).split('\u0001');
+      const combined = view.parasha.length > 1;
+      return [
+        before,
+        view.parasha.flatMap((slug, k) => [
+          k ? '־' : null,
+          link(Core.parashaName(slug), Cycle.pKey(slug), combined ? 'combined' : undefined),
+        ]),
+        after,
+      ];
+    }
+
+    /** תגית השבת המיוחדת (שבת שקלים…): קישור לדף המועד כשיש לו. */
+    eventChip(view) {
+      const key = Cycle.canonicalKey(Cycle.eKey(view.event));
+      if (!key)
+        return Ui.chip(view.eventLabel, { kind: 'reason', icon: 'calendar_star_24_regular' });
+      return el(
+        'button',
+        {
+          type: 'button',
+          class: 'chip chip-reason chip-link',
+          title: t('{name} בכל השנים', { name: view.eventLabel }),
+          onclick: () => this.app.openTopic(key, { from: 'week' }),
+        },
+        icon('calendar_star_24_regular'),
+        el('span', { class: 'chip-text' }, view.eventLabel),
+      );
+    }
+
+    /** "בכל השנים": כל העלונים של הפרשה (או החג) של השבוע הזה, מכל השנים. */
+    topicButton(view, pending) {
+      const key = Cycle.topicOfView(view);
+      if (!key || pending) return null;
+      const combined = view.parasha.length > 1;
+      const name = view.kind !== 'holiday' && view.parasha.length ? view.parashaLabel : view.title;
+      return Ui.button(
+        'tonal',
+        t('{name} בכל השנים', { name }),
+        () => this.app.openTopic(key, { from: 'week', mode: combined ? 'combined' : undefined }),
+        { icon: 'data_sunburst_24_regular', className: 'button-small', key: 'topic' },
+      );
+    }
+
     hero(sel, count, pending) {
       const { view, views, i, rel } = sel;
       const away = rel.kind !== 'current';
@@ -233,7 +298,11 @@
                 el('span', { class: 'visually-hidden' }, t('מתעדכן…')),
                 el('span', { class: 'skeleton-line is-hero-title', 'aria-hidden': 'true' }),
               )
-            : el('h1', { class: 'hero-title', id: 'week-title', dir: 'auto' }, view.title),
+            : el(
+                'h1',
+                { class: 'hero-title', id: 'week-title', dir: 'auto' },
+                this.titleParts(view),
+              ),
           // החלקים (עברי · לועזי) אינם נשברים באמצע: השורה נשברת רק בין הלוחות.
           el(
             'p',
@@ -246,7 +315,7 @@
             'div',
             { class: 'hero-chips' },
             view.kind === 'special' && view.parashaLabel && view.eventLabel
-              ? Ui.chip(view.eventLabel, { kind: 'reason', icon: 'calendar_star_24_regular' })
+              ? this.eventChip(view)
               : null,
             view.kind === 'holiday'
               ? Ui.chip(t('חג באמצע השבוע'), { kind: 'reason', icon: 'calendar_star_24_regular' })
@@ -279,6 +348,7 @@
                   key: 'current',
                 })
               : null,
+            this.topicButton(view, pending),
           ),
           status === 'after' || status === 'before'
             ? el(

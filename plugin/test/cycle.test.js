@@ -243,6 +243,16 @@ test('stationDates: שבת משולבת — שתי הפרשות באותו תא�
   assert.equal(dates.get('p:masei').date, '2027-07-31');
 });
 
+test('displayDay: חנוכה — היום הראשון (כ״ה בכסלו), שאר התחנות כמו בלוח', () => {
+  const dates = Cycle.stationDates(il, 5787);
+  const chanukah = dates.get('e:chanukah');
+  assert.equal(chanukah.date, '2026-12-04', 'בלוח: ערב הנר הראשון');
+  assert.equal(Core.ymd(Cycle.displayDay('e:chanukah', chanukah)), '2026-12-05');
+  assert.equal(HebCal.fromDate(Cycle.displayDay('e:chanukah', chanukah)).day, 25);
+  const purim = dates.get('e:purim');
+  assert.equal(Cycle.displayDay('e:purim', purim), purim.day);
+});
+
 test('nextOccurrence: הבא מהיום; אחרת האחרון; אחרת null', () => {
   const noach = Cycle.topic('p:noach');
   const next = Cycle.nextOccurrence(il, noach, '2026-10-15');

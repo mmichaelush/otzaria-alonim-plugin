@@ -5,7 +5,7 @@
 //            legacy-host|fetchfile-blocked|fetchfile-html|print-cancel|print-gesture|print-gesture-first|print-slow|reader-hang|reader-nolibrary|openurl-declined|openurl-error
 //   host=legacy  (אוצריא 0.9.98: בלי fetchFile ו-printFile)   welcome=1   minetab=<לשונית>
 //   mode=dark   lang=en   scale=1.3   today=2026-10-15   seed=0|1
-//   page=week|all|series|mine|settings   query=…   series=<מספר>   open=<מספר>
+//   page=week|cycle|all|series|mine|settings   topic=p:noach|e:purim   query=…   series=<מספר>   open=<מספר>
 //   details=<מספר>   section=<מזהה סעיף בהגדרות>   nofolder=1   print=1
 (function () {
   'use strict';
@@ -295,6 +295,12 @@
     if (params.get('query')) {
       app.go('all', { query: params.get('query') });
     }
+    // דף נושא ("מעגל השנה"): topic=p:noach|e:purim, mode=combined, from=week
+    if (params.get('topic'))
+      app.openTopic(params.get('topic'), {
+        mode: params.get('mode') || undefined,
+        from: params.get('from') || 'cycle',
+      });
     if (params.get('series'))
       app.openSeries(app.index.seriesList()[Number(params.get('series'))].id);
     await wait(150);

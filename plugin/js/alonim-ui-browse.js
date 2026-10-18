@@ -321,7 +321,7 @@
         .filter(Boolean)
         .join(' · ');
       return el(
-        'article',
+        'div',
         {
           class: 'series-row' + (st.mute ? ' is-muted' : ''),
           role: 'listitem',
@@ -638,14 +638,7 @@
         render: (r, node) => {
           const d = this.rowsDesc[r];
           if (d.header) {
-            node.appendChild(
-              el(
-                'h3',
-                { class: 'year-header' },
-                el('span', { dir: 'auto' }, d.header),
-                el('span', { class: 'section-count' }, Core.formatCount(d.count)),
-              ),
-            );
+            node.appendChild(Cards.groupHeader(d.header, d.count));
             return;
           }
           node.classList.add('is-grid');

@@ -112,6 +112,10 @@ if (isMain) {
   const base = pathToFileURL(join(here, 'out', 'preview.html')).href;
   const scenarios = [
     'page=week',
+    'page=cycle',
+    'topic=p:noach',
+    'topic=p:nitzavim',
+    'topic=e:purim',
     'page=all',
     'page=all&view=list',
     'series=0',

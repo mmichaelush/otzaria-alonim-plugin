@@ -59,6 +59,11 @@ const BUDGETS = real
       scrollWorstFrameMs: 120,
       maxCardsInDom: 60,
       liveHeapMB: 220,
+      topicCountsMs: 15,
+      cycleOpenMs: 150,
+      topicOpenMs: 150,
+      topicScrollLongFrames: 3,
+      topicScrollWorstFrameMs: 120,
     }
   : {
       firstCardFirstVisitMs: 1500,
@@ -75,6 +80,11 @@ const BUDGETS = real
       scrollWorstFrameMs: 120,
       maxCardsInDom: 60,
       liveHeapMB: 100,
+      topicCountsMs: 15,
+      cycleOpenMs: 150,
+      topicOpenMs: 150,
+      topicScrollLongFrames: 3,
+      topicScrollWorstFrameMs: 120,
     };
 
 const browser = await Browser.launch();
@@ -246,6 +256,58 @@ try {
         return Math.round(total / 1048576);
       })()`);
       out.memory = { usedMB: before, liveMB: after, harnessMB, pluginMB: after - harnessMB };
+      // מעגל השנה: ספירות הפרשות והמועדים (קר: מחושבות בפתיחה הראשונה, לא בהפעלה), פתיחת הגלגל,
+      // ופתיחת דף נושא גדול (בראשית: אלפי גיליונות מעשרות סדרות) עם גלילה בו.
+      out.cycle = await page.eval(`(async () => {
+        const a = window.__alonimApp;
+        const frames = () => new Promise((r) => requestAnimationFrame(() => requestAnimationFrame(r)));
+        const round = (n) => Math.round(n * 10) / 10;
+        const res = {};
+        a.go('week');
+        await frames();
+        a.index._topics = null;
+        let t = performance.now();
+        a.index.topicCounts();
+        res.topicCountsMs = round(performance.now() - t);
+        t = performance.now();
+        a.go('cycle');
+        await frames();
+        res.cycleOpenMs = round(performance.now() - t);
+        res.cycleTiles = document.querySelectorAll('.cycle-tile').length;
+        res.ringSegments = document.querySelectorAll('.ring-seg').length;
+        t = performance.now();
+        a.openTopic('p:bereshit');
+        await frames();
+        res.topicOpenMs = round(performance.now() - t);
+        res.topicIssues = a.screen.shown.length;
+        res.topicGroups = a.screen.groups().length;
+        res.topicCardsOnFirstPaint = document.querySelectorAll('.topic-list [data-item]').length;
+        const list = document.querySelector('.topic-list');
+        const frameTimes = [];
+        let last = performance.now();
+        let maxDom = 0;
+        for (let k = 0; k < 120; k++) {
+          list.scrollTop += 500;
+          await new Promise((r) => requestAnimationFrame(r));
+          const now = performance.now();
+          frameTimes.push(now - last);
+          last = now;
+          maxDom = Math.max(maxDom, document.querySelectorAll('.topic-list [data-item]').length);
+        }
+        frameTimes.sort((x, y) => x - y);
+        res.topicScroll = {
+          p95: round(frameTimes[Math.floor(frameTimes.length * 0.95)]),
+          worst: round(frameTimes[frameTimes.length - 1]),
+          long: frameTimes.filter((f) => f > 34).length,
+          maxDom,
+        };
+        // כל השנים וחזרה: בדיקה שהחישוב אינו נשאר תלוי
+        t = performance.now();
+        a.go('cycle');
+        await frames();
+        res.backToCycleMs = round(performance.now() - t);
+        return res;
+      })()`);
     }
     if (page.errors.length) out.errors = page.errors;
     await browser.closePage(page);
@@ -273,6 +335,11 @@ const measured = {
   scrollWorstFrameMs: out.scrollJank && out.scrollJank.worst,
   maxCardsInDom: out.scroll && out.scroll.maxCardsInDom,
   liveHeapMB: out.memory && out.memory.liveMB,
+  topicCountsMs: out.cycle && out.cycle.topicCountsMs,
+  cycleOpenMs: out.cycle && out.cycle.cycleOpenMs,
+  topicOpenMs: out.cycle && out.cycle.topicOpenMs,
+  topicScrollLongFrames: out.cycle && out.cycle.topicScroll.long,
+  topicScrollWorstFrameMs: out.cycle && out.cycle.topicScroll.worst,
 };
 const violations = Object.entries(BUDGETS).filter(
   ([key, limit]) => measured[key] !== null && measured[key] !== undefined && measured[key] > limit,

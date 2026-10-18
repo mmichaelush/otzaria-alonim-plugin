@@ -30,6 +30,26 @@ const scenarios = [
     "document.querySelector('.hero-title') && document.querySelectorAll('.card').length > 3",
   ],
   ['week-empty-seed', 'page=week&seed=0', "document.querySelector('.hint-card')"],
+  [
+    'cycle',
+    'page=cycle',
+    "document.querySelectorAll('.cycle-tile').length >= 70 && document.querySelector('.cycle-tile.is-current')",
+  ],
+  [
+    'cycle-topic',
+    'topic=p:noach',
+    "document.querySelector('.topic-title') && document.querySelectorAll('.card').length > 3",
+  ],
+  [
+    'cycle-topic-event',
+    'topic=e:purim',
+    "document.querySelector('.topic-title') && document.querySelector('.topic-when')",
+  ],
+  [
+    'cycle-topic-empty',
+    'topic=p:vezot-haberakhah',
+    "document.querySelector('.topic-title') && document.querySelector('.state-card')",
+  ],
   ['all', 'page=all', "document.querySelectorAll('.card').length > 3"],
   [
     'all-query',
@@ -140,11 +160,32 @@ const modes = [
   [
     '&mode=dark',
     (name) =>
-      ['week', 'all', 'series-page', 'mine', 'settings', 'details', 'viewer'].includes(name),
+      [
+        'week',
+        'all',
+        'series-page',
+        'mine',
+        'settings',
+        'details',
+        'viewer',
+        'cycle',
+        'cycle-topic',
+      ].includes(name),
   ],
   [
     '&lang=en',
-    (name) => ['week', 'all', 'series', 'settings', 'details', 'viewer', 'mine'].includes(name),
+    (name) =>
+      [
+        'week',
+        'all',
+        'series',
+        'settings',
+        'details',
+        'viewer',
+        'mine',
+        'cycle',
+        'cycle-topic',
+      ].includes(name),
   ],
 ];
 
@@ -373,6 +414,482 @@ async function weekFlows(browser, open, check) {
   );
 
   check('"השבוע" בלי שגיאות קונסול', page.errors.length === 0, page.errors.join('\n'));
+  await browser.closePage(page);
+}
+
+/**
+ * "מעגל השנה": הגלגל (סדר, ספירות מול ספירה נאיבית, שנה מעוברת, מקלדת), דף הנושא (קבוצות סדרות
+ * מול ספירה נאיבית, שבת משולבת בשני הדפים, מסננים, בחירה, חזרה), הקישור מכותרת השבוע, וצר.
+ */
+async function cycleFlows(browser, open, check) {
+  // ספירה נאיבית של הגיליונות הגלויים בעמודות האינדקס (בלי `topicCounts`): kind 'p' פרשה, 'e' מועד
+  const BRUTE = `const brute = (kind, slug) => { const a = window.__alonimApp.index; const id = (kind === 'p' ? a.parashot : a.events).map.get(slug); let n = 0; for (let i = 0; i < a.n; i++) { if (a.vis[i] !== 1) continue; if (kind === 'p' ? a.p1[i] === id || a.p2[i] === id : a.evc[i] === id) n++; } return n; };`;
+  const enter = (page) => page.key('Enter', 0, 'Enter', String.fromCharCode(13));
+  const key = (page) => page.eval('document.activeElement.dataset.key || ""');
+  const text = (page, selector) =>
+    page.eval(`(document.querySelector(${JSON.stringify(selector)}) || {}).textContent || ''`);
+
+  let page = await open('page=cycle');
+  const tabs = await page.eval(
+    "[...document.querySelectorAll('.main-tab')].map((t) => t.dataset.tab).join()",
+  );
+  check(
+    'מעגל השנה: לשונית בין "השבוע" ל"כל העלונים"',
+    tabs === 'week,cycle,all,series,mine,settings',
+    tabs,
+  );
+  const wheel = await page.eval(`(() => {
+    const tiles = [...document.querySelectorAll('.cycle-tile')];
+    const keys = tiles.map((t) => t.dataset.key);
+    return {
+      n: tiles.length,
+      parasha: keys.filter((k) => k[0] === 'p').length,
+      dup: keys.length - new Set(keys).size,
+      ring: document.querySelectorAll('.ring-seg').length,
+      first: keys[0],
+      last: keys[keys.length - 1],
+      tabbable: tiles.filter((t) => t.tabIndex === 0).length,
+      now: [...document.querySelectorAll('.cycle-tile.is-current')].map((t) => t.dataset.key).join(),
+      purim: keys.indexOf('e:purim') > keys.indexOf('p:vayikra') && keys.indexOf('e:purim') < keys.indexOf('p:tzav'),
+      aliasTiles: keys.filter((k) => /shirah|chazon|nachamu/.test(k)).length,
+    };
+  })()`);
+  check(
+    'הגלגל: 54 פרשות, בלי כפילויות, הטבעת תואמת את האריחים, אריח אחד ב-Tab',
+    wheel.parasha === 54 && wheel.dup === 0 && wheel.ring === wheel.n && wheel.tabbable === 1,
+    JSON.stringify(wheel),
+  );
+  check(
+    'הגלגל נפתח בראש השנה ומסתיים בוזאת הברכה; השבוע (נח) מסומן; בלי אריחי כינוי',
+    wheel.first === 'e:rosh-hashana' &&
+      wheel.last === 'p:vezot-haberakhah' &&
+      wheel.now === 'p:noach' &&
+      wheel.aliasTiles === 0,
+    JSON.stringify(wheel),
+  );
+  check(
+    'שנה מעוברת (תשפ״ז): פורים אחרי ויקרא ולפני צו; תאריכו באדר ב׳',
+    wheel.purim &&
+      (await page.eval(
+        "document.querySelector('.cycle-tile[data-key=\"e:purim\"] .tile-date').textContent.includes('אדר ב׳')",
+      )),
+  );
+  const mismatch = await page.eval(`(() => {
+    ${BRUTE}
+    return [...document.querySelectorAll('.cycle-tile')].filter((t) => {
+      const [kind, slug] = t.dataset.key.split(':');
+      const shown = Number(t.querySelector('.tile-count').textContent.replace(/\\D/g, ''));
+      return shown !== brute(kind, slug);
+    }).map((t) => t.dataset.key);
+  })()`);
+  check('ספירת כל אריח שווה לספירה נאיבית על האינדקס', mismatch.length === 0, mismatch.join());
+  check(
+    'הטבעת: כל קטע הוא כפתור עם שם נגיש וספירה; קטע אחד ב-Tab',
+    await page.eval(
+      "(() => { const segs = [...document.querySelectorAll('.ring-seg')]; return segs.every((s) => s.getAttribute('role') === 'button' && /\\d/.test(s.getAttribute('aria-label'))) && segs.filter((s) => s.getAttribute('tabindex') === '0').length === 1; })()",
+    ),
+  );
+
+  // מקלדת באריחים (RTL: שמאלה = הבא)
+  await page.eval('document.querySelector(\'.cycle-tile[data-key="p:noach"]\').focus()');
+  await page.key('ArrowLeft');
+  check('חץ שמאלה: התחנה הבאה (לך לך)', (await key(page)) === 'p:lech-lecha', await key(page));
+  await page.key('ArrowRight');
+  check('חץ ימינה: חוזר לנח', (await key(page)) === 'p:noach', await key(page));
+  await page.key('ArrowDown');
+  const down = await key(page);
+  check('חץ מטה: אריח בשורה הבאה', down !== 'p:noach' && down !== '', down);
+  await page.key('Home');
+  check('Home: ראש השנה', (await key(page)) === 'e:rosh-hashana', await key(page));
+  await page.key('End');
+  check('End: וזאת הברכה', (await key(page)) === 'p:vezot-haberakhah', await key(page));
+  check(
+    'אריח אחד בלבד ב-Tab אחרי תנועה (מיקוד נודד)',
+    (await page.eval('document.querySelectorAll(\'.cycle-tile[tabindex="0"]\').length')) === 1,
+  );
+
+  // מקלדת בטבעת
+  await page.eval('document.querySelector(\'.ring-seg[data-key="p:noach"]\').focus()');
+  check(
+    'מיקוד בטבעת מציג את התחנה במרכז',
+    await page.eval("document.querySelector('.ring-name').textContent === 'נח'"),
+  );
+  await page.key('ArrowLeft');
+  check(
+    'טבעת: חץ שמאלה = התחנה הבאה, והמרכז מתעדכן',
+    (await key(page)) === 'p:lech-lecha' &&
+      (await page.eval("document.querySelector('.ring-name').textContent === 'לך לך'")),
+    await key(page),
+  );
+  await enter(page);
+  await page.sleep(400);
+  check(
+    'Enter על קטע בטבעת פותח את הנושא',
+    (await text(page, '.topic-title')) === 'לך לך בכל השנים',
+    await text(page, '.topic-title'),
+  );
+  await browser.closePage(page);
+
+  // דף הנושא: קבוצות לפי סדרה מול ספירה נאיבית
+  page = await open('page=cycle');
+  await page.eval('document.querySelector(\'.cycle-tile[data-key="p:noach"]\').focus()');
+  await enter(page);
+  await page.sleep(500);
+  const topic = await page.eval(`(() => {
+    ${BRUTE}
+    const a = window.__alonimApp;
+    const s = a.screen;
+    const id = a.index.parashot.map.get('noach');
+    const series = new Set();
+    for (let i = 0; i < a.index.n; i++) if (a.index.vis[i] === 1 && (a.index.p1[i] === id || a.index.p2[i] === id)) series.add(a.index.sidx[i]);
+    const groups = s.groups();
+    const heads = [...document.querySelectorAll('.topic-group')];
+    return {
+      title: document.querySelector('.topic-title').textContent,
+      route: a.route.tab + '/' + a.route.topic,
+      shown: s.shown.length,
+      brute: brute('p', 'noach'),
+      groups: groups.length,
+      series: series.size,
+      sum: groups.reduce((n, g) => n + g.idx.length, 0),
+      sorted: groups.every((g, k) => k === 0 || groups[k - 1].idx.length >= g.idx.length || a.state.isFollowed(groups[k - 1].id)),
+      firstCount: heads[0] ? heads[0].querySelector('.section-count').textContent : '',
+      firstSize: groups[0].idx.length,
+      credit: Boolean(document.querySelector('.group-credit')),
+      cards: document.querySelectorAll('.topic-list .card').length,
+      label: (document.querySelector('.topic-list .card') || {}).ariaLabel || '',
+      facts: document.querySelector('.topic-facts').textContent,
+      when: (document.querySelector('.topic-when') || {}).textContent || '',
+      dom: document.querySelectorAll('.topic-list [data-item]').length,
+    };
+  })()`);
+  check(
+    'דף נושא (נח): כותרת, ונתיב הלשונית',
+    topic.title === 'נח בכל השנים' && topic.route === 'cycle/p:noach',
+    JSON.stringify(topic),
+  );
+  check(
+    'דף נושא: מספר הגיליונות והסדרות שווה לספירה נאיבית, והקבוצות מסתכמות לדף',
+    topic.shown === topic.brute &&
+      topic.groups === topic.series &&
+      topic.sum === topic.shown &&
+      topic.facts.includes(String(topic.brute)),
+    JSON.stringify(topic),
+  );
+  check(
+    'דף נושא: סדר הקבוצות (הרבה לפני מעט), קרדיט וספירה בכותרת, ושם הסדרה בשם הכרטיס לקורא מסך',
+    topic.sorted &&
+      topic.credit &&
+      topic.firstCount === String(topic.firstSize) &&
+      topic.cards > 0 &&
+      topic.label.length > 10,
+    JSON.stringify(topic),
+  );
+  check('דף נושא: מתי נקרא השנה (השבת הקרובה)', /הקרוב/.test(topic.when), topic.when);
+  check('דף נושא: לא יותר מ-60 פריטים ב-DOM', topic.dom <= 60 && topic.dom > 0, String(topic.dom));
+  // קישור לדף הסדרה מכותרת הקבוצה
+  await page.eval("document.querySelector('.group-link').click()");
+  await page.sleep(400);
+  check(
+    'כותרת קבוצה: קישור לדף הסדרה המלא',
+    await page.eval(
+      "window.__alonimApp.route.tab === 'series' && Boolean(window.__alonimApp.route.series) && Boolean(document.querySelector('.series-title'))",
+    ),
+  );
+  await browser.closePage(page);
+
+  // חזרה: כפתור, Esc, ומיקוד באריח שממנו יצאנו (אחרי גלילה: אריח שנראה בחלון)
+  page = await open('page=cycle');
+  await page.eval("document.querySelector('.app-content').scrollTop = 700");
+  await page.sleep(200);
+  const picked = await page.eval(`(() => {
+    const box = document.querySelector('.app-content').getBoundingClientRect();
+    const tile = [...document.querySelectorAll('.cycle-tile')].find((t) => {
+      const r = t.getBoundingClientRect();
+      return r.top > box.top + 40 && r.bottom < box.bottom - 40;
+    });
+    tile.focus();
+    return tile.dataset.key;
+  })()`);
+  const scrolled = await page.eval("document.querySelector('.app-content').scrollTop");
+  await enter(page);
+  await page.sleep(400);
+  await page.eval("document.querySelector('[data-key=back]').click()");
+  await page.sleep(500);
+  check(
+    'חזרה מדף נושא: הגלגל, המיקוד באריח שנבחר והגלילה נשמרה',
+    (await key(page)) === picked &&
+      (await page.eval('window.__alonimApp.route.topic === null')) &&
+      Math.abs((await page.eval("document.querySelector('.app-content').scrollTop")) - scrolled) <
+        80,
+    picked + ' ' + (await key(page)) + ' ' + scrolled,
+  );
+  await enter(page);
+  await page.sleep(400);
+  await page.eval('document.activeElement.blur()');
+  await page.key('Escape');
+  await page.sleep(400);
+  check(
+    'Esc בדף נושא חוזר לגלגל',
+    await page.eval(
+      "window.__alonimApp.route.tab === 'cycle' && window.__alonimApp.route.topic === null && Boolean(document.querySelector('.cycle-tile'))",
+    ),
+  );
+  await browser.closePage(page);
+
+  // מועד: פורים (שנה מעוברת: י״ד באדר ב׳)
+  page = await open('page=cycle');
+  await page.eval('document.querySelector(\'.cycle-tile[data-key="e:purim"]\').click()');
+  await page.sleep(500);
+  const purim = await page.eval(`(() => {
+    ${BRUTE}
+    const s = window.__alonimApp.screen;
+    return {
+      title: document.querySelector('.topic-title').textContent,
+      sub: document.querySelector('.topic-title').nextElementSibling.textContent,
+      shown: s.shown.length,
+      brute: brute('e', 'purim'),
+      when: document.querySelector('.topic-when').textContent,
+      modes: Boolean(document.querySelector('.topic-modes')),
+    };
+  })()`);
+  check(
+    'דף מועד (פורים): כותרת, סוג, ספירה נאיבית, תאריך באדר ב׳, בלי בורר שבת משולבת',
+    purim.title === 'פורים בכל השנים' &&
+      purim.sub === 'חג' &&
+      purim.shown === purim.brute &&
+      /אדר ב׳/.test(purim.when) &&
+      !purim.modes,
+    JSON.stringify(purim),
+  );
+  await browser.closePage(page);
+
+  // שבת משולבת: נצבים־וילך; כל גיליון משולב בשני הדפים, פעם אחת בכל דף
+  page = await open('topic=p:nitzavim');
+  const combo = await page.eval(`(() => {
+    const a = window.__alonimApp;
+    const C = window.Alonim.Cycle;
+    const s = a.screen;
+    const all = s.shown.length;
+    const modes = [...document.querySelectorAll('.topic-modes button')].map((b) => b.dataset.mode);
+    const other = new Set(C.issuesOf(a.index, C.topic('p:vayeilech'), {}));
+    const both = C.issuesOf(a.index, C.topic('p:nitzavim'), {}).filter((i) => other.has(i));
+    const naive = [];
+    for (let i = 0; i < a.index.n; i++) if (a.index.p2[i] && a.index.vis[i] === 1 && (a.index.parashot.get(a.index.p1[i]) === 'nitzavim' || a.index.parashot.get(a.index.p2[i]) === 'nitzavim')) naive.push(i);
+    return { all, modes, both: both.length, naive: naive.length, note: Boolean(document.querySelector('.topic-note')), unique: new Set(s.flat).size === s.flat.length };
+  })()`);
+  check(
+    'שבת משולבת: בורר סוג השבת, גיליון משולב פעם אחת בדף ובשני הדפים, והסבר',
+    combo.modes.join() === 'all,combined,alone' &&
+      combo.both === combo.naive &&
+      combo.naive > 0 &&
+      combo.note &&
+      combo.unique,
+    JSON.stringify(combo),
+  );
+  await page.eval("document.querySelector('[data-mode=combined]').click()");
+  await page.sleep(300);
+  const onlyCombined = await page.eval(
+    "(() => { const s = window.__alonimApp.screen; const a = window.__alonimApp.index; return { n: s.shown.length, ok: s.shown.every((i) => a.p2[i] !== 0), pressed: document.querySelector('[data-mode=combined]').getAttribute('aria-pressed') }; })()",
+  );
+  await page.eval("document.querySelector('[data-mode=alone]').click()");
+  await page.sleep(300);
+  const onlyAlone = await page.eval(
+    '(() => { const s = window.__alonimApp.screen; const a = window.__alonimApp.index; return { n: s.shown.length, ok: s.shown.every((i) => a.p2[i] === 0) }; })()',
+  );
+  check(
+    'שבת משולבת: "רק משולבת" ו"הפרשה לבדה" מתחלקים לכל הגיליונות, בלי חפיפה',
+    onlyCombined.ok &&
+      onlyAlone.ok &&
+      onlyCombined.n === combo.naive &&
+      onlyCombined.n + onlyAlone.n === combo.all &&
+      onlyCombined.pressed === 'true',
+    JSON.stringify({ combo, onlyCombined, onlyAlone }),
+  );
+  await browser.closePage(page);
+
+  // מסננים וחיפוש בתוך הנושא, מול ספירה נאיבית
+  page = await open('topic=p:noach');
+  const naiveCount = (cond) =>
+    `(() => { const a = window.__alonimApp.index; const id = a.parashot.map.get('noach'); let n = 0; for (let i = 0; i < a.n; i++) { if (a.vis[i] !== 1 || !(a.p1[i] === id || a.p2[i] === id)) continue; const it = a.item(i); if (${cond}) n++; } return n; })()`;
+  await page.eval(
+    "(() => { const s = document.querySelector('select[aria-label=\"שפה\"]'); s.value = 'yi'; s.dispatchEvent(new Event('change', { bubbles: true })); })()",
+  );
+  await page.sleep(300);
+  check(
+    'מסנן שפה בדף הנושא = ספירה נאיבית',
+    (await page.eval('window.__alonimApp.screen.shown.length')) ===
+      (await page.eval(naiveCount("it.lang === 'yi'"))),
+  );
+  await page.eval(
+    "(() => { const s = document.querySelector('select[aria-label=\"שפה\"]'); s.value = ''; s.dispatchEvent(new Event('change', { bubbles: true })); const i = document.querySelector('.topic-page .search-input'); i.value = 'אסיפת'; i.dispatchEvent(new Event('input', { bubbles: true })); })()",
+  );
+  await page.sleep(300);
+  check(
+    'חיפוש בתוך הנושא = ספירה נאיבית',
+    (await page.eval('window.__alonimApp.screen.shown.length')) ===
+      (await page.eval(naiveCount("it.seriesTitle.includes('אסיפת')"))),
+  );
+  await page.eval("document.querySelector('.topic-page .search-input').focus()");
+  await page.key('Escape');
+  await page.sleep(200);
+  check(
+    'Esc בשדה החיפוש מנקה ואינו יוצא מהדף',
+    (await page.eval("document.querySelector('.topic-page .search-input').value")) === '' &&
+      (await page.eval('Boolean(window.__alonimApp.route.topic)')),
+  );
+  // קיבוץ לפי שנה נשמר
+  await page.eval(
+    "(() => { const s = document.querySelector('select[aria-label=\"קיבוץ\"]'); s.value = 'year'; s.dispatchEvent(new Event('change', { bubbles: true })); })()",
+  );
+  await page.sleep(300);
+  check(
+    'קיבוץ לפי שנה: כותרות שנה, והבחירה נשמרת במצב המסכים',
+    (await page.eval("document.querySelectorAll('.topic-list .year-header').length > 0")) &&
+      (await page.eval("window.__alonimApp.state.viewState('cycle').group === 'year'")),
+  );
+  // בחירה מרובה: בחירת כל התוצאות היא כל מה שבדף
+  await page.eval("document.querySelector('[data-key=select-mode]').click()");
+  await page.sleep(300);
+  await page.eval(
+    "[...document.querySelectorAll('.select-check')].slice(0, 2).forEach((b) => b.click())",
+  );
+  await page.sleep(300);
+  const sel = await page.eval(
+    "(() => { const bar = document.querySelector('.selection-bar'); const all = [...bar.querySelectorAll('button')].find((b) => /בחירת כל התוצאות/.test(b.textContent)); return { shown: window.__alonimApp.screen.shown.length, all: all ? Number(all.textContent.replace(/\\D/g, '')) : -1, hidden: bar.hidden }; })()",
+  );
+  check(
+    'בחירה בדף נושא: "בחירת כל התוצאות (N)" = כל גיליוני הדף',
+    !sel.hidden && sel.all === sel.shown,
+    JSON.stringify(sel),
+  );
+  await page.eval('document.activeElement.blur()');
+  await page.key('Escape');
+  await page.sleep(300);
+  check(
+    'Esc ראשון יוצא ממצב בחירה, ונשארים בדף',
+    (await page.eval('!window.__alonimApp.selection.on')) &&
+      (await page.eval('Boolean(window.__alonimApp.route.topic)')),
+  );
+  await page.key('Escape');
+  await page.sleep(300);
+  check('Esc שני חוזר לגלגל', await page.eval('window.__alonimApp.route.topic === null'));
+  await browser.closePage(page);
+
+  // מכותרת השבוע: קישור בשם הפרשה, וחזרה לשבוע
+  page = await open('page=week');
+  const heroLinks = await page.eval(
+    "[...document.querySelectorAll('.hero-title .hero-title-link')].map((b) => b.textContent).join()",
+  );
+  check('כותרת השבוע: שם הפרשה הוא קישור', heroLinks === 'נח', heroLinks);
+  await page.eval("document.querySelector('.hero-title-link').click()");
+  await page.sleep(500);
+  check(
+    'לחיצה על שם הפרשה בכותרת פותחת את "נח בכל השנים", עם חזרה לשבוע',
+    (await text(page, '.topic-title')) === 'נח בכל השנים' &&
+      (await page.eval("document.querySelector('[data-key=back]').getAttribute('aria-label')")) ===
+        'חזרה לשבוע',
+  );
+  await page.eval("document.querySelector('[data-key=back]').click()");
+  await page.sleep(400);
+  check(
+    'חזרה מדף נושא שנפתח מהשבוע: מסך השבוע',
+    await page.eval(
+      "window.__alonimApp.route.tab === 'week' && document.querySelector('.hero-title').textContent.includes('נח')",
+    ),
+  );
+  // שבת משולבת בכותרת, ושבת מיוחדת
+  await page.eval("window.__alonimApp.view.weekDate = '2026-09-05'; window.__alonimApp.go('week')");
+  await page.sleep(400);
+  const pair = await page.eval(
+    "[...document.querySelectorAll('.hero-title .hero-title-link')].map((b) => b.textContent).join()",
+  );
+  check('שבת משולבת בכותרת: כל פרשה קישור', pair === 'נצבים,וילך', pair);
+  await page.eval("document.querySelector('[data-key=topic]').click()");
+  await page.sleep(500);
+  check(
+    'כפתור "בכל השנים" בשבת משולבת פותח את הפרשה על "שבת משולבת"',
+    (await text(page, '.topic-title')) === 'נצבים בכל השנים' &&
+      (await page.eval(
+        "document.querySelector('[data-mode=combined]').getAttribute('aria-pressed')",
+      )) === 'true',
+  );
+  await page.eval("window.__alonimApp.view.weekDate = '2027-03-06'; window.__alonimApp.go('week')");
+  await page.sleep(400);
+  check(
+    'שבת שקלים: תגית האירוע היא קישור לדף המועד',
+    await page.eval(
+      "(() => { const chip = document.querySelector('.hero-chips .chip-link'); if (!chip) return false; chip.click(); return true; })()",
+    ),
+  );
+  await page.sleep(500);
+  check(
+    'תגית שבת שקלים פותחת "שבת שקלים בכל השנים"',
+    (await text(page, '.topic-title')) === 'שבת שקלים בכל השנים',
+    await text(page, '.topic-title'),
+  );
+  await browser.closePage(page);
+
+  // צר: הגלגל מוסתר, האריחים בשני טורים, ושש לשוניות בסרגל התחתון
+  page = await open('page=cycle', small, 480);
+  const narrow = await page.eval(`(() => {
+    const ring = document.querySelector('.cycle-ring');
+    const tabs = [...document.querySelectorAll('.main-tab')];
+    const tiles = [...document.querySelectorAll('.cycle-tile')].slice(0, 4).map((t) => Math.round(t.getBoundingClientRect().left));
+    return { ring: getComputedStyle(ring).display, tabs: tabs.length, minTab: Math.round(Math.min(...tabs.map((t) => t.getBoundingClientRect().width))), columns: new Set(tiles).size, overflow: document.documentElement.scrollWidth > innerWidth };
+  })()`);
+  check(
+    'צר (480px): בלי טבעת, שני טורים, שש לשוניות ברוחב סביר',
+    narrow.ring === 'none' &&
+      narrow.tabs === 6 &&
+      narrow.minTab >= 55 &&
+      narrow.columns === 2 &&
+      !narrow.overflow,
+    JSON.stringify(narrow),
+  );
+  await browser.closePage(page);
+
+  // 30K+: הרשימה הוירטואלית של דף הנושא מוגבלת ב-DOM
+  page = await open('topic=p:bereshit', large);
+  await page.waitFor(
+    "window.__alonimApp.catalog.status.shardsLoaded >= window.__alonimApp.catalog.status.shardsTotal && window.__alonimApp.catalog.status.phase === 'idle'",
+    60000,
+  );
+  await page.sleep(800);
+  let maxDom = 0;
+  for (const top of [0, 3000, 40000, 300000, 900000, 0]) {
+    await page.eval(`document.querySelector('.topic-list').scrollTop = ${top}`);
+    await page.sleep(120);
+    maxDom = Math.max(
+      maxDom,
+      await page.eval("document.querySelectorAll('.topic-list [data-item]').length"),
+    );
+  }
+  // כותרת קבוצה צמודה: בראש הרשימה אין (הכותרת האמיתית נראית), ובגלילה בתוך קבוצה היא מציגה את שמה וספירתה
+  await page.eval("document.querySelector('.topic-list').scrollTop = 0");
+  await page.sleep(150);
+  const stickyTop = await page.eval("document.querySelector('.topic-sticky').hidden");
+  await page.eval(
+    '(() => { const s = window.__alonimApp.screen; const l = s.list; let r = s.rowGroup.findIndex((g, k) => !s.rowIsHeader[k] && g.idx.length > 3); l.root.scrollTop = l._top(r) + 4; })()',
+  );
+  await page.sleep(200);
+  const sticky = await page.eval(
+    "(() => { const s = window.__alonimApp.screen; const el = document.querySelector('.topic-sticky'); const row = s.list._rowAt(s.list.root.scrollTop); return { hidden: el.hidden, text: el.textContent, count: s.rowGroup[row].idx.length, aria: el.getAttribute('aria-hidden') }; })()",
+  );
+  check(
+    'כותרת קבוצה צמודה: מוסתרת בראש הרשימה, ובתוך קבוצה מציגה את שמה וספירתה (מוסתרת מקורא מסך)',
+    stickyTop &&
+      !sticky.hidden &&
+      sticky.text.includes(String(sticky.count)) &&
+      sticky.aria === 'true',
+    JSON.stringify({ stickyTop, sticky }),
+  );
+  const rows = await page.eval('window.__alonimApp.screen.shown.length');
+  check(
+    'דף נושא עם אלפי גיליונות: DOM ≤ 60 בגלילה (' + rows + ' גיליונות, נמדד ' + maxDom + ')',
+    rows > 1000 && maxDom > 0 && maxDom <= 60,
+  );
+  check('דף נושא על 30K+ בלי שגיאות קונסול', page.errors.length === 0, page.errors.join('\n'));
   await browser.closePage(page);
 }
 
@@ -1193,6 +1710,12 @@ async function flows(browser) {
   const check = (name, ok, detail) =>
     ok ? console.log('✔ flow: ' + name) : fail('flow: ' + name, detail || 'failed');
 
+  // SMOKE_ONLY=cycle: רק "מעגל השנה" (תרחישים וזרימות), לעבודה על המסך.
+  if (process.env.SMOKE_ONLY === 'cycle') {
+    await cycleFlows(browser, open, check);
+    return;
+  }
+
   // חיפוש מיידי + Ctrl+/ + Esc
   let page = await open('page=week');
   await page.key('/', 2, 'Slash');
@@ -1309,6 +1832,7 @@ async function flows(browser) {
   await browser.closePage(page);
 
   await weekFlows(browser, open, check);
+  await cycleFlows(browser, open, check);
   await filterFlows(browser, open, check);
   await selectionFlows(browser, open, check);
   await failureFlows(browser, open, check);
@@ -1502,6 +2026,9 @@ async function flows(browser) {
   // גלישה אופקית ב-400px בכל המסכים
   for (const q of [
     'page=week',
+    'page=cycle',
+    'topic=p:noach',
+    'topic=p:vayakhel',
     'page=all',
     'page=series',
     'series=0',
@@ -1557,11 +2084,21 @@ try {
   // תרחישים במקביל (עד 4 דפים בכל פעם).
   const jobs = [];
   for (const scenario of scenarios) {
+    if (process.env.SMOKE_ONLY && !scenario[0].startsWith(process.env.SMOKE_ONLY)) continue;
     for (const [suffix, include] of modes)
       if (include(scenario[0])) jobs.push(() => runScenario(browser, scenario, suffix));
   }
   // מסכים מרכזיים גם בצר.
-  for (const name of ['week', 'all', 'series-page', 'settings', 'details']) {
+  for (const name of [
+    'week',
+    'all',
+    'series-page',
+    'settings',
+    'details',
+    'cycle',
+    'cycle-topic',
+  ]) {
+    if (process.env.SMOKE_ONLY && !name.startsWith(process.env.SMOKE_ONLY)) continue;
     const s = scenarios.find((x) => x[0] === name);
     jobs.push(() => runScenario(browser, s, '', small, 400));
   }
@@ -1593,6 +2130,13 @@ try {
     'series-list',
     'series-issues',
     'live-region',
+    'cycle-hero',
+    'is-parasha',
+    'topic-page',
+    'topic-title',
+    'topic-when-text',
+    'topic-filters',
+    'topic-list',
     'is-unread',
     'dialog-close',
   ]);

@@ -305,6 +305,11 @@ kbd {
 
 /* ---------- ניווט בין הלשוניות (גלולות, כמו סרגל הניווט של אוצריא) ---------- */
 
+/* ה-nav הוא רק ציון דרך לקורא מסך: הסרגל נשאר פריט ישיר בשלד (כולל `order` בצר). */
+.main-nav {
+  display: contents;
+}
+
 .main-tabs {
   display: flex;
   flex-shrink: 0;
@@ -3589,4 +3594,532 @@ kbd {
   align-items: center;
   font-size: var(--fs-small);
   color: var(--color-on-surface-variant);
+}
+
+/* ---------- מעגל השנה ---------- */
+
+:root {
+  /* גוון לכל חלק של השנה, מהערכה: הגלגל, הכיתוב והמקרא מתואמים. כשהדפדפן מכיר צבע יחסי, חמשת
+     החומשים הם גוונים שווי בהירות שמסתובבים סביב הגוון של הערכה; אחרת — תערובות שלה. */
+  --ring-tishrei: color-mix(in srgb, var(--color-primary) 35%, var(--color-on-surface-variant));
+  --ring-bereshit: var(--color-primary);
+  --ring-shemot: color-mix(in srgb, var(--color-primary) 50%, var(--color-tertiary));
+  --ring-vayikra: var(--color-tertiary);
+  --ring-bamidbar: color-mix(in srgb, var(--color-tertiary) 45%, var(--color-secondary));
+  --ring-devarim: var(--color-secondary);
+  --ring-l: 0.52;
+  --ring-c: 0.13;
+}
+
+:root[data-mode="dark"] {
+  --ring-l: 0.74;
+}
+
+@supports (color: oklch(from red l c h)) {
+  :root {
+    --ring-bereshit: oklch(from var(--color-primary) var(--ring-l) var(--ring-c) h);
+    --ring-shemot: oklch(from var(--color-primary) var(--ring-l) var(--ring-c) calc(h + 72));
+    --ring-vayikra: oklch(from var(--color-primary) var(--ring-l) var(--ring-c) calc(h + 144));
+    --ring-bamidbar: oklch(from var(--color-primary) var(--ring-l) var(--ring-c) calc(h + 216));
+    --ring-devarim: oklch(from var(--color-primary) var(--ring-l) var(--ring-c) calc(h + 288));
+  }
+}
+
+.is-c-tishrei {
+  --seg: var(--ring-tishrei);
+}
+
+.is-c-bereshit {
+  --seg: var(--ring-bereshit);
+}
+
+.is-c-shemot {
+  --seg: var(--ring-shemot);
+}
+
+.is-c-vayikra {
+  --seg: var(--ring-vayikra);
+}
+
+.is-c-bamidbar {
+  --seg: var(--ring-bamidbar);
+}
+
+.is-c-devarim {
+  --seg: var(--ring-devarim);
+}
+
+/* כותרת השבוע: שם הפרשה או החג הוא קישור ל"בכל השנים". */
+.hero-title-link {
+  display: inline-block;
+  min-height: var(--target);
+  padding: 0 0.12em;
+  font: inherit;
+  color: inherit;
+  cursor: pointer;
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius-sm);
+  text-decoration: underline dotted;
+  text-decoration-thickness: 0.07em;
+  text-underline-offset: 0.18em;
+  transition: background var(--motion);
+}
+
+.hero-title-link:hover {
+  background: color-mix(in srgb, currentcolor 10%, transparent);
+}
+
+.hero-chips .chip {
+  max-width: none;
+}
+
+.chip-link {
+  min-height: var(--target);
+  font-family: var(--font-ui);
+  cursor: pointer;
+  border: 0;
+  transition: filter var(--motion);
+}
+
+.chip-link:hover {
+  filter: brightness(0.95);
+}
+
+.cycle-page {
+  padding-block-end: var(--space-5);
+}
+
+.cycle-cold:empty {
+  display: none;
+}
+
+.cycle-cold {
+  margin-block-end: var(--space-3);
+}
+
+/* צר: רשימת האריחים בלבד. רחב: הגלגל צמוד לצד ההתחלה והרשימה לצידו. */
+.cycle-body {
+  display: block;
+}
+
+.cycle-ring {
+  display: none;
+}
+
+@container shell (min-width: 50em) {
+  .cycle-body {
+    display: grid;
+    grid-template-columns: minmax(0, clamp(20em, 40%, 27em)) minmax(0, 1fr);
+    gap: var(--space-5);
+    align-items: start;
+  }
+
+  .cycle-ring {
+    position: sticky;
+    inset-block-start: var(--space-2);
+    display: flex;
+    flex-direction: column;
+    gap: var(--space-3);
+  }
+}
+
+.cycle-lists {
+  min-width: 0;
+}
+
+.cycle-section .section-title {
+  flex-wrap: wrap;
+  align-items: center;
+}
+
+.cycle-tiles {
+  display: grid;
+  grid-template-columns: repeat(auto-fill, minmax(10em, 1fr));
+  gap: var(--space-2);
+  padding: 0;
+  margin: 0;
+  list-style: none;
+}
+
+.cycle-tiles > li {
+  display: flex;
+  min-width: 0;
+}
+
+.cycle-tile {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  gap: 0.15em;
+  justify-content: space-between;
+  min-width: 0;
+  min-height: 4.8em;
+  padding: var(--space-2) var(--space-3);
+  font: inherit;
+  color: var(--color-on-surface);
+  text-align: start;
+  cursor: pointer;
+  background: var(--card-surface);
+  border: 1px solid var(--card-line);
+  border-inline-start: 4px solid var(--seg, var(--color-outline-variant));
+  border-radius: var(--radius-panel);
+  transition:
+    background var(--motion),
+    border-color var(--motion);
+}
+
+.cycle-tile:hover,
+.cycle-tile.is-active {
+  background: color-mix(in srgb, var(--seg, var(--color-primary)) 9%, var(--card-surface));
+  border-color: var(--line);
+  border-inline-start-color: var(--seg, var(--color-outline-variant));
+}
+
+/* מועד: רקע בגוון החומש ואייקון, כדי להבדיל אותו מפרשה גם בלי צבע. */
+.cycle-tile.is-event {
+  background: color-mix(in srgb, var(--seg, var(--color-tertiary)) 10%, var(--card-surface));
+}
+
+.cycle-tile.is-event:hover,
+.cycle-tile.is-event.is-active {
+  background: color-mix(in srgb, var(--seg, var(--color-tertiary)) 18%, var(--card-surface));
+}
+
+.cycle-tile.is-current {
+  box-shadow: 0 0 0 2px var(--color-primary);
+}
+
+.cycle-tile.is-empty .tile-count {
+  background: transparent;
+  box-shadow: inset 0 0 0 1px var(--color-outline-variant);
+}
+
+.tile-top {
+  display: flex;
+  gap: var(--space-1);
+  align-items: center;
+  min-width: 0;
+}
+
+.tile-icon {
+  width: 1.1em;
+  height: 1.1em;
+  color: var(--color-on-surface-variant);
+}
+
+.tile-name {
+  display: -webkit-box;
+  flex: 1;
+  min-width: 0;
+  overflow: hidden;
+  font-weight: 600;
+  line-height: 1.3;
+  overflow-wrap: anywhere;
+  -webkit-box-orient: vertical;
+  -webkit-line-clamp: 2;
+}
+
+.tile-now {
+  flex-shrink: 0;
+  padding: 0 0.55em;
+  font-size: var(--fs-label);
+  font-weight: 600;
+  color: var(--color-on-primary);
+  background: var(--color-primary);
+  border-radius: var(--radius-pill);
+}
+
+.tile-note {
+  overflow: hidden;
+  font-size: var(--fs-label);
+  color: var(--color-on-surface-variant);
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tile-meta {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  justify-content: space-between;
+  min-width: 0;
+  font-size: var(--fs-small);
+  color: var(--color-on-surface-variant);
+}
+
+.tile-date {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.tile-count {
+  flex-shrink: 0;
+  padding: 0 0.55em;
+  margin-inline-start: auto;
+  font-size: var(--fs-label);
+  font-weight: 600;
+  font-variant-numeric: tabular-nums;
+  color: var(--color-on-surface);
+  background: var(--chip-quiet);
+  border-radius: var(--radius-pill);
+}
+
+/* הגלגל: עמודה רדיאלית לכל תחנה; מלאה = פרשה, בקו מתאר = מועד. */
+.ring {
+  position: relative;
+  width: 100%;
+  max-width: 30em;
+  margin-inline: auto;
+  aspect-ratio: 1;
+}
+
+.ring-svg {
+  display: block;
+  width: 100%;
+  height: 100%;
+  overflow: visible;
+}
+
+.ring-track {
+  fill: none;
+  stroke: var(--color-outline-variant);
+  stroke-width: 1;
+}
+
+.ring-seg {
+  cursor: pointer;
+  outline: none;
+}
+
+.ring-hit {
+  fill: transparent;
+}
+
+.ring-bar {
+  fill: var(--seg, var(--color-primary));
+  stroke: transparent;
+  stroke-width: 2;
+  transition: stroke var(--motion);
+}
+
+.ring-seg.is-event .ring-bar {
+  fill: color-mix(in srgb, var(--seg) 14%, var(--page-surface));
+  stroke: var(--seg);
+  stroke-width: 1.6;
+}
+
+.ring-seg.is-active .ring-bar,
+.ring-seg:focus-visible .ring-bar,
+.ring-seg:hover .ring-bar {
+  stroke: var(--color-on-surface);
+  stroke-width: 2;
+}
+
+.ring-seg.is-current .ring-bar {
+  stroke: var(--color-on-surface);
+  stroke-width: 3;
+}
+
+.ring-center {
+  position: absolute;
+  inset: 27%;
+  display: flex;
+  flex-direction: column;
+  gap: 0.1em;
+  align-items: center;
+  justify-content: center;
+  text-align: center;
+  pointer-events: none;
+}
+
+.ring-name {
+  font-size: var(--fs-headline);
+  font-weight: 700;
+  line-height: 1.2;
+  overflow-wrap: anywhere;
+  text-wrap: balance;
+}
+
+.ring-eyebrow,
+.ring-figure {
+  font-size: var(--fs-small);
+  color: var(--color-on-surface-variant);
+}
+
+.ring-legend {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-3);
+  justify-content: center;
+  padding: 0;
+  margin: 0;
+  font-size: var(--fs-label);
+  color: var(--color-on-surface-variant);
+  list-style: none;
+}
+
+.ring-legend-item {
+  display: inline-flex;
+  gap: var(--space-1);
+  align-items: center;
+}
+
+.ring-legend-note {
+  flex-basis: 100%;
+  text-align: center;
+}
+
+.ring-dot {
+  width: 0.8em;
+  height: 0.8em;
+  background: var(--seg);
+  border-radius: var(--radius-pill);
+}
+
+/* דף נושא */
+.topic-head {
+  display: flex;
+  flex-direction: column;
+  gap: var(--space-2);
+}
+
+.topic-facts {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-2);
+  align-items: center;
+}
+
+.topic-when {
+  display: flex;
+  flex-wrap: wrap;
+  gap: var(--space-1) var(--space-2);
+  align-items: center;
+  font-size: var(--fs-ui);
+  color: var(--color-on-surface-variant);
+}
+
+.topic-when .icon {
+  color: var(--color-primary);
+}
+
+.topic-note {
+  max-width: 60em;
+  font-size: var(--fs-small);
+  color: var(--color-on-surface-variant);
+}
+
+.topic-facts .filter-tag {
+  min-height: var(--target);
+}
+
+.topic-modes {
+  align-self: flex-start;
+}
+
+/* צר: ההסבר על שבת משולבת נשאר בטולטיפ של הבורר, כדי שהכותרת לא תאכל את המסך. */
+@container shell (max-width: 40em) {
+  .topic-note {
+    display: none;
+  }
+}
+
+/* עוטף כותרת קבוצה כפריט רשימה (הרשימה הוירטואלית מכילה רק פריטי רשימה). */
+.group-item {
+  height: 100%;
+}
+
+/* כותרת קבוצת סדרה בתוך הרשימה הוירטואלית: שם, קרדיט, ומעבר לדף הסדרה. */
+.topic-sticky {
+  position: absolute;
+  inset-block-start: 0;
+  inset-inline: 0;
+  z-index: 3;
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  height: 2.4em;
+  padding-inline: var(--space-3);
+  font-weight: 600;
+  pointer-events: none;
+  background: var(--page-surface);
+  border-block-end: 1px solid var(--line);
+}
+
+.sticky-name {
+  min-width: 0;
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.topic-group {
+  display: flex;
+  gap: var(--space-2);
+  align-items: center;
+  height: 100%;
+  padding-inline: var(--space-1);
+  font-size: var(--fs-body);
+  font-weight: 600;
+}
+
+.group-link {
+  display: flex;
+  flex: 1;
+  gap: var(--space-2);
+  align-items: center;
+  min-width: 0;
+  min-height: var(--target);
+  padding: 0 var(--space-2);
+  font: inherit;
+  color: var(--color-on-surface);
+  text-align: start;
+  cursor: pointer;
+  background: transparent;
+  border: 0;
+  border-radius: var(--radius-sm);
+  transition: background var(--motion);
+}
+
+.group-link:hover {
+  background: var(--hover-overlay);
+}
+
+.group-link:focus-visible {
+  outline-offset: -2px;
+}
+
+.group-text {
+  display: flex;
+  flex: 1;
+  flex-direction: column;
+  min-width: 0;
+  line-height: 1.3;
+}
+
+.group-name,
+.group-credit {
+  overflow: hidden;
+  text-overflow: ellipsis;
+  white-space: nowrap;
+}
+
+.group-credit {
+  font-size: var(--fs-label);
+  font-weight: 400;
+  color: var(--color-on-surface-variant);
+}
+
+@media (forced-colors: active) {
+  .cycle-tile,
+  .group-link {
+    outline: 1px solid ButtonText;
+  }
+
+  .ring-bar {
+    stroke: CanvasText;
+  }
 }

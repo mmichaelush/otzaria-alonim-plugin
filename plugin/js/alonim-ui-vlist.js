@@ -38,6 +38,8 @@
       this.offsets = null;
       this.rowPx = 0;
       this.emPx = 16;
+      /** גובה (px) של שכבה צמודה לראש הרשימה (כותרת קבוצה צמודה): מיקוד אינו נגלל מתחתיה. */
+      this.topInset = 0;
       this.scheduled = false;
       this.onResize = null;
       this.root.addEventListener('scroll', () => this._schedule(), { passive: true });
@@ -211,7 +213,7 @@
       const row = Math.max(0, Math.min(this.count - 1, r));
       const top = this._top(row);
       const bottom = top + this._heightOf(row);
-      if (top < this.root.scrollTop) this.root.scrollTop = top;
+      if (top - this.topInset < this.root.scrollTop) this.root.scrollTop = top - this.topInset;
       else if (bottom > this.root.scrollTop + this.root.clientHeight)
         this.root.scrollTop = bottom - this.root.clientHeight;
       this.update();

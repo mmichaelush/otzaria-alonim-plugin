@@ -153,17 +153,44 @@
     if (app.stamp) app.stamp('firstCard'); // אבן דרך להפעלה (פעם אחת): ראו App.timings
     const state = app.cardState(item);
     const mode = opts.mode === 'row' ? 'row' : 'card';
-    // בדף סדרה שם הסדרה חוזר בכל שורה: הכותרת היא השבוע, והמשנה — השנה והמספר.
-    const title = opts.inSeries
-      ? Core.weekLabel(item) ||
+    // בדף סדרה שם הסדרה חוזר בכל שורה: הכותרת היא השבוע, והמשנה — השנה והמספר. בדף נושא
+    // (פרשה או מועד בכל השנים) הנושא חוזר בכל שורה: הכותרת היא התאריך, והמשנה — מה שמבדיל
+    // (שבת משולבת, שבת מיוחדת) והמספר.
+    const topic = opts.inTopic;
+    let title;
+    let meta;
+    if (topic) {
+      title =
+        (item.date && Core.dateText(item.date, { gregorian: false })) ||
+        (item.hy ? Core.hyLetters(item.hy) : '') ||
+        titleOf(item);
+      // הנושא ידוע מהכותרת: מה שנשאר הוא מה שמבדיל (שבת משולבת, שבת מיוחדת, או הפרשה במועד).
+      const parasha = Core.parashaLabel(item.parasha);
+      const event = item.event ? Core.eventName(item.event) : '';
+      meta = [
+        parasha !== topic.label ? parasha : '',
+        event !== topic.label ? event : '',
+        item.no ? t('גיליון {no}', { no: item.no }) : '',
+      ]
+        .filter(Boolean)
+        .join(' · ');
+    } else if (opts.inSeries) {
+      title =
+        Core.weekLabel(item) ||
         (item.date ? Core.dateText(item.date, { short: true }) : '') ||
-        titleOf(item)
-      : titleOf(item);
-    const meta = opts.inSeries
-      ? [item.hy ? Core.hyLetters(item.hy) : '', item.no ? t('גיליון {no}', { no: item.no }) : '']
-          .filter(Boolean)
-          .join(' · ')
-      : metaParts(item).join(' · ');
+        titleOf(item);
+      meta = [
+        item.hy ? Core.hyLetters(item.hy) : '',
+        item.no ? t('גיליון {no}', { no: item.no }) : '',
+      ]
+        .filter(Boolean)
+        .join(' · ');
+    } else {
+      title = titleOf(item);
+      meta = metaParts(item).join(' · ');
+    }
+    // בקבוצה השם נגיש מהכותרת שמעל; לקורא מסך (שרשימה וירטואלית מנתקת מכותרתה) הוא נכלל בשם הכרטיס.
+    const name = topic ? [item.seriesTitle, title].filter(Boolean).join(', ') : title;
     const tokens = opts.tokens || [];
     const titleNode = el(
       'h3',
@@ -226,7 +253,7 @@
             class: 'select-check',
             role: 'checkbox',
             'aria-checked': String(selected),
-            'aria-label': t('בחירה: {name}', { name: title }),
+            'aria-label': t('בחירה: {name}', { name }),
             onclick: (event) => {
               event.stopPropagation();
               app.toggleSelected(item);
@@ -247,7 +274,7 @@
       role: 'listitem',
       // מיקוד "נודד": פריט אחד ברשימה נגיש ב-Tab, והחצים מעבירים בין הפריטים.
       tabindex: opts.index === (opts.active || 0) ? '0' : '-1',
-      'aria-label': title + (meta ? ', ' + meta : ''),
+      'aria-label': name + (meta ? ', ' + meta : ''),
       'aria-setsize': opts.total || null,
       'aria-posinset': opts.index === undefined ? null : opts.index + 1,
       dataset: { item: String(opts.index === undefined ? 0 : opts.index), id: item.id },
@@ -269,7 +296,7 @@
 
     if (mode === 'row') {
       return el(
-        'article',
+        'div',
         attrs,
         check,
         el('span', { class: 'unread-dot', 'aria-hidden': 'true' }),
@@ -280,7 +307,7 @@
       );
     }
     return el(
-      'article',
+      'div',
       attrs,
       el(
         'div',
@@ -310,6 +337,23 @@
           dl,
           print,
         ),
+      ),
+    );
+  }
+
+  /**
+   * כותרת קבוצה (שנה, סדרה…) בתוך רשימה וירטואלית: פריט רשימה שמכיל כותרת, כי `role=list` מכילה
+   * רק פריטי רשימה (נבדק ב-axe: aria-required-children).
+   */
+  function groupHeader(label, count) {
+    return el(
+      'div',
+      { role: 'listitem', class: 'group-item' },
+      el(
+        'h3',
+        { class: 'year-header' },
+        el('span', { dir: 'auto' }, label),
+        el('span', { class: 'section-count' }, Core.formatCount(count)),
       ),
     );
   }
@@ -394,6 +438,7 @@
     ROW_EM,
     attachListKeys,
     focusItem,
+    groupHeader,
     downloadButton,
     sourceChips,
   };
