@@ -860,5 +860,15 @@
     "נסה שוב": "Try again",
     "העתקת פרטים לדיווח": "Copy details for a report",
     "לשבוע": "To this week",
+    "חומש בראשית": "Genesis",
+    "חומש שמות": "Exodus",
+    "חומש ויקרא": "Leviticus",
+    "חומש במדבר": "Numbers",
+    "חומש דברים": "Deuteronomy",
+    "חגי תשרי": "Tishrei holidays",
+    "חג": "Festival",
+    "מועד": "Occasion",
+    "שבת מיוחדת": "Special Shabbat",
+    "צום": "Fast day",
   };
 })(typeof self !== 'undefined' ? self : globalThis);

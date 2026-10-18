@@ -112,7 +112,9 @@
       out.welcomeSeen = p.welcomeSeen === true;
       out.history = p.history !== false;
       out.legacyHost = p.legacyHost === true;
-      out.startTab = ['week', 'all', 'series', 'mine'].includes(p.startTab) ? p.startTab : 'week';
+      out.startTab = ['week', 'cycle', 'all', 'series', 'mine'].includes(p.startTab)
+        ? p.startTab
+        : 'week';
       out.folder =
         isObject(p.folder) && typeof p.folder.token === 'string' && p.folder.token
           ? {
@@ -200,6 +202,8 @@
           mode: ['all', 'follow', 'fav', 'mute'].includes(t.mode) ? t.mode : 'all',
         };
       }
+      if (isObject(tabs.cycle))
+        out.tabs.cycle = { group: tabs.cycle.group === 'year' ? 'year' : 'series' };
       const seen = new Set();
       for (const p of (Array.isArray(raw.presets) ? raw.presets : []).slice(0, MAX_PRESETS)) {
         if (!isObject(p) || typeof p.id !== 'string' || seen.has(p.id)) continue;

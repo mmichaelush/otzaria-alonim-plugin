@@ -992,6 +992,32 @@
       this._facets = { years, parashot, langs, sources, circles };
       return this._facets;
     }
+
+    /**
+     * ספירות הפרשות והמועדים של "מעגל השנה": `{ parasha, event }` (סלאג ← מספר גיליונות גלויים).
+     * גיליון של שבת משולבת נספר בכל אחת משתי הפרשות. עובר רק על עמודות מספריות (כ-2ms ב-123 אלף
+     * גיליונות) ומחושב בפעם הראשונה שמסך צריך אותו, ולא בהפעלה; נשמר עד שהנתונים או הכללים משתנים.
+     */
+    topicCounts() {
+      if (this._topics && this._topicsVersion === this.version) return this._topics;
+      const parasha = new Int32Array(this.parashot.list.length);
+      const event = new Int32Array(this.events.list.length);
+      for (let i = 0; i < this.n; i++) {
+        if (this.vis[i] !== 1) continue;
+        parasha[this.p1[i]]++;
+        parasha[this.p2[i]]++;
+        event[this.evc[i]]++;
+      }
+      const toMap = (counts, dict) => {
+        const map = new Map();
+        for (let id = 1; id < counts.length; id++)
+          if (counts[id]) map.set(dict.get(id), counts[id]);
+        return map;
+      };
+      this._topics = { parasha: toMap(parasha, this.parashot), event: toMap(event, this.events) };
+      this._topicsVersion = this.version;
+      return this._topics;
+    }
   }
 
   const api = { CatalogIndex, parseQuery, FIELDS, SORTS, dayOf, dateOfDay };
